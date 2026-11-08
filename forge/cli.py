@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
 
-from . import assets, gear, gen3d, job, multiview, qa, persona, pipeline, props, sheet, sprites, turntable
+from . import assets, flat, gear, gen3d, job, multiview, qa, persona, pipeline, props, sheet, sprites, turntable
 
 
 def add_extract_args(p):
@@ -67,6 +67,16 @@ def main(argv=None):
     s.add_argument("folder")
     s.add_argument("--max-colors", type=int, default=24)
     s.add_argument("--json")
+
+    s = sub.add_parser("sheetops", help="planche de sprites : slice | flatten | reintegrate")
+    s.add_argument("action", choices=["slice", "flatten", "reintegrate"])
+    s.add_argument("sheet", help="planche (slice/flatten) ou image retravaillée (reintegrate)")
+    s.add_argument("-o", "--output", required=True)
+    s.add_argument("-f", "--factor", type=int, default=4)
+    s.add_argument("-m", "--meta", help="meta.json produit par flatten (reintegrate)")
+    s.add_argument("--colors", type=int, default=64, help="flatten : palette maximale si la source en a plus (bruit)")
+    s.add_argument("--no-snap", action="store_true", help="ne pas recoller sur la palette d'origine")
+    s.add_argument("--limit", type=int, default=0, help="slice : n'écrire que N cellules")
 
     s = sub.add_parser("sheet", help="fiche de personnage (character.json + HTML)")
     s.add_argument("extract_dir")
@@ -135,6 +145,8 @@ def main(argv=None):
         raise SystemExit(job.run(a.manifest, a.output, a.decisions, a.cmd3d, a.json, a.model))
     elif a.cmd == "qa":
         raise SystemExit(qa.cmd(a))
+    elif a.cmd == "sheetops":
+        raise SystemExit(flat.cmd(a))
     elif a.cmd == "gear":
         raise SystemExit(gear.cmd(a))
     elif a.cmd == "sheet":

@@ -84,6 +84,15 @@ notebook Colab ; l'aperçu des armes est approché. `tools/export_gear_json.py` 
 `forge/gear.py` (la CI vérifie qu'ils sont synchronisés). GitHub Pages n'est pas disponible pour un dépôt privé
 en compte gratuit : rendre le dépôt public ou ouvrir `docs/index.html` en local.
 
+## Planches de sprites : découpe, export à plat, réintégration (`sheetops`)
+`python -m forge sheetops slice planche.png -o dossier` : détecte la grille et écrit `frames/*.png` + `sheet.json`.
+`sheetops flatten planche.png -o dossier -f 4 [--colors 64]` : agrandissement à plat (pixels carrés) +
+`palette.json` + `meta.json` ; on retouche `flat.png` dans un éditeur de pixel art.
+`sheetops reintegrate flat_retouché.png -m dossier/meta.json -o planche.png` : retour à la résolution d'origine,
+recollage sur la palette (`--no-snap` pour garder de nouvelles couleurs), clé de transparence restaurée.
+Testé : aller-retour sans perte sur une planche, et une retouche de 10×10 px revient à l'identique. Agrandir ne
+crée pas de détail ; une source compressée (webp/jpg) est ramenée à `--colors` couleurs.
+
 ## Parties nommées
 `parts.json` : `{"image.png": {"head": [x,y,w,h], "body": [...], "weapon": [...]}}`.
 Les boîtes sont décidées en regardant l'image (par Claude ou à la main), puis découpées dans le détourage.
