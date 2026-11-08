@@ -169,3 +169,12 @@ Ex. : python -m forge voxel --sheet body.png hair.png -o out --name N --cell 64 
 - Diagnostic : la géométrie est correcte à 45° (largeur de tête 21,9 vs 22 de face). Le « doublement » vient de la texture : face et profil peignent chacun un visage complet sur deux facettes voisines.
 - Ajoutés : `--diag` (coupe octogonale par rangée, volume plus juste à 45°) et texturage dépendant de la caméra (net aux 4 axes, plus de mélange). Le doublement à 45° persiste : 4 vues ne contiennent pas l'information du 45°.
 - Vraies solutions : (a) fournir les 8 directions (6+ planches RPG Maker/Tibia en ont) et les ajouter comme silhouettes/textures ; (b) synthèse de vues par modèle (Zero123++/Wonder3D/SV3D, GPU) pour générer les diagonales.
+
+### 8 directions + caméras connues (forge/hullcam.py) — mesuré sur SpriteKiln (MIT)
+SpriteKiln livre dans son JSON la caméra (orthographique, pitch 38°, 0,05 u/px, pivot, yaw par direction). `hullcam` sculpte le volume
+avec ces caméras (convention de signes calibrée automatiquement ; exclure l'ombre au sol : alpha > 128).
+Résultat sur le gargouille de l'exemple (silhouettes diagonales réelles, IoU) :
+- 2 vues (face + côté) : 0,60 ; 4 axes : 0,84 (hors échantillon) ; 8 directions : 0,98. Volume −14 % avec les diagonales.
+- Reconstruire une diagonale retirée (leave-one-out) depuis les 7 autres vues : IoU 0,85, erreur couleur 40/255 -> encore flou/fantôme.
+Conclusion : avec les 8 directions fournies il n'y a rien à reconstruire aux 45° (elles existent) ; la 3D sert aux angles et poses nouveaux.
+SpriteKiln sait aussi rendre un modèle 3D procédural (YAML/SDF) en 8 directions animées : piste pour « personnage modélisé -> toutes les animations ».

@@ -20,3 +20,5 @@ Licences lues sur les pages/README des projets, à re-vérifier avant tout usage
 | LPC sprite sheets (via YingzhenLi/Sprites) | CC-BY-SA 3.0 / GPL-3.0, attribution | test de `sheetops` seulement, non redistribué |
 
 - Liberated Pixel Cup (LPC) sprites : CC-BY-SA 3.0 / GPL-3.0 — utilisés uniquement comme jeu de test local pour `forge voxel`, non redistribués.
+
+- SpriteKiln (MIT, Lucas Ramos) : planches 8 directions et JSON de caméra utilisés comme jeu de test pour `forge/hullcam.py`.
