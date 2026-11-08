@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
 
-from . import anim, assets, atlas, flat, gear, gen3d, job, multiview, qa, persona, pipeline, props, sheet, sprites, turntable
+from . import anim, assets, atlas, flat, gear, gen3d, job, multiview, qa, voxel, persona, pipeline, props, sheet, sprites, turntable
 
 
 def add_extract_args(p):
@@ -103,6 +103,18 @@ def main(argv=None):
     s.add_argument("--no-loop", action="store_true")
     s.add_argument("--array", action="store_true", help="frames en tableau (json-array) au lieu d'un dictionnaire (json-hash)")
 
+    s = sub.add_parser("voxel", help="4 vues (face/dos/gauche/droite) -> objet 3D par sculpture de voxels + rendus multi-angles")
+    s.add_argument("-o", "--output", default="voxel_out")
+    s.add_argument("--name", default="perso")
+    s.add_argument("--sheet", nargs="+", help="planche(s) LPC (calques composés dans l'ordre)")
+    s.add_argument("--cell", type=int, default=64); s.add_argument("--col", type=int, default=0)
+    s.add_argument("--row0", type=int, default=8, help="1re ligne des 4 directions (dos, gauche, face, droite) ; 8 = marche LPC")
+    s.add_argument("--refs", help="dossier refs/ de `consolidate build`")
+    for k in ("front", "back", "left", "right"): s.add_argument("--" + k, help=f"image de la vue {k}")
+    s.add_argument("--size", type=int, default=64, help="résolution de la grille (voxels)")
+    s.add_argument("--rounding", type=float, default=0.0, help="0 = hull pur (défaut, meilleur rendu mesuré), 2 = ellipse, 6+ = boîte")
+    s.add_argument("--angles", type=int, default=8); s.add_argument("--out-size", type=int, default=96)
+
     s = sub.add_parser("sheet", help="fiche de personnage (character.json + HTML)")
     s.add_argument("extract_dir")
     s.add_argument("--name")
@@ -177,6 +189,8 @@ def main(argv=None):
     elif a.cmd == "atlas":
         r = atlas.export(a.frames_dir, a.output, a.name, a.fps, not a.no_loop, as_array=a.array)
         print(f"[atlas] {r['frames']} images, cellule {r['cell']} -> {a.output}")
+    elif a.cmd == "voxel":
+        raise SystemExit(voxel.cmd(a))
     elif a.cmd == "gear":
         raise SystemExit(gear.cmd(a))
     elif a.cmd == "sheet":

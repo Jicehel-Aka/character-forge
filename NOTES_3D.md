@@ -155,3 +155,11 @@ connus que par leur titre : non évalués.
   sans redevance selon un résumé tiers ; bipèdes seulement ; vérifier les conditions Adobe pour redistribuer).
 - **Constat** : ici, MediaPipe s'installe (0.10.32) mais sans l'ancienne API `solutions` ni modèle téléchargeable
   (hôtes non autorisés) : pas d'estimation de pose automatique dans ce bac à sable.
+
+## Voxel : sprites multi-vues → volume (forge voxel)
+Sans GPU : sculpture d'un volume (visual hull) à partir de 4 silhouettes orthogonales (face/dos/gauche/droite),
+texturé par les vues (mélange pondéré par la normale lissée), export OBJ/PLY + turntable.
+Testé sur planches LPC (lignes 8–11 = dos/gauche/face/droite) : IoU de re-rendu 0.72–0.91.
+Limites : sprites légèrement vus de dessus (pas orthographiques), doublement de texture aux diagonales (45°),
+l'a priori « ellipse » (--rounding 2) dégrade le rendu → désactivé par défaut.
+Ex. : python -m forge voxel --sheet body.png hair.png -o out --name N --cell 64 --row0 8
