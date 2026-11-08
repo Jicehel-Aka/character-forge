@@ -59,6 +59,15 @@ la hauteur de tête `head_px` si connue, et ce qu'elle montre (`attrs` : casque,
 Limites : les vues et attributs sont donnés par toi ou par Claude qui regarde les images (pas de reconnaissance
 automatique) ; la génération 3D elle-même reste à lancer sur un PC avec GPU (non testée ici).
 
+## Automatisation depuis un studio/IDE (`job`)
+`python -m forge job run manifest.json -o JOB [--decisions d.json] [--3d-cmd "CMD {input} {outdir}"] --json`
+Un seul appel enchaîne consolidation -> références -> GPU -> 3D -> turntable. Avec `--json`, une ligne JSON par
+événement (`step`, `question`, `request`, `result`). Code de sortie 0 = terminé, 3 = il manque des réponses
+(le studio les pose à l'utilisateur, écrit `decisions.json`, relance), 1 = erreur.
+`--3d-cmd` branche n'importe quel générateur sur TON PC (CharacterGen, TRELLIS) ; son appel sans écran n'a pas
+été vérifié, donc sans cette commande l'étape s'arrête proprement après avoir préparé les entrées.
+Depuis un programme (C#, Python...) : lancer le processus, lire stdout ligne par ligne, afficher les questions.
+
 ## Parties nommées
 `parts.json` : `{"image.png": {"head": [x,y,w,h], "body": [...], "weapon": [...]}}`.
 Les boîtes sont décidées en regardant l'image (par Claude ou à la main), puis découpées dans le détourage.

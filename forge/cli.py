@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
 
-from . import assets, gear, gen3d, multiview, persona, pipeline, props, sheet, sprites, turntable
+from . import assets, gear, gen3d, job, multiview, persona, pipeline, props, sheet, sprites, turntable
 
 
 def add_extract_args(p):
@@ -52,6 +52,15 @@ def main(argv=None):
     s.add_argument("manifest", help="JSON des images (vues, attributs) — voir forge/multiview.py")
     s.add_argument("--decisions", help="JSON de tes réponses aux questions")
     s.add_argument("-o", "--output", default="consolidated")
+    s.add_argument("--model", default="isnet-general-use")
+
+    s = sub.add_parser("job", help="tout enchaîner en un appel (pour un studio/IDE) : événements JSON, reprise")
+    s.add_argument("action", choices=["run"])
+    s.add_argument("manifest")
+    s.add_argument("-o", "--output", required=True)
+    s.add_argument("--decisions")
+    s.add_argument("--3d-cmd", dest="cmd3d", help='commande du générateur 3D, ex. "python run.py --in {input} --out {outdir}"')
+    s.add_argument("--json", action="store_true", help="une ligne JSON par événement")
     s.add_argument("--model", default="isnet-general-use")
 
     s = sub.add_parser("sheet", help="fiche de personnage (character.json + HTML)")
@@ -117,6 +126,8 @@ def main(argv=None):
         print(f"[props] {a.output}")
     elif a.cmd == "consolidate":
         raise SystemExit(multiview.cmd(a))
+    elif a.cmd == "job":
+        raise SystemExit(job.run(a.manifest, a.output, a.decisions, a.cmd3d, a.json, a.model))
     elif a.cmd == "gear":
         raise SystemExit(gear.cmd(a))
     elif a.cmd == "sheet":
