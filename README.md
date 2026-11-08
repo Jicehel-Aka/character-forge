@@ -68,6 +68,11 @@ Un seul appel enchaîne consolidation -> références -> GPU -> 3D -> turntable.
 été vérifié, donc sans cette commande l'étape s'arrête proprement après avoir préparé les entrées.
 Depuis un programme (C#, Python...) : lancer le processus, lire stdout ligne par ligne, afficher les questions.
 
+## Contrôle qualité des frames (`qa`)
+`python -m forge qa DOSSIER_FRAMES [--max-colors 24]` : cadre coupé, poussières, alpha semi-transparent, nombre de
+couleurs, taille et ligne des pieds d'une frame à l'autre ; chaque problème donne une consigne de correction.
+À lancer sur des sprites, pas sur les références haute définition (qui déclenchent « couleurs » et « alpha » à raison).
+
 ## Parties nommées
 `parts.json` : `{"image.png": {"head": [x,y,w,h], "body": [...], "weapon": [...]}}`.
 Les boîtes sont décidées en regardant l'image (par Claude ou à la main), puis découpées dans le détourage.
