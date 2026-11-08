@@ -195,7 +195,9 @@ def cmd(a):
         print(f"[anim] {len(ann['frames'])} images -> {t}"); return 0
     if a.action == "import-coco":
         from . import pose_import
-        ann = pose_import.from_coco(json.loads(Path(a.inputs[0]).read_text()), loop=a.loop)
+        raw = json.loads(Path(a.inputs[0]).read_text())
+        ann = (pose_import.from_coco_file(raw, loop=a.loop) if isinstance(raw, dict)
+               else pose_import.from_coco(raw, loop=a.loop))
         t = out / (Path(a.inputs[0]).stem + "_annot.json"); t.write_text(json.dumps(ann))
         print(f"[anim] {len(ann['frames'])} images ({ann['low_confidence_frames']} à faible confiance) -> {t}"); return 0
     if a.action == "export-bvh":

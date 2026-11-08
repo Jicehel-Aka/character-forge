@@ -1,0 +1,120 @@
+{
+ "frames": [
+  {
+   "filename": "exemple_000",
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 84,
+    "h": 113
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 84,
+    "h": 113
+   },
+   "sourceSize": {
+    "w": 84,
+    "h": 113
+   },
+   "duration": 100
+  },
+  {
+   "filename": "exemple_001",
+   "frame": {
+    "x": 84,
+    "y": 0,
+    "w": 84,
+    "h": 113
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 84,
+    "h": 113
+   },
+   "sourceSize": {
+    "w": 84,
+    "h": 113
+   },
+   "duration": 100
+  },
+  {
+   "filename": "exemple_002",
+   "frame": {
+    "x": 168,
+    "y": 0,
+    "w": 84,
+    "h": 113
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 84,
+    "h": 113
+   },
+   "sourceSize": {
+    "w": 84,
+    "h": 113
+   },
+   "duration": 100
+  },
+  {
+   "filename": "exemple_003",
+   "frame": {
+    "x": 252,
+    "y": 0,
+    "w": 84,
+    "h": 113
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 84,
+    "h": 113
+   },
+   "sourceSize": {
+    "w": 84,
+    "h": 113
+   },
+   "duration": 100
+  }
+ ],
+ "meta": {
+  "app": "character-forge",
+  "version": "1",
+  "image": "exemple.png",
+  "format": "RGBA8888",
+  "size": {
+   "w": 3360,
+   "h": 113
+  },
+  "scale": "1",
+  "frameTags": [
+   {
+    "name": "exemple",
+    "from": 0,
+    "to": 3,
+    "direction": "forward"
+   }
+  ],
+  "layers": [
+   {
+    "name": "Layer",
+    "opacity": 255,
+    "blendMode": "normal"
+   }
+  ],
+  "slices": []
+ },
+ "_commentaire": "Sortie de forge atlas (4 images sur 40), format json-array. V\u00e9rifi\u00e9 contre les champs requis, pas contre Aseprite lui-m\u00eame."
+}

@@ -26,3 +26,37 @@ def from_coco(frames, min_conf=0.2, loop=False, facing="right"):
             f[f"hip_{s}"] = g(f"hip_{s}"); f[f"knee_{s}"] = g(f"knee_{s}"); f[f"ankle_{s}"] = g(f"ankle_{s}")
         out.append(f)
     return {"facing": facing, "loop": loop, "frames": out, "low_confidence_frames": low}
+
+
+ALIAS = {"left_eye": "eye_l", "right_eye": "eye_r", "left_ear": "ear_l", "right_ear": "ear_r",
+         "left_shoulder": "shoulder_l", "right_shoulder": "shoulder_r", "left_elbow": "elbow_l",
+         "right_elbow": "elbow_r", "left_wrist": "wrist_l", "right_wrist": "wrist_r", "left_hip": "hip_l",
+         "right_hip": "hip_r", "left_knee": "knee_l", "right_knee": "knee_r", "left_ankle": "ankle_l",
+         "right_ankle": "ankle_r"}
+
+
+def from_coco_file(data, person=0, **kw):
+    """Fichier COCO complet (images + annotations + categories) -> annotation `anim`, une image par entrée d'`images`
+    triée par nom de fichier (ex. frame_000.png, frame_001.png...). Les points v=0 (non annotés) comptent comme
+    faible confiance. L'ordre des points est lu dans categories[0].keypoints si présent, sinon l'ordre COCO-17."""
+    names = COCO
+    cats = data.get("categories") or []
+    if cats and cats[0].get("keypoints"):
+        names = [ALIAS.get(n, n) for n in cats[0]["keypoints"]]
+        miss = [n for n in COCO if n not in names]
+        if miss:
+            raise ValueError(f"points manquants dans categories.keypoints : {miss}")
+    imgs = sorted(data["images"], key=lambda i: i.get("file_name", str(i["id"])))
+    by = {}
+    for a in data["annotations"]:
+        if a.get("keypoints"):
+            by.setdefault(a["image_id"], []).append(a)
+    frames = []
+    for im in imgs:
+        anns = by.get(im["id"], [])
+        if len(anns) <= person:
+            continue
+        k = anns[person]["keypoints"]
+        d = {n: [k[3 * j], k[3 * j + 1], 1.0 if k[3 * j + 2] > 0 else 0.0] for j, n in enumerate(names)}
+        frames.append([d[n] for n in COCO])
+    return from_coco(frames, **kw)

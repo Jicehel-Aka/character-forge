@@ -98,6 +98,7 @@ def main(argv=None):
     s.add_argument("--name", default="anim")
     s.add_argument("--fps", type=int, default=12)
     s.add_argument("--no-loop", action="store_true")
+    s.add_argument("--array", action="store_true", help="frames en tableau (json-array) au lieu d'un dictionnaire (json-hash)")
 
     s = sub.add_parser("sheet", help="fiche de personnage (character.json + HTML)")
     s.add_argument("extract_dir")
@@ -171,7 +172,7 @@ def main(argv=None):
     elif a.cmd == "anim":
         raise SystemExit(anim.cmd(a))
     elif a.cmd == "atlas":
-        r = atlas.export(a.frames_dir, a.output, a.name, a.fps, not a.no_loop)
+        r = atlas.export(a.frames_dir, a.output, a.name, a.fps, not a.no_loop, as_array=a.array)
         print(f"[atlas] {r['frames']} images, cellule {r['cell']} -> {a.output}")
     elif a.cmd == "gear":
         raise SystemExit(gear.cmd(a))

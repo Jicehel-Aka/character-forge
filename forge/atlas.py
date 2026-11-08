@@ -15,7 +15,7 @@ def _com_x(im):
     return float((a.sum(0) * np.arange(im.width)).sum() / a.sum())
 
 
-def export(frames_dir, out, name="anim", fps=12, loop=True, columns=0):
+def export(frames_dir, out, name="anim", fps=12, loop=True, columns=0, as_array=False):
     files = sorted(Path(frames_dir).glob("*.png"))
     ims = []
     for f in files:
@@ -41,8 +41,10 @@ def export(frames_dir, out, name="anim", fps=12, loop=True, columns=0):
     sheet.save(out / f"{name}.png")
     meta = {"app": "character-forge", "version": "1", "image": f"{name}.png", "format": "RGBA8888",
             "size": {"w": sheet.width, "h": sheet.height}, "scale": "1",
-            "frameTags": [{"name": name, "from": 0, "to": len(ims) - 1, "direction": "forward"}]}
-    (out / f"{name}.json").write_text(json.dumps({"frames": fr, "meta": meta}, indent=1))
+            "frameTags": [{"name": name, "from": 0, "to": len(ims) - 1, "direction": "forward"}],
+            "layers": [{"name": "Layer", "opacity": 255, "blendMode": "normal"}], "slices": []}
+    frames_out = [dict(filename=k, **v) for k, v in fr.items()] if as_array else fr   # json-array ou json-hash (Aseprite)
+    (out / f"{name}.json").write_text(json.dumps({"frames": frames_out, "meta": meta}, indent=1))
     (out / "manifest.json").write_text(json.dumps({name: {"frames": len(ims), "fps": fps, "loop": loop, "cell": [cw, ch],
                                                        "pivot": [cw / 2, ch - 1], "pivot_note": "pieds, centre de masse"}}, indent=1))
     pal = []
