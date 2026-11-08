@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
 
-from . import to_spritekiln, anim, assets, atlas, flat, gear, gen3d, job, multiview, qa, voxel, persona, pipeline, props, sheet, sprites, turntable
+from . import skiln_char, to_spritekiln, anim, assets, atlas, flat, gear, gen3d, job, multiview, qa, voxel, persona, pipeline, props, sheet, sprites, turntable
 
 
 def add_extract_args(p):
@@ -124,6 +124,12 @@ def main(argv=None):
     s.add_argument("--render", action="store_true", help="lance `spritekiln render` (pip install spritekiln)")
     s.add_argument("--dirs", default="s,se,e,ne,n,nw,w,sw")
 
+    s = sub.add_parser("skiln-char", help="description de personnage forge (build/couleurs/équipement) -> spec SpriteKiln, sprites 8 directions")
+    s.add_argument("character", help="JSON : name, build, colors, gear, weapon, head")
+    s.add_argument("-o", "--output", default="skiln_char"); s.add_argument("--anim", help="modèle appris à ajouter (forge anim learn)")
+    s.add_argument("--anim-name"); s.add_argument("--frames", type=int, default=12); s.add_argument("--ms", type=int, default=80)
+    s.add_argument("--render", action="store_true"); s.add_argument("--dirs", default="s,e,n")
+
     s = sub.add_parser("sheet", help="fiche de personnage (character.json + HTML)")
     s.add_argument("extract_dir")
     s.add_argument("--name")
@@ -198,6 +204,8 @@ def main(argv=None):
     elif a.cmd == "atlas":
         r = atlas.export(a.frames_dir, a.output, a.name, a.fps, not a.no_loop, as_array=a.array)
         print(f"[atlas] {r['frames']} images, cellule {r['cell']} -> {a.output}")
+    elif a.cmd == "skiln-char":
+        raise SystemExit(skiln_char.cmd(a))
     elif a.cmd == "skiln":
         raise SystemExit(to_spritekiln.cmd(a))
     elif a.cmd == "voxel":

@@ -1,0 +1,26 @@
+{
+ "name": "orc_archer",
+ "build": "orc",
+ "summary": "orc archer, green skin, leather armour, cloak and a bow",
+ "colors": {
+  "skin": "#6d9a3c",
+  "cloth": "#5a4632",
+  "leather": "#7a5230",
+  "hair": "#1c1a18",
+  "steel": "#8a93a0",
+  "cape": "#3f5a2e"
+ },
+ "gear": [
+  "leather_armor",
+  "belt",
+  "cloak",
+  "pouch",
+  "boots"
+ ],
+ "weapon": "bow",
+ "head": {
+  "jaw": 0.75,
+  "width": 1.1,
+  "nose": 0.2
+ }
+}

@@ -190,3 +190,7 @@ Limite : une seule vue (profil/3-4) par image -> pas de 3D par sculpture ; ces p
 `forge skiln modele.json --render` convertit les poses 2D apprises en clés SpriteKiln (cibles IK foot_L/R, hand_L/R, lean, bob ; échelle d'après la jambe 0,82) et produit les sprites avec le gabarit `humanoid`.
 Essai : coup de pied appris sur un sprite de combattant (pose YOLO) -> 12 clés -> rendu 64 px en s/se/e (36 images, QA OK).
 Limites : poses bruitées (bras), hauteur du coup de pied sous-estimée (portée IK 0,82), gauche/droite et sens « avant = +x » supposés, personnage = gabarit humanoid (pas encore bâti depuis nos parties/gear).
+
+### forge -> personnage SpriteKiln (forge skiln-char)
+`forge skiln-char exemple/orc_archer_skiln.json --anim modele.json --render` : build (largeur du tronc, tête), couleurs -> rampes de palette (ombres froides, lumières chaudes), équipement -> kits (casque, chapeau, capuche, cape, ceinture, bourse, bouclier, armes), puis idle + animation apprise en 8 directions.
+Sans kit SpriteKiln (couleurs seulement) : armures, bottes, gants, lunettes, robes... ; à modéliser en SDF/YAML si besoin.
