@@ -178,3 +178,10 @@ Résultat sur le gargouille de l'exemple (silhouettes diagonales réelles, IoU) 
 - Reconstruire une diagonale retirée (leave-one-out) depuis les 7 autres vues : IoU 0,85, erreur couleur 40/255 -> encore flou/fantôme.
 Conclusion : avec les 8 directions fournies il n'y a rien à reconstruire aux 45° (elles existent) ; la 3D sert aux angles et poses nouveaux.
 SpriteKiln sait aussi rendre un modèle 3D procédural (YAML/SDF) en 8 directions animées : piste pour « personnage modélisé -> toutes les animations ».
+
+### Pose automatique sur planches de combattants (tools/pose_sprites.py)
+YOLOv8-pose (ultralytics, AGPL-3.0 : outil externe, non redistribué ; poids `yolov8n-pose.pt` depuis les releases GitHub d'ultralytics)
+détecte les 17 points COCO sur des sprites, à condition de cadrer serré (marge ×1,6, agrandissement ×4) : 0/36 sans, 123/138 et 130/138 avec sur deux planches magenta (6 colonnes × 23 lignes).
+Les points sont à exprimer en coordonnées locales à la cellule, sinon le bassin « dérive » d'une colonne à l'autre.
+`anim check` signale les os douteux (bras surtout) ; sur la ligne « coup de pied » l'animation apprise est reconnaissable (accroupi puis jambe tendue) mais les bras sont bruités.
+Limite : une seule vue (profil/3-4) par image -> pas de 3D par sculpture ; ces planches servent à l'apprentissage d'animations, pas à `forge voxel`.
