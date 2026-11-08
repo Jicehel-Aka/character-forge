@@ -32,8 +32,10 @@ def project(pts, yaw_deg, cam, sy=1, sd=1):
     X, Y, Z = pts[:, 0], pts[:, 1], pts[:, 2]
     xr = X * ca + Z * sa; zr = -X * sa + Z * ca                   # zr > 0 : éloigné (selon sd)
     p = math.radians(cam["pitch"]); up = cam["upp"]
-    u = cam["pivot"][0] + xr / up
-    v = cam["pivot"][1] - (Y * math.cos(p) + sd * zr * math.sin(p)) / up
+    k = cam.get("persp", 0.0)                                      # perspective : 1/distance caméra (unités monde) ; 0 = orthographique
+    f = 1.0 / (1.0 + k * (sd * zr * math.cos(p) - Y * math.sin(p) + cam.get("persp_z0", 0.0))) if k else 1.0
+    u = cam["pivot"][0] + xr / up * f
+    v = cam["pivot"][1] - (Y * math.cos(p) + sd * zr * math.sin(p)) / up * f
     return u, v
 
 

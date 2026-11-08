@@ -132,7 +132,7 @@ def main(argv=None):
     s.add_argument("--render", action="store_true"); s.add_argument("--dirs", default="s,e,n"); s.add_argument("--size", type=int, default=64, help="taille d'une image : 64, 96, 128…")
 
     s = sub.add_parser("skiln-paint", help="repeint un modèle SpriteKiln avec les couleurs d'une planche source (8 vues), en coordonnées locales des pièces")
-    s.add_argument("spec"); s.add_argument("sheet"); s.add_argument("--row", required=True, help="y0,y1 de la rangée de 8 vues dans la planche")
+    s.add_argument("spec"); s.add_argument("sheet", nargs="?", default=None); s.add_argument("--views", default=None, help="dossier de vues détourées (big_<dir>.png de forge shots)"); s.add_argument("--row", default=None, help="y0,y1 de la rangée de 8 vues dans la planche")
     s.add_argument("-o", "--output", default="paint_out"); s.add_argument("--anims", nargs="+", default=["idle"]); s.add_argument("--dirs", default="s,se,e,ne,n,nw,w,sw")
     s.add_argument("--size", type=int, default=256); s.add_argument("--final", type=int, default=64); s.add_argument("--meta", default=None, help="JSON SpriteKiln (direction_yaw)")
     s.add_argument("--face", default=None, help="JSON {portrait, window:[x0,y0,w], points:{eye_near,eye_far,nose,mouth,chin,ear}} : portrait net projeté sur la tête")

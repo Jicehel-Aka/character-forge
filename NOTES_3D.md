@@ -247,3 +247,9 @@ Dépendances : playwright + Chromium, npm (three@0.160 installé dans ~/.cache/f
 
 ## Captures d'un visualiseur 3D -> sprites (`forge shots`, `forge/shots.py`)
 8 captures (plateau tournant, fond uni, zoom fixe) -> détourage par écart au fond ligne par ligne + retrait de l'ombre au sol, hauteur commune, pieds alignés et centrage sur le bas du corps, réduction par aire, palette commune, contour. `--dirs` donne la direction de chaque image (ex. `sw,w,nw,n,ne,e,se,s`). Testé sur les 8 vues Meshy de Kenji : visage, bandeau, kimono, gants reconnaissables en 64, 96 et 128 px. Pose figée (garde) ; pas d'animation sans fichier 3D.
+
+## skiln-paint --views (essai option 2b, résultat négatif)
+`forge skiln-paint spec.yaml --views DIR` projette 8 vues Meshy (big_<dir>.png) sur le rig SpriteKiln en pose `garde`.
+Constat : association des vues IoU 0.57, visage perdu (zone du visage = bandeau seul), pose des bras/jambes différente de la source,
+tissu délavé. Cette voie ne donne pas la fidélité de la source. Voie recommandée : GLB réel (Meshy Starter / Tripo) puis `forge meshy`.
+`hullcam.project` accepte désormais `persp` (perspective optionnelle).

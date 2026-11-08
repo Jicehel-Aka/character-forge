@@ -186,8 +186,14 @@ def cmd(a):
     out = Path(a.output); out.mkdir(parents=True, exist_ok=True)
     meta = json.load(open(a.meta))["spritekiln"]["direction_yaw"] if a.meta else {d: y for d, y in zip(
         ["s", "se", "e", "ne", "n", "nw", "w", "sw"], [0, 45, 90, 135, 180, -135, -90, -45])}
-    dirs = list(meta); y0, y1 = (int(v) for v in a.row.split(","))
-    cells = source_cells(a.sheet, y0, y1, len(dirs)); L = Learner(a.spec, a.size, "idle", 0); M = np.zeros((len(dirs), len(dirs))); AL = {}
+    dirs = list(meta)
+    if getattr(a, "views", None):                         # vues déjà détourées (forge shots : big_<dir>.png) ; nommage « se = regarde à droite », SpriteKiln : l'inverse
+        mir = {"s": "s", "n": "n", "se": "sw", "sw": "se", "e": "w", "w": "e", "ne": "nw", "nw": "ne"}; cells = []
+        for d in dirs:
+            im = Image.open(Path(a.views) / f"big_{mir[d]}.png").convert("RGBA"); cells.append(im.crop(im.getbbox()))
+    else:
+        y0, y1 = (int(v) for v in a.row.split(",")); cells = source_cells(a.sheet, y0, y1, len(dirs))
+    L = Learner(a.spec, a.size, "idle", 0); M = np.zeros((len(dirs), len(dirs))); AL = {}
     for j, d in enumerate(dirs):
         gp = gpoints(L.spec, a.size, "idle", 0, meta[d])
         for i, c in enumerate(cells):
