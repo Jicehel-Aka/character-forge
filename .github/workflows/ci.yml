@@ -10,6 +10,7 @@ jobs:
       - run: pip install pillow numpy scipy
       - run: python -m compileall -q forge
       - run: python -m forge gear check --file tenues_exemple.json --name archer_orque
+      - run: python tools/export_gear_json.py && git diff --exit-code docs/gear.js
       - run: python -m forge scale-chart -o echelle_arcs.png
       - uses: actions/upload-artifact@v4
         with: {name: echelle_arcs, path: echelle_arcs.png}

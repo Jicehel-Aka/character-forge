@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>character-forge — atelier</title>
+<style>
+:root{--bg:#f6f5f2;--panel:#fff;--ink:#1d1d1b;--mute:#6b6a66;--line:#d9d6cf;--acc:#2f6f4f;--acc-ink:#fff;--bad:#b3261e;--warn:#9a6700;--ok:#2f6f4f;--chk1:#e4e2dc;--chk2:#f1efea}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#171715;--panel:#222220;--ink:#ecebe6;--mute:#a09e97;--line:#3a3935;--acc:#6fbf94;--acc-ink:#10231a;--bad:#ff8a80;--warn:#e3b341;--ok:#6fbf94;--chk1:#2c2b28;--chk2:#34332f}}
+:root[data-theme="dark"]{--bg:#171715;--panel:#222220;--ink:#ecebe6;--mute:#a09e97;--line:#3a3935;--acc:#6fbf94;--acc-ink:#10231a;--bad:#ff8a80;--warn:#e3b341;--ok:#6fbf94;--chk1:#2c2b28;--chk2:#34332f}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
+h1{font-size:18px;margin:0}
+h2{font-size:15px;margin:0 0 8px}
+main{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:16px;padding:16px;max-width:1500px;margin:auto}
+@media (max-width:980px){main{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+#stagewrap{overflow:auto;border-radius:8px;border:1px solid var(--line);background:repeating-conic-gradient(var(--chk1) 0 25%,var(--chk2) 0 50%) 0 0/20px 20px}
+canvas{display:block;max-width:100%}
+#stage{cursor:crosshair}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px}
+.tabs button{flex:1 1 auto}
+button,select,input,textarea{font:inherit;color:var(--ink)}
+button{background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:6px 10px;cursor:pointer}
+button:hover{border-color:var(--acc)}
+button.on,button.primary{background:var(--acc);color:var(--acc-ink);border-color:var(--acc)}
+input,select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:5px 7px;max-width:100%}
+input[type=number]{width:84px}input[type=range]{padding:0;width:100%}
+label{display:block;margin:6px 0 2px;color:var(--mute);font-size:13px}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px}
+.pane{display:none}.pane.on{display:block}
+.bad{color:var(--bad)}.warn{color:var(--warn)}.ok{color:var(--ok)}.mute{color:var(--mute);font-size:13px}
+ul.l{margin:4px 0 4px 18px;padding:0}
+.thumbs{display:flex;gap:8px;overflow:auto;padding:6px 0}
+.thumb{border:2px solid var(--line);border-radius:8px;padding:2px;cursor:pointer;background:var(--bg);flex:none;text-align:center;font-size:11px;max-width:96px}
+.thumb.on{border-color:var(--acc)}.thumb canvas{width:88px;height:66px;object-fit:contain}
+pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;overflow:auto;font-size:12px;white-space:pre-wrap;word-break:break-all}
+.sw{display:inline-block;width:20px;height:20px;border:1px solid var(--line);border-radius:4px}
+table{border-collapse:collapse;width:100%;font-size:13px}td,th{border-bottom:1px solid var(--line);padding:4px;text-align:left;vertical-align:top}
+.slot{margin:6px 0 2px;font-weight:600;font-size:13px}
+.chip{display:inline-flex;align-items:center;gap:4px;margin:2px 8px 2px 0;font-size:13px}.chip input{margin:0}
+</style>
+</head>
+<body>
+<header>
+  <h1>character-forge · atelier</h1>
+  <div class="row">
+    <input type="file" id="files" accept="image/*" multiple hidden>
+    <button class="primary" onclick="files.click()">Ouvrir des images…</button>
+    <button id="theme">Thème</button>
+  </div>
+</header>
+<main>
+<section>
+  <div class="card">
+    <div class="thumbs" id="thumbs"><span class="mute">Aucune image. Ouvre des images (idéalement un détourage .png à fond transparent produit par la commande <code>extract</code>).</span></div>
+    <div class="row" id="toolbar">
+      <b>Outil :</b>
+      <label class="chip"><input type="radio" name="tool" value="none" checked> aucun</label>
+      <label class="chip"><input type="radio" name="tool" value="erase"> gomme</label>
+      <label class="chip"><input type="radio" name="tool" value="restore"> restaurer</label>
+      <label class="chip"><input type="radio" name="tool" value="erase-rect"> zone à effacer</label>
+      <label class="chip"><input type="radio" name="tool" value="part-rect"> partie nommée</label>
+      <label class="chip"><input type="radio" name="tool" value="head-top"> tête (haut puis menton)</label>
+      <label class="chip"><input type="radio" name="tool" value="grip"> poignée</label>
+      <label class="chip"><input type="radio" name="tool" value="pull"> corde tirée</label>
+      <label class="chip"><input type="radio" name="tool" value="tail"> départ flèche</label>
+      <label class="chip"><input type="radio" name="tool" value="toward"> vise</label>
+      <span>Pinceau <input type="range" id="brush" min="3" max="60" value="16" style="width:90px"></span>
+    </div>
+    <div id="stagewrap"><canvas id="stage" width="640" height="480"></canvas></div>
+    <div class="mute" id="status">—</div>
+  </div>
+</section>
+
+<aside class="card">
+  <div class="tabs" id="tabs">
+    <button data-p="cut" class="on">Détourage</button><button data-p="props">Armes</button><button data-p="gear">Tenue</button>
+    <button data-p="sprite">Sprite</button><button data-p="multi">Multi-vues</button><button data-p="cli">Commandes</button>
+  </div>
+
+  <div class="pane on" id="p-cut">
+    <h2>Détourage</h2>
+    <p class="mute">Détourage simple par couleur de fond (bords de l'image). Pour un détourage IA, utilise la commande <code>extract --segment</code> puis ouvre le <code>cutout.png</code> ici : l'alpha est conservé.</p>
+    <label>Tolérance couleur de fond : <span id="tolv">40</span></label>
+    <input type="range" id="tol" min="5" max="120" value="40">
+    <div class="row"><button id="autocut">Détourer par couleur de fond</button><button id="resetcut">Annuler le détourage</button></div>
+    <h2>Zones et parties</h2>
+    <div class="row"><label style="margin:0">Nom de la partie</label><input id="partname" value="head" size="10"></div>
+    <div id="zones" class="mute"></div>
+  </div>
+
+  <div class="pane" id="p-props">
+    <h2>Taille réelle</h2>
+    <div class="row"><label style="margin:0">Hauteur de tête (px)</label><input type="number" id="headpx" min="1" step="1"><span class="mute" id="heightinfo"></span></div>
+    <p class="mute">Taille du personnage = tête × 7,5. Choisis l'outil « tête », clique le haut du crâne puis le menton.</p>
+    <div class="row"><button id="addbow">+ Arc</button><button id="addarrow">+ Flèche</button><button id="delprop">Supprimer</button></div>
+    <select id="proplist" size="4" style="width:100%"></select>
+    <div id="propform"></div>
+    <div id="propinfo" class="mute"></div>
+    <p class="mute">Aperçu approché. Le rendu définitif est fait par <code>python -m forge extract --props</code> avec le JSON exporté.</p>
+  </div>
+
+  <div class="pane" id="p-gear">
+    <h2>Tenue et équipements</h2>
+    <div class="grid2">
+      <div><label>Gabarit</label><select id="build"></select></div>
+      <div><label>Axe du corps x (px)</label><input type="number" id="cx"></div>
+    </div>
+    <div class="row"><label class="chip"><input type="checkbox" id="showfit" checked> afficher les emplacements</label></div>
+    <div id="gearlist"></div>
+    <div id="gearres"></div>
+    <p class="mute">Valeurs = estimations (anatomie artistique, 7,5 têtes). La tête doit être mesurée (onglet Armes).</p>
+  </div>
+
+  <div class="pane" id="p-sprite">
+    <h2>Sprite RGB565</h2>
+    <div class="grid2">
+      <div><label>Hauteur (px)</label><input type="number" id="sh" value="64" min="8" max="240"></div>
+      <div><label>Couleurs</label><input type="number" id="sc" value="24" min="2" max="64"></div>
+      <div><label>Contraste/saturation</label><input type="range" id="sb" min="0" max="1.5" step="0.1" value="0.8"></div>
+      <div><label class="chip"><input type="checkbox" id="so" checked> contour sombre</label></div>
+    </div>
+    <div class="row"><button id="mksprite" class="primary">Générer</button></div>
+    <canvas id="sprprev" style="image-rendering:pixelated;border:1px solid var(--line);margin:6px 0"></canvas>
+    <div id="palsw"></div>
+    <div class="row"><button id="dlpng">PNG</button><button id="dlh">En-tête C (.h)</button><button id="dlraw">.raw RGB565</button></div>
+    <div class="mute" id="sprinfo"></div>
+  </div>
+
+  <div class="pane" id="p-multi">
+    <h2>Plusieurs photos → un modèle</h2>
+    <div id="multitable"></div>
+    <div id="multires"></div>
+    <div class="row"><button id="dlman" class="primary">Exporter manifeste + décisions</button></div>
+  </div>
+
+  <div class="pane" id="p-cli">
+    <h2>Exports et commandes</h2>
+    <div class="row"><button id="dlprops">props.json</button><button id="dlparts">parts.json</button><button id="dlcut">Détourage PNG</button></div>
+    <p class="mute">Lance ensuite sur ton PC (voir le README du dépôt) :</p>
+    <pre id="cmds"></pre>
+    <p class="mute">GPU gratuit pour la 3D : ouvre <code>notebooks/charactergen_colab.ipynb</code> dans Google Colab (non testé).</p>
+  </div>
+</aside>
+</main>
+<script src="gear.js"></script>
+<script>
+"use strict";
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const RATIOS={short:.5,standard:.75,recurve:.93,long:1.1}, BRACE={short:.14,standard:.12,recurve:.12,long:.09}, ARROW=.43, HEADS=7.5;
+const VIEWS=["front","back","left","right","three_quarter","face","unknown"], NEEDED=["front","back","left","right"];
+const imgs=[]; let cur=-1;
+const stage=$("#stage"), sctx=stage.getContext("2d");
+
+/* ---------- thème ---------- */
+$("#theme").onclick=()=>{const r=document.documentElement,d=getComputedStyle(r).getPropertyValue("--bg").trim()==="#171715";r.dataset.theme=d?"light":"dark"};
+
+/* ---------- images ---------- */
+$("#files").onchange=async e=>{for(const f of e.target.files)await addImage(f);e.target.value=""};
+function addImage(file){return new Promise(res=>{const u=URL.createObjectURL(file),im=new Image();
+ im.onload=()=>{const o=document.createElement("canvas");o.width=im.naturalWidth;o.height=im.naturalHeight;o.getContext("2d").drawImage(im,0,0);
+  const cut=document.createElement("canvas");cut.width=o.width;cut.height=o.height;cut.getContext("2d").drawImage(o,0,0);
+  const hasAlpha=(()=>{const d=o.getContext("2d").getImageData(0,0,o.width,o.height).data;for(let i=3;i<d.length;i+=4*97)if(d[i]<250)return true;return false})();
+  imgs.push({name:file.name,orig:o,cut,hasAlpha,view:"unknown",head:0,headTop:null,cx:0,props:[],erase:[],parts:{},attrs:"",sel:-1,spr:null});
+  URL.revokeObjectURL(u);select(imgs.length-1);res()};im.src=u})}
+function img(){return imgs[cur]}
+function select(i){cur=i;const m=img();$("#headpx").value=m.head||"";$("#cx").value=m.cx||Math.round(bboxOf(m).x+bboxOf(m).w/2);renderThumbs();renderProps();renderZones();renderGear();renderMulti();redraw();cli()}
+function renderThumbs(){const t=$("#thumbs");t.innerHTML="";if(!imgs.length)return;imgs.forEach((m,i)=>{const d=document.createElement("div");d.className="thumb"+(i===cur?" on":"");
+ const c=document.createElement("canvas");c.width=88;c.height=66;const x=c.getContext("2d"),r=Math.min(88/m.cut.width,66/m.cut.height);x.drawImage(m.cut,(88-m.cut.width*r)/2,(66-m.cut.height*r)/2,m.cut.width*r,m.cut.height*r);
+ d.append(c,m.name);d.onclick=()=>select(i);t.append(d)})}
+function bboxOf(m){const c=m.cut,d=c.getContext("2d").getImageData(0,0,c.width,c.height).data;let x0=c.width,y0=c.height,x1=0,y1=0;
+ for(let y=0;y<c.height;y++)for(let x=0;x<c.width;x++)if(d[(y*c.width+x)*4+3]>0){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}
+ return x1<x0?{x:0,y:0,w:c.width,h:c.height}:{x:x0,y:y0,w:x1-x0+1,h:y1-y0+1}}
+
+/* ---------- détourage par couleur de fond ---------- */
+$("#tol").oninput=e=>$("#tolv").textContent=e.target.value;
+$("#autocut").onclick=()=>{const m=img();if(!m)return;const W=m.orig.width,H=m.orig.height,o=m.orig.getContext("2d").getImageData(0,0,W,H),d=o.data,tol=+$("#tol").value;
+ const px=(x,y)=>{const i=(y*W+x)*4;return[d[i],d[i+1],d[i+2]]},cs=[px(0,0),px(W-1,0),px(0,H-1),px(W-1,H-1)],bg=[0,1,2].map(k=>cs.reduce((a,c)=>a+c[k],0)/4);
+ const near=(x,y)=>{const i=(y*W+x)*4;return Math.hypot(d[i]-bg[0],d[i+1]-bg[1],d[i+2]-bg[2])<=tol};
+ const seen=new Uint8Array(W*H),st=[];const push=(x,y)=>{if(x<0||y<0||x>=W||y>=H)return;const k=y*W+x;if(seen[k]||!near(x,y))return;seen[k]=1;st.push(k)};
+ for(let x=0;x<W;x++){push(x,0);push(x,H-1)}for(let y=0;y<H;y++){push(0,y);push(W-1,y)}
+ while(st.length){const k=st.pop(),x=k%W,y=(k/W)|0;push(x+1,y);push(x-1,y);push(x,y+1);push(x,y-1)}
+ const out=m.cut.getContext("2d").createImageData(W,H);for(let k=0;k<W*H;k++){out.data[k*4]=d[k*4];out.data[k*4+1]=d[k*4+1];out.data[k*4+2]=d[k*4+2];out.data[k*4+3]=seen[k]?0:255}
+ m.cut.getContext("2d").putImageData(out,0,0);renderThumbs();redraw();status("Détourage par couleur de fond (fond estimé sur les 4 coins). Retouche avec gomme / restaurer.")};
+$("#resetcut").onclick=()=>{const m=img();if(!m)return;const x=m.cut.getContext("2d");x.clearRect(0,0,m.cut.width,m.cut.height);x.drawImage(m.orig,0,0);renderThumbs();redraw()};
+
+/* ---------- affichage ---------- */
+let scale=1;
+function status(t){$("#status").textContent=t}
+function redraw(){const m=img();if(!m){sctx.clearRect(0,0,stage.width,stage.height);return}
+ const maxw=Math.min($("#stagewrap").clientWidth-2||800,1100);scale=Math.min(maxw/m.cut.width,720/m.cut.height,2);
+ stage.width=Math.round(m.cut.width*scale);stage.height=Math.round(m.cut.height*scale);sctx.clearRect(0,0,stage.width,stage.height);
+ sctx.save();sctx.scale(scale,scale);
+ sctx.imageSmoothingEnabled=true;
+ drawProps(sctx,m,"behind");sctx.drawImage(m.cut,0,0);drawProps(sctx,m,"front");
+ sctx.lineWidth=1/scale;
+ sctx.strokeStyle="#e5484d";sctx.fillStyle="rgba(229,72,77,.18)";m.erase.forEach(b=>{sctx.fillRect(...b);sctx.strokeRect(...b)});
+ sctx.strokeStyle="#3b82f6";sctx.fillStyle="#3b82f6";sctx.font=(12/scale)+"px system-ui";
+ Object.entries(m.parts).forEach(([n,b])=>{sctx.strokeRect(...b);sctx.fillText(n,b[0]+3/scale,b[1]+13/scale)});
+ if(m.head>0&&m.headTop!=null){sctx.strokeStyle="#f59e0b";const y0=m.headTop,y1=m.headTop+m.head;[y0,y1].forEach(y=>{sctx.beginPath();sctx.moveTo(0,y);sctx.lineTo(m.cut.width,y);sctx.stroke()});
+  sctx.fillStyle="#f59e0b";sctx.fillText("tête",4/scale,y0-3/scale)}
+ if($("#p-gear").classList.contains("on")&&$("#showfit").checked)drawFit(sctx,m);
+ drawHandles(sctx,m);sctx.restore()}
+function bowGeom(p,H,m){const L=RATIOS[p.kind||"standard"]*H,a=(p.angle??81)*Math.PI/180,u={x:Math.cos(a),y:-Math.sin(a)},side=p.bulge==="left"?-1:1,n={x:-u.y*side,y:u.x*side};
+ const set=BRACE[p.kind||"standard"]*L,g=p.grip,A={x:g[0]-u.x*L/2-n.x*set,y:g[1]-u.y*L/2-n.y*set},B={x:g[0]+u.x*L/2-n.x*set,y:g[1]+u.y*L/2-n.y*set};
+ const ctrl={x:2*g[0]-(A.x+B.x)/2,y:2*g[1]-(A.y+B.y)/2};return{L,A,B,ctrl}}
+function drawProps(c,m,layer){const H=(m.head||0)*HEADS;m.props.forEach((p,i)=>{if((p.layer||"behind")!==layer)return;
+ if(p.type==="bow"&&p.grip&&H){const g=bowGeom(p,H,m),w=Math.max(2,H*.012);c.lineCap="round";
+  const col="rgb("+(p.color||[88,62,40]).join(",")+")";
+  c.strokeStyle="rgba(0,0,0,.55)";c.lineWidth=w*1.8;c.beginPath();c.moveTo(g.A.x,g.A.y);c.quadraticCurveTo(g.ctrl.x,g.ctrl.y,g.B.x,g.B.y);c.stroke();
+  c.strokeStyle=col;c.lineWidth=w;c.stroke();
+  c.strokeStyle="#e8dcc0";c.lineWidth=Math.max(1,w*.3);c.beginPath();c.moveTo(g.A.x,g.A.y);if(p.pull)c.lineTo(p.pull[0],p.pull[1]);c.lineTo(g.B.x,g.B.y);c.stroke()}
+ if(p.type==="arrow"&&p.tail&&H&&p.toward){const len=(p.length==="auto"||!p.length?ARROW*H:+p.length),dx=p.toward[0]-p.tail[0],dy=p.toward[1]-p.tail[1],d=Math.hypot(dx,dy)||1,u={x:dx/d,y:dy/d},t={x:p.tail[0]+u.x*len,y:p.tail[1]+u.y*len},w=Math.max(2,H*.007);
+  c.lineCap="round";c.strokeStyle="rgba(0,0,0,.55)";c.lineWidth=w*1.8;c.beginPath();c.moveTo(p.tail[0],p.tail[1]);c.lineTo(t.x,t.y);c.stroke();
+  c.strokeStyle="#b8a584";c.lineWidth=w;c.stroke();
+  c.fillStyle="#cfd3d8";c.beginPath();c.moveTo(t.x+u.x*w*4,t.y+u.y*w*4);c.lineTo(t.x-u.y*w*2,t.y+u.x*w*2);c.lineTo(t.x+u.y*w*2,t.y-u.x*w*2);c.fill();
+  c.strokeStyle="#c0392b";c.lineWidth=w*1.4;for(let k=0;k<3;k++){const q={x:p.tail[0]+u.x*(w*3+k*w*3),y:p.tail[1]+u.y*(w*3+k*w*3)};c.beginPath();c.moveTo(q.x-u.y*w*2,q.y+u.x*w*2);c.lineTo(q.x+u.y*w*2,q.y-u.x*w*2);c.stroke()}}})}
+function drawHandles(c,m){c.lineWidth=1.5/scale;m.props.forEach((p,i)=>{[["grip",p.grip],["pull",p.pull],["tail",p.tail],["toward",p.toward]].forEach(([k,pt])=>{if(!pt)return;c.strokeStyle=i===m.sel?"#22c55e":"#9ca3af";c.beginPath();c.arc(pt[0],pt[1],5/scale,0,7);c.stroke()})})}
+function drawFit(c,m){const sp=window.GEAR,names=checked();if(!m.head)return;const top=m.headTop??bboxOf(m).y,cx=+$("#cx").value||m.cx,k=sp.builds[$("#build").value]||1;
+ c.lineWidth=1.5/scale;c.font=(11/scale)+"px system-ui";names.forEach((n,i)=>{const it=sp.catalog[n],lm=v=>typeof v==="string"?sp.landmarks[v]:v,wd=v=>typeof v==="string"?sp.widths[v]:v;
+  let w=wd(it.width)*k;if(["helmet_open","helmet_full","hood"].includes(n))w*=1.1;if(n==="pauldrons")w*=1.1;const y0=lm(it.y[0]),y1=lm(it.y[1]),h=Math.max(y1-y0,.08);
+  const hue=(i*47)%360;c.strokeStyle=`hsl(${hue} 70% 50%)`;c.fillStyle=c.strokeStyle;c.strokeRect(cx-w*m.head/2,top+y0*m.head,w*m.head,h*m.head);c.fillText(n,cx-w*m.head/2+3/scale,top+y0*m.head+12/scale)})}
+
+/* ---------- interaction souris ---------- */
+let drag=null;
+function pos(e){const r=stage.getBoundingClientRect();return[(e.clientX-r.left)*(stage.width/r.width)/scale,(e.clientY-r.top)*(stage.height/r.height)/scale]}
+const tool=()=>document.querySelector("input[name=tool]:checked").value;
+stage.addEventListener("pointerdown",e=>{const m=img();if(!m)return;const p=pos(e),t=tool();stage.setPointerCapture(e.pointerId);
+ if(t==="erase"||t==="restore"){drag={t};brush(m,p,t)}
+ else if(t==="erase-rect"||t==="part-rect"){drag={t,s:p,cur:p}}
+ else if(t==="head-top"){if(m.headStage!==1){m.headTop=p[1];m.headStage=1;status("Haut du crâne posé : clique le menton.")}else{m.head=Math.max(1,Math.round(p[1]-m.headTop));m.headStage=0;$("#headpx").value=m.head;renderProps();cli();status("Hauteur de tête = "+m.head+" px")}redraw()}
+ else if(["grip","pull","tail","toward"].includes(t)){const pr=m.props[m.sel];if(!pr){status("Sélectionne ou ajoute d'abord une arme (onglet Armes).");return}pr[t]=[Math.round(p[0]),Math.round(p[1])];renderProps();redraw();cli()}});
+stage.addEventListener("pointermove",e=>{const m=img();if(!m||!drag)return;const p=pos(e);if(drag.t==="erase"||drag.t==="restore"){brush(m,p,drag.t)}else{drag.cur=p;redraw();sctx.save();sctx.scale(scale,scale);sctx.strokeStyle="#fff";sctx.lineWidth=1/scale;const[x,y,w,h]=rect(drag.s,drag.cur);sctx.strokeRect(x,y,w,h);sctx.restore()}});
+stage.addEventListener("pointerup",e=>{const m=img();if(!m||!drag)return;if(drag.t==="erase-rect"||drag.t==="part-rect"){const r=rect(drag.s,drag.cur).map(Math.round);if(r[2]>3&&r[3]>3){if(drag.t==="erase-rect"){m.erase.push(r);m.cut.getContext("2d").clearRect(...r)}else m.parts[$("#partname").value||"part"]=r}renderZones();cli()}drag=null;renderThumbs();redraw()});
+const rect=(a,b)=>[Math.min(a[0],b[0]),Math.min(a[1],b[1]),Math.abs(a[0]-b[0]),Math.abs(a[1]-b[1])];
+function brush(m,p,t){const r=+$("#brush").value/scale,x=m.cut.getContext("2d");x.save();x.beginPath();x.arc(p[0],p[1],r,0,7);if(t==="erase"){x.globalCompositeOperation="destination-out";x.fill()}else{x.clip();x.drawImage(m.orig,0,0)}x.restore();redraw()}
+function renderZones(){const m=img(),z=$("#zones");if(!m){z.innerHTML="";return}z.innerHTML=(m.erase.length?"<b>Zones à effacer</b> : "+m.erase.map((b,i)=>`[${b}] <a href="#" data-e="${i}">✕</a>`).join(" "):"")+
+ "<br>"+Object.entries(m.parts).map(([n,b])=>`<b>${n}</b> [${b}] <a href="#" data-p="${n}">✕</a>`).join("<br>");
+ z.querySelectorAll("a").forEach(a=>a.onclick=ev=>{ev.preventDefault();if(a.dataset.e!=null)m.erase.splice(+a.dataset.e,1);else delete m.parts[a.dataset.p];renderZones();redraw();cli()})}
+
+/* ---------- onglets ---------- */
+$$("#tabs button").forEach(b=>b.onclick=()=>{$$("#tabs button").forEach(x=>x.classList.toggle("on",x===b));$$(".pane").forEach(p=>p.classList.toggle("on",p.id==="p-"+b.dataset.p));renderGear();renderMulti();cli();redraw()});
+
+/* ---------- armes ---------- */
+$("#headpx").onchange=e=>{const m=img();if(!m)return;m.head=+e.target.value||0;renderProps();redraw();cli()};
+$("#addbow").onclick=()=>{const m=img();if(!m)return;m.props.push({type:"bow",kind:"standard",angle:81,bulge:"right",color:[88,62,40],layer:"behind"});m.sel=m.props.length-1;renderProps();status("Outil « poignée » : clique la main qui tient l'arc.")};
+$("#addarrow").onclick=()=>{const m=img();if(!m)return;m.props.push({type:"arrow",length:"auto",layer:"behind"});m.sel=m.props.length-1;renderProps();status("Outils « départ flèche » puis « vise ».")};
+$("#delprop").onclick=()=>{const m=img();if(!m||m.sel<0)return;m.props.splice(m.sel,1);m.sel=m.props.length-1;renderProps();redraw();cli()};
+$("#proplist").onchange=e=>{img().sel=+e.target.value;renderProps()};
+const hex=c=>"#"+c.map(v=>v.toString(16).padStart(2,"0")).join(""), unhex=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
+function renderProps(){const m=img(),L=$("#proplist"),F=$("#propform");if(!m){L.innerHTML="";F.innerHTML="";return}
+ const H=m.head*HEADS;$("#heightinfo").textContent=m.head?`taille ≈ ${Math.round(H)} px`:"";
+ L.innerHTML=m.props.map((p,i)=>`<option value="${i}" ${i===m.sel?"selected":""}>${p.type==="bow"?"Arc "+(p.kind||""):"Flèche"} #${i+1}</option>`).join("");
+ const p=m.props[m.sel];if(!p){F.innerHTML="";$("#propinfo").textContent="";return}
+ const pt=k=>p[k]?`[${p[k]}]`:"—";
+ F.innerHTML=p.type==="bow"?`<label>Type d'arc</label><select data-k="kind">${Object.keys(RATIOS).map(k=>`<option ${p.kind===k?"selected":""}>${k}</option>`).join("")}</select>
+ <div class="grid2"><div><label>Angle (°)</label><input type="number" data-k="angle" value="${p.angle}"></div><div><label>Bombé vers</label><select data-k="bulge"><option ${p.bulge==="right"?"selected":""}>right</option><option ${p.bulge==="left"?"selected":""}>left</option></select></div>
+ <div><label>Couleur</label><input type="color" data-k="color" value="${hex(p.color)}"></div><div><label>Plan</label><select data-k="layer"><option ${p.layer==="behind"?"selected":""}>behind</option><option ${p.layer==="front"?"selected":""}>front</option></select></div></div>
+ <div class="mute">poignée ${pt("grip")} · corde tirée ${pt("pull")}</div>`
+ :`<div class="grid2"><div><label>Longueur (auto ou px)</label><input data-k="length" value="${p.length}" size="6"></div><div><label>Plan</label><select data-k="layer"><option ${p.layer==="behind"?"selected":""}>behind</option><option ${p.layer==="front"?"selected":""}>front</option></select></div></div><div class="mute">départ ${pt("tail")} · vise ${pt("toward")}</div>`;
+ F.querySelectorAll("[data-k]").forEach(el=>el.onchange=()=>{const k=el.dataset.k;p[k]=k==="angle"?+el.value:k==="color"?unhex(el.value):(k==="length"&&el.value!=="auto"?+el.value:el.value);renderProps();redraw();cli()});
+ info(p,m)}
+function info(p,m){const H=m.head*HEADS,box=$("#propinfo");if(!H){box.innerHTML='<span class="warn">Mesure d\'abord la hauteur de tête.</span>';return}
+ if(p.type==="bow"){const L=RATIOS[p.kind]*H;let t=`Arc ${p.kind} : ${Math.round(L)} px = ${RATIOS[p.kind]} × taille (${Math.round(H)} px).`;if(p.grip){const g=bowGeom(p,H,m);const out=[g.A,g.B].some(q=>q.x<0||q.y<0||q.x>m.cut.width||q.y>m.cut.height);if(out)t+=' <span class="warn">Extrémités hors cadre (arc coupé par l\'image).</span>'}box.innerHTML=t}
+ else box.textContent=`Flèche : ${Math.round(ARROW*H)} px (0,43 × taille) si longueur = auto.`}
+
+/* ---------- tenue ---------- */
+function initGear(){const G=window.GEAR;if(!G)return;$("#build").innerHTML=Object.keys(G.builds).map(k=>`<option>${k}</option>`).join("");
+ const slots={};Object.entries(G.catalog).forEach(([n,it])=>(slots[it.slot]??=[]).push(n));
+ $("#gearlist").innerHTML=Object.entries(slots).map(([s,ns])=>`<div class="slot">${s}</div>`+ns.map(n=>`<label class="chip" title="${G.catalog[n].note||""}"><input type="checkbox" data-g="${n}"> ${n}</label>`).join("")).join("");
+ $$("[data-g]").forEach(c=>c.onchange=()=>{renderGear();redraw();cli()});$("#build").onchange=$("#cx").onchange=$("#showfit").onchange=()=>{renderGear();redraw()}}
+const checked=()=>$$("[data-g]").filter(c=>c.checked).map(c=>c.dataset.g);
+function validate(outfit){const G=window.GEAR,err=[],warn=[],names=outfit.filter(n=>G.catalog[n]),occ={};
+ names.forEach(n=>{const it=G.catalog[n];it.covers.forEach(z=>{if(it.layer==="accessory")return;const k=z+"|"+it.layer;if(occ[k])err.push(`${n} et ${occ[k]} occupent la même couche « ${it.layer} » sur « ${z} »`);else occ[k]=n})});
+ names.forEach(n=>{const it=G.catalog[n];it.forbids.forEach(f=>{if(names.includes(f))err.push(`${n} est incompatible avec ${f}`)});
+  it.requires.forEach(r=>{const ok=r==="torso_armor_or_gambeson"?names.some(x=>G.torso_armor.includes(x)):r.split("|").some(x=>names.includes(x));if(!ok)err.push(`${n} demande : ${r.replace(/\|/g," ou ")} dessous`)})});
+ const torso=names.filter(n=>G.catalog[n].covers.includes("torso"));
+ if(torso.length&&!torso.some(n=>["under","base"].includes(G.catalog[n].layer)))warn.push("torse couvert sans vêtement de base");
+ if(!torso.length)warn.push("torse nu");
+ if(!names.some(n=>G.catalog[n].covers.some(z=>["hips","thighs"].includes(z))))warn.push("bassin non couvert (pantalon, jupe, robe, short)");
+ const mass=names.reduce((a,n)=>a+G.catalog[n].mass_kg,0),prot=names.reduce((a,n)=>a+G.catalog[n].protection,0);if(mass>25)warn.push(`masse ${mass.toFixed(1)} kg : charge lourde`);
+ return{err:[...new Set(err)],warn,mass,prot}}
+function renderGear(){if(!window.GEAR||!$("#gearres"))return;const r=validate(checked());
+ $("#gearres").innerHTML=`<p><b>${checked().length}</b> objet(s) · ${r.mass.toFixed(1)} kg · protection ${r.prot}</p>`+
+ (r.err.length?`<ul class="l bad">${r.err.map(e=>`<li>${e}</li>`).join("")}</ul>`:checked().length?'<p class="ok">Tenue cohérente.</p>':"")+(r.warn.length?`<ul class="l warn">${r.warn.map(e=>`<li>${e}</li>`).join("")}</ul>`:"")}
+
+/* ---------- sprite RGB565 ---------- */
+function medianCut(px,n){let boxes=[px];while(boxes.length<n){boxes.sort((a,b)=>b.length-a.length);const b=boxes.shift();if(!b||b.length<2){boxes.push(b);break}
+ const rg=[0,1,2].map(k=>{let lo=255,hi=0;b.forEach(p=>{if(p[k]<lo)lo=p[k];if(p[k]>hi)hi=p[k]});return hi-lo}),k=rg.indexOf(Math.max(...rg));b.sort((p,q)=>p[k]-q[k]);const h=b.length>>1;boxes.push(b.slice(0,h),b.slice(h))}
+ return boxes.filter(b=>b&&b.length).map(b=>[0,1,2].map(k=>Math.round(b.reduce((a,p)=>a+p[k],0)/b.length)))}
+const to565=(r,g,b)=>((r>>3)<<11)|((g>>2)<<5)|(b>>3);
+$("#mksprite").onclick=()=>{const m=img();if(!m)return;const bb=bboxOf(m),h=+$("#sh").value,w=Math.max(1,Math.round(bb.w*h/bb.h)),b=+$("#sb").value;
+ const c=document.createElement("canvas");c.width=w;c.height=h;const x=c.getContext("2d");x.imageSmoothingQuality="high";x.drawImage(m.cut,bb.x,bb.y,bb.w,bb.h,0,0,w,h);
+ const d=x.getImageData(0,0,w,h),a=d.data,pix=[];
+ for(let i=0;i<a.length;i+=4){a[i+3]=a[i+3]>=128?255:0;if(!a[i+3])continue;let r=a[i],g=a[i+1],bl=a[i+2];
+  const lum=.299*r+.587*g+.114*bl,sat=1+.35*b,con=1+.25*b;[r,g,bl]=[r,g,bl].map(v=>{v=lum+(v-lum)*sat;v=(v-128)*con+128;v=255*Math.pow(Math.max(0,Math.min(255,v))/255,1-.12*b);return Math.max(0,Math.min(255,v))});
+  a[i]=r;a[i+1]=g;a[i+2]=bl;pix.push([r,g,bl])}
+ const pal=medianCut(pix,+$("#sc").value);
+ for(let i=0;i<a.length;i+=4){if(!a[i+3])continue;let best=0,bd=1e9;pal.forEach((p,k)=>{const dd=(p[0]-a[i])**2+(p[1]-a[i+1])**2+(p[2]-a[i+2])**2;if(dd<bd){bd=dd;best=k}});a[i]=pal[best][0];a[i+1]=pal[best][1];a[i+2]=pal[best][2]}
+ let W=w,H=h,out=d;
+ if($("#so").checked){W=w+2;H=h+2;const o=document.createElement("canvas").getContext("2d").createImageData(W,H),A=o.data;
+  for(let y=0;y<h;y++)for(let xx=0;xx<w;xx++){const i=(y*w+xx)*4;if(!a[i+3])continue;const j=((y+1)*W+xx+1)*4;A[j]=a[i];A[j+1]=a[i+1];A[j+2]=a[i+2];A[j+3]=255}
+  const B=new Uint8ClampedArray(A);for(let y=0;y<H;y++)for(let xx=0;xx<W;xx++){const j=(y*W+xx)*4;if(B[j+3])continue;if([[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy])=>{const X=xx+dx,Y=y+dy;return X>=0&&Y>=0&&X<W&&Y<H&&B[(Y*W+X)*4+3]}))[A[j],A[j+1],A[j+2],A[j+3]]=[20,18,16,255]}
+  out=o}
+ // quantifie en RGB565 (ce que verra l'écran)
+ const D=out.data,words=new Uint16Array(W*H);for(let i=0;i<D.length;i+=4){if(!D[i+3]){words[i/4]=0xF81F;continue}let v=to565(D[i],D[i+1],D[i+2]);if(v===0xF81F)v^=1;words[i/4]=v;D[i]=(v>>11)*255/31;D[i+1]=((v>>5)&63)*255/63;D[i+2]=(v&31)*255/31}
+ const pc=$("#sprprev");pc.width=W;pc.height=H;pc.getContext("2d").putImageData(out,0,0);pc.style.width=Math.min(W*4,330)+"px";pc.style.height="auto";
+ m.spr={W,H,words,name:m.name.replace(/\.[^.]+$/,"").replace(/[^A-Za-z0-9_]/g,"_"),canvas:pc};
+ $("#palsw").innerHTML=pal.map(p=>`<span class="sw" style="background:rgb(${p})"></span>`).join("");$("#sprinfo").textContent=`${W}×${H} px · ${pal.length} couleurs · ${W*H*2} octets · transparence 0xF81F · petit-boutiste`};
+const dl=(name,data,type)=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data],{type:type||"application/octet-stream"}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)};
+$("#dlpng").onclick=()=>{const s=img()?.spr;if(s)s.canvas.toBlob(b=>dl(s.name+".png",b))};
+$("#dlraw").onclick=()=>{const s=img()?.spr;if(s)dl(s.name+".raw",new Uint8Array(s.words.buffer.slice(0)))};
+$("#dlh").onclick=()=>{const s=img()?.spr;if(!s)return;let t=`// ${s.name} ${s.W}x${s.H} RGB565, transparence 0xF81F\n#pragma once\n#include <stdint.h>\n#define ${s.name.toUpperCase()}_W ${s.W}\n#define ${s.name.toUpperCase()}_H ${s.H}\nstatic const uint16_t ${s.name}[${s.W*s.H}] = {\n`;
+ for(let i=0;i<s.words.length;i+=12)t+="  "+[...s.words.slice(i,i+12)].map(v=>"0x"+v.toString(16).toUpperCase().padStart(4,"0")).join(", ")+",\n";dl(s.name+".h",t+"};\n","text/plain")};
+
+/* ---------- multi-vues ---------- */
+function attrsOf(m){const o={};m.attrs.split("\n").forEach(l=>{const i=l.indexOf("=");if(i<1)return;const k=l.slice(0,i).trim(),v=l.slice(i+1).trim();o[k]=k==="outfit"?v.split(/[ ,]+/).filter(Boolean):v});return o}
+const dec={};
+function analyse(){const R={q:[],req:[],notes:[],resolved:{}};if(!imgs.length)return R;
+ imgs.forEach(m=>{if(m.view==="unknown")R.q.push({id:"view:"+m.name,text:`Vue de ${m.name} ?`})});
+ const have=new Set(imgs.map(m=>m.view).filter(v=>v!=="unknown"));NEEDED.forEach(v=>{if(!have.has(v))R.req.push(`Ajouter une image de ${v} (idéalement en pied, fond uni, même tenue).`)});
+ const full=imgs.filter(m=>{const b=bboxOf(m);return b.y+b.h<m.cut.height-1&&b.h>=1.6*b.w});if(!full.length)R.req.push("Aucune image en pied : jambes et pieds seront inventés. Ajouter une vue en pied.");
+ if(!have.has("face"))R.req.push("Optionnel : gros plan du visage.");
+ const A={};imgs.forEach(m=>Object.entries(attrsOf(m)).forEach(([k,v])=>(A[k]??={})[m.name]=v));
+ Object.entries(A).forEach(([k,per])=>{const vals=new Set(Object.values(per).map(v=>JSON.stringify(v)));
+  if(vals.size===1)R.resolved[k]=Object.values(per)[0];
+  else if(dec[k]){R.resolved[k]=per[dec[k]]??dec[k]}
+  else R.q.push({id:"attr:"+k,key:k,text:`« ${k} » diffère selon les images — laquelle garder ?`,options:Object.entries(per).map(([n,v])=>[n,Array.isArray(v)?v.join(", "):v])});
+  if(Object.keys(per).length===1&&imgs.length>1)R.notes.push(`« ${k} » visible seulement sur ${Object.keys(per)[0]} : à confirmer sur les autres vues.`)});
+ return R}
+function renderMulti(){const T=$("#multitable");if(!imgs.length){T.innerHTML='<span class="mute">Ouvre au moins deux images.</span>';$("#multires").innerHTML="";return}
+ T.innerHTML="<table><tr><th>Image</th><th>Vue</th><th>Attributs (clé=valeur)</th></tr>"+imgs.map((m,i)=>`<tr><td>${m.name}</td><td><select data-v="${i}">${VIEWS.map(v=>`<option ${m.view===v?"selected":""}>${v}</option>`).join("")}</select></td>
+ <td><textarea data-a="${i}" rows="3" cols="22" placeholder="helmet=none&#10;weapon=arc standard&#10;outfit=shirt,pants">${m.attrs}</textarea></td></tr>`).join("")+"</table>";
+ T.querySelectorAll("[data-v]").forEach(s=>s.onchange=()=>{imgs[+s.dataset.v].view=s.value;renderMulti()});T.querySelectorAll("[data-a]").forEach(t=>t.onchange=()=>{imgs[+t.dataset.a].attrs=t.value;renderMulti()});
+ const R=analyse(),st=R.q.length?'<b class="bad">BLOQUÉ</b> (questions)':R.req.length?'<b class="warn">INCOMPLET</b> (vues manquantes)':'<b class="ok">PRÊT</b>';
+ const prim=dec._primary||(imgs.find(m=>m.view==="front")||imgs[0]).name;
+ let h=`<p>${st}</p>`;
+ if(R.q.length)h+="<h2>Questions</h2>"+R.q.map(q=>q.options?`<label>${q.text}</label><select data-d="${q.key}"><option value="">— choisir —</option>${q.options.map(([n,v])=>`<option value="${n}">${n} : ${v}</option>`).join("")}</select>`:`<div class="bad">${q.text}</div>`).join("");
+ if(R.req.length)h+=`<h2>Images à ajouter</h2><ul class="l">${R.req.map(x=>`<li>${x}</li>`).join("")}</ul>`;
+ if(R.notes.length)h+=`<ul class="l mute">${R.notes.map(x=>`<li>${x}</li>`).join("")}</ul>`;
+ const o=R.resolved.outfit;if(Array.isArray(o)&&window.GEAR){const v=validate(o);h+=`<h2>Tenue fusionnée</h2><p>${o.join(", ")}</p>`+(v.err.length?`<ul class="l bad">${v.err.map(e=>`<li>${e}</li>`).join("")}</ul>`:'<p class="ok">cohérente</p>')}
+ h+=`<label>Image principale</label><select id="prim">${imgs.map(m=>`<option ${m.name===prim?"selected":""}>${m.name}</option>`).join("")}</select>`;
+ $("#multires").innerHTML=h;$$("[data-d]").forEach(s=>s.onchange=()=>{if(s.value)dec[s.dataset.d]=s.value;renderMulti()});$("#prim").onchange=e=>{dec._primary=e.target.value;cli()};cli()}
+$("#dlman").onclick=()=>{const man={name:"personnage",images:{}};imgs.forEach(m=>{man.images[m.name]={view:m.view,...(m.head?{head_px:m.head}:{}),attrs:attrsOf(m)}});
+ dl("manifest.json",JSON.stringify(man,null,1));setTimeout(()=>dl("decisions.json",JSON.stringify(dec,null,1)),300)};
+
+/* ---------- exports / commandes ---------- */
+function propsJson(){const o={};imgs.forEach(m=>{const e={};if(m.head)e.person={head:m.head};if(m.erase.length)e.erase=m.erase;
+ if(m.props.length)e.props=m.props.filter(p=>(p.type==="bow"&&p.grip)||(p.type==="arrow"&&p.tail&&p.toward)).map(p=>p.type==="bow"?{type:"bow",grip:p.grip,kind:p.kind,angle:p.angle,bulge:p.bulge,color:p.color,layer:p.layer,...(p.pull?{pull:p.pull}:{})}:{type:"arrow",tail:p.tail,toward:p.toward,length:p.length,layer:p.layer});
+ if(Object.keys(e).length)o[m.name]=e});return o}
+function partsJson(){const o={};imgs.forEach(m=>{if(Object.keys(m.parts).length)o[m.name]=m.parts});return o}
+$("#dlprops").onclick=()=>dl("props.json",JSON.stringify(propsJson(),null,1));
+$("#dlparts").onclick=()=>dl("parts.json",JSON.stringify(partsJson(),null,1));
+$("#dlcut").onclick=()=>{const m=img();if(m)m.cut.toBlob(b=>dl(m.name.replace(/\.[^.]+$/,"")+"_cutout.png",b))};
+function cli(){const c=$("#cmds");if(!c)return;const m=img(),n=m?m.name:"image.png",g=checked();
+ c.textContent=[`# rendu avec armes et zones (props.json / parts.json exportés ci-dessus)`,`python -m forge extract ${n} --segment --props props.json --parts parts.json -o sortie`,
+ g.length?`# tenue\npython -m forge gear check ${g.join(" ")}`:"",`# plusieurs photos\npython -m forge consolidate analyze manifest.json --decisions decisions.json`,
+ `python -m forge job run manifest.json -o job --decisions decisions.json --json`,`# contrôle qualité d'un dossier de sprites\npython -m forge qa dossier_frames`].filter(Boolean).join("\n")}
+
+initGear();cli();window.addEventListener("resize",redraw);
+</script>
+</body>
+</html>

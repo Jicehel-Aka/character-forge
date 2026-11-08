@@ -73,6 +73,17 @@ Depuis un programme (C#, Python...) : lancer le processus, lire stdout ligne par
 couleurs, taille et ligne des pieds d'une frame à l'autre ; chaque problème donne une consigne de correction.
 À lancer sur des sprites, pas sur les références haute définition (qui déclenchent « couleurs » et « alpha » à raison).
 
+## Interface graphique (`docs/index.html`)
+Page statique, sans serveur ni dépendance : s'ouvre en local (double-clic) ou via GitHub Pages
+(Settings > Pages > Branch `main`, dossier `/docs`). Onglets : détourage (couleur de fond + gomme/restaurer),
+zones à effacer et parties nommées, armes à taille réelle (arc court/standard/recurve/long, flèche), tenue
+(règles de `gear`), sprite RGB565 (palette, contour, export .h/.raw/.png), multi-vues (vues manquantes, questions,
+décisions), export de `props.json`, `parts.json`, `manifest.json`, `decisions.json` et commandes à lancer.
+Limites : le détourage IA, le rendu définitif des armes et la 3D restent des commandes Python (`forge`) ou le
+notebook Colab ; l'aperçu des armes est approché. `tools/export_gear_json.py` régénère `docs/gear.js` depuis
+`forge/gear.py` (la CI vérifie qu'ils sont synchronisés). GitHub Pages n'est pas disponible pour un dépôt privé
+en compte gratuit : rendre le dépôt public ou ouvrir `docs/index.html` en local.
+
 ## Parties nommées
 `parts.json` : `{"image.png": {"head": [x,y,w,h], "body": [...], "weapon": [...]}}`.
 Les boîtes sont décidées en regardant l'image (par Claude ou à la main), puis découpées dans le détourage.
