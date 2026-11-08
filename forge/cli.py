@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
 
-from . import skiln_char, to_spritekiln, anim, assets, atlas, flat, gear, gen3d, job, multiview, qa, voxel, persona, pipeline, props, sheet, sprites, turntable
+from . import hullfit, skiln_char, to_spritekiln, anim, assets, atlas, flat, gear, gen3d, job, multiview, qa, voxel, persona, pipeline, props, sheet, sprites, turntable
 
 
 def add_extract_args(p):
@@ -131,6 +131,12 @@ def main(argv=None):
     s.add_argument("--anim-name", nargs="+"); s.add_argument("--frames", type=int, default=12); s.add_argument("--ms", type=int, default=80)
     s.add_argument("--render", action="store_true"); s.add_argument("--dirs", default="s,e,n"); s.add_argument("--size", type=int, default=64, help="taille d'une image : 64, 96, 128…")
 
+    s = sub.add_parser("hull8", help="planche de 8 vues sans caméra connue (dessin/IA) -> volume 3D de test (PLY) + tour de table")
+    s.add_argument("sheet"); s.add_argument("-o", "--output", default="hull8_out"); s.add_argument("--name", default="perso")
+    s.add_argument("--cols", type=int, default=4); s.add_argument("--rows", type=int, default=2); s.add_argument("--key", default="ff00ff")
+    s.add_argument("--pitch", type=float, default=10); s.add_argument("--vote", type=int, default=7, help="vues minimales contenant un voxel (8 = intersection stricte)")
+    s.add_argument("--angles", type=int, default=8)
+
     s = sub.add_parser("sheet", help="fiche de personnage (character.json + HTML)")
     s.add_argument("extract_dir")
     s.add_argument("--name")
@@ -205,6 +211,8 @@ def main(argv=None):
     elif a.cmd == "atlas":
         r = atlas.export(a.frames_dir, a.output, a.name, a.fps, not a.no_loop, as_array=a.array)
         print(f"[atlas] {r['frames']} images, cellule {r['cell']} -> {a.output}")
+    elif a.cmd == "hull8":
+        raise SystemExit(hullfit.cmd(a))
     elif a.cmd == "skiln-char":
         raise SystemExit(skiln_char.cmd(a))
     elif a.cmd == "skiln":

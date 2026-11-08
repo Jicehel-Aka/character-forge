@@ -38,25 +38,28 @@ def project(pts, yaw_deg, cam, sy=1, sd=1):
 
 
 def grid(cam, n=64, height=3.2):
-    up = cam["upp"]; nx = n; ny = int(height / up)
+    up = cam["upp"]; nx = cam.get("n", n); ny = int(cam.get("height", height) / up)
     xs = (np.arange(nx) - nx / 2 + 0.5) * up; ys = (np.arange(ny) + 0.5) * up
     X, Y, Z = np.meshgrid(xs, ys, xs, indexing="ij")
     return np.stack([X.ravel(), Y.ravel(), Z.ravel()], 1), (nx, ny, nx)
 
 
-def carve(views, cam, use=None, sy=1, sd=1, dil=1):
-    """Intersection des cônes (cylindres) de silhouettes. use = liste de directions à utiliser. -> (occ, pts, shape)."""
+def carve(views, cam, use=None, sy=1, sd=1, dil=1, vote=None):
+    """Intersection des cônes (cylindres) de silhouettes. use = directions à utiliser.
+    vote : nombre minimal de vues qui doivent contenir le voxel (None = toutes ; N-1 ou N-2 tolère des vues incohérentes,
+    typique de planches dessinées ou générées par IA). -> (occ, pts, shape)."""
     from scipy import ndimage
-    pts, shape = grid(cam); occ = np.ones(len(pts), bool)
-    for d in (use or views):
+    pts, shape = grid(cam); cnt = np.zeros(len(pts), np.int16); names = list(use or views)
+    for d in names:
         m = views[d][..., 3] > 0
         if dil: m = ndimage.binary_dilation(m, iterations=dil)
         u, v = project(pts, cam["yaw"][d], cam, sy, sd)
         ui = np.floor(u).astype(int); vi = np.floor(v).astype(int)
         ok = (ui >= 0) & (ui < m.shape[1]) & (vi >= 0) & (vi < m.shape[0])
         hit = np.zeros(len(pts), bool); hit[ok] = m[vi[ok], ui[ok]]
-        occ &= hit
-    return occ, pts, shape
+        cnt += hit
+    need = len(names) if vote is None else min(vote, len(names))
+    return cnt >= need, pts, shape
 
 
 def reproject(occ, pts, d, cam, size, sy=1, sd=1):

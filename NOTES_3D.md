@@ -206,3 +206,9 @@ Les clips appris portent le suffixe `_forge` quand leur nom est celui d'un clip 
 ### Contrôle qualité à 256 px (combattante)
 Défauts relevés : peau presque blanche (mains, visage) -> rampe de peau à lumières contenues ; visage sans sourcils ni bouche -> parties `brow_L` et `mouth` ajoutées dès `--size 96` ;
 restent : mèches fines « bâtons » devant le visage, yeux en gros rectangles, cou masqué par le col, ceinture en « beignet » pendant le saut, membres en tubes, bottes sans cheville.
+
+### Planche de 8 vues dessinée/IA sans caméra (forge hull8)
+Test sur une planche 4×2 de combattante à l'éventail (fond magenta). Caméra inconnue : tangage, signes et décalages estimés par recalage croisé ; sculpture « par vote » (≥ 7 vues sur 8).
+Cohérence des silhouettes : ≈ 0,6 (contre 0,98 sur SpriteKiln, rendu depuis un vrai 3D) : les 8 images d'une IA ne sont pas des rotations d'un même objet (pose, bras, pieds, éventail varient).
+Hors échantillon (une vue retirée puis reconstruite) : IoU 0,64–0,68, erreur de couleur ≈ 62/255. Volume utilisable pour des tests, pas comme modèle final.
+Sortie : PLY (nuage coloré) + tour de table. Pour un modèle propre : partir d'un personnage SpriteKiln (caméras connues, IoU 0,98) ou d'images multi-vues cohérentes.
