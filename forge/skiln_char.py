@@ -42,6 +42,7 @@ def build(desc, outdir, anims=None, size=64):
             if kit == "pouch": use.append({"kit": "pouch", "as": "pouch_L", "with": {"angle": 1.15}})
             elif kit in ("helmet", "hat", "hood"): use.append({"kit": kit, "at": "head"})
             elif kit == "cape": use.append({"kit": "cape"})
+            elif kit == "belt" and "buckle_off" in desc: use.append({"kit": "belt", "with": {"buckle": False}})
             else: use.append({"kit": kit})
         else: skipped.append(g)
     w = desc.get("weapon")
@@ -82,6 +83,15 @@ def build(desc, outdir, anims=None, size=64):
             "brow_L": {"material": "ink", "space": "head", "prims": [{"extrude": {"c": [0.082, 0.168, 0.082], "rot": [0, 0.7, -0.12], "depth": 0.03, "profile": {"rect": [0.03, 0.007], "round": 0.003}}}]},
             "mouth": {"material": "mouth", "space": "head", "prims": [{"extrude": {"c": [0, 0.035, 0.088], "rot": [0, 0, 0], "depth": 0.04, "profile": {"rect": [0.03, 0.006], "round": 0.003}}}]},
         }
+    extra = {}                                             # accessoires sans kit : bandeau, gants (pièces simples, miroir _L/_R pour les gants)
+    if "headband" in col:
+        spec["materials"]["headband"] = {"ramp": "headband"}
+        extra["headband"] = {"material": "headband", "space": "head", "prims": [{"cylinder": {"a": [0, 0.235, 0], "b": [0, 0.285, 0], "r": 0.14, "round": 0.004}}]}
+        extra["headband_tail"] = {"material": "headband", "space": "head", "prims": [{"cone": {"a": [-0.02, 0.26, -0.13], "b": [-0.09, 0.08, -0.2], "r": [0.022, 0.012]}}]}
+    if "gloves" in col:
+        spec["materials"]["gloves"] = {"ramp": "gloves"}
+        extra["glove_L"] = {"material": "gloves", "space": "wrist_L", "prims": [{"sphere": {"c": [0, 0, 0.045], "r": 0.068}}, {"cone": {"a": [0, 0, -0.07], "b": [0, 0, 0.0], "r": [0.06, 0.066]}}]}
+    if extra: spec.setdefault("parts", {}).update(extra)
     if anims:
         spec["animations"] = anims
         spec["camera"] = {"center": [0, 1.15, 0]}          # marge en haut pour les sauts (sinon QA : sprite coupé)
