@@ -131,6 +131,12 @@ def main(argv=None):
     s.add_argument("--anim-name", nargs="+"); s.add_argument("--frames", type=int, default=12); s.add_argument("--ms", type=int, default=80)
     s.add_argument("--render", action="store_true"); s.add_argument("--dirs", default="s,e,n"); s.add_argument("--size", type=int, default=64, help="taille d'une image : 64, 96, 128…")
 
+    s = sub.add_parser("skiln-paint", help="repeint un modèle SpriteKiln avec les couleurs d'une planche source (8 vues), en coordonnées locales des pièces")
+    s.add_argument("spec"); s.add_argument("sheet"); s.add_argument("--row", required=True, help="y0,y1 de la rangée de 8 vues dans la planche")
+    s.add_argument("-o", "--output", default="paint_out"); s.add_argument("--anims", nargs="+", default=["idle"]); s.add_argument("--dirs", default="s,se,e,ne,n,nw,w,sw")
+    s.add_argument("--size", type=int, default=256); s.add_argument("--final", type=int, default=64); s.add_argument("--meta", default=None, help="JSON SpriteKiln (direction_yaw)")
+    s.add_argument("--sign", type=int, choices=[1, -1], default=None, help="sens de rotation des colonnes source (sinon choisi par IoU : ambigu)")
+
     s = sub.add_parser("hull8", help="planche de 8 vues sans caméra connue (dessin/IA) -> volume 3D de test (PLY) + tour de table")
     s.add_argument("sheet"); s.add_argument("-o", "--output", default="hull8_out"); s.add_argument("--name", default="perso")
     s.add_argument("--cols", type=int, default=4); s.add_argument("--rows", type=int, default=2); s.add_argument("--key", default="ff00ff")
@@ -211,6 +217,9 @@ def main(argv=None):
     elif a.cmd == "atlas":
         r = atlas.export(a.frames_dir, a.output, a.name, a.fps, not a.no_loop, as_array=a.array)
         print(f"[atlas] {r['frames']} images, cellule {r['cell']} -> {a.output}")
+    elif a.cmd == "skiln-paint":
+        from . import skiln_paint
+        raise SystemExit(skiln_paint.cmd(a))
     elif a.cmd == "hull8":
         raise SystemExit(hullfit.cmd(a))
     elif a.cmd == "skiln-char":
