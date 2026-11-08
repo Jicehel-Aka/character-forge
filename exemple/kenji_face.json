@@ -1,0 +1,34 @@
+{
+ "portrait": "/mnt/user-data/attachments/9dd98225-c655-5eeb-be5b-44607c5c472a/6da8132f-image.png",
+ "window": [
+  270,
+  60,
+  480
+ ],
+ "points": {
+  "eye_near": [
+   455,
+   247
+  ],
+  "eye_far": [
+   382,
+   252
+  ],
+  "nose": [
+   385,
+   307
+  ],
+  "mouth": [
+   420,
+   337
+  ],
+  "chin": [
+   415,
+   392
+  ],
+  "ear": [
+   572,
+   255
+  ]
+ }
+}

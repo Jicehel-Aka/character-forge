@@ -76,8 +76,11 @@ def build(desc, outdir, anims=None, size=64):
     if not any(g in ("coat", "robe", "dress", "long_coat") for g in desc.get("gear", [])):
         rem.append("parts.coat")          # la « jupe » du gabarit cache les jambes : retirée sauf manteau/robe demandé
     rem += rem0
+    rem = [r for r in rem]
     if rem: spec["remove"] = rem
-    if size >= 96:                                         # assez de pixels pour un visage : sourcils et bouche (le gabarit n'a que les yeux)
+    if desc.get("face_texture"):                          # visage peint (portrait) : pas de pièces « yeux » en relief
+        spec.setdefault("remove", []).append("parts.eye_L")
+    if size >= 96 and not desc.get("face_texture"):        # assez de pixels pour un visage : sourcils et bouche (le gabarit n'a que les yeux)
         spec["materials"]["mouth"] = {"ramp": "mouth"}
         spec["parts"] = {
             "brow_L": {"material": "ink", "space": "head", "prims": [{"extrude": {"c": [0.082, 0.168, 0.082], "rot": [0, 0.7, -0.12], "depth": 0.03, "profile": {"rect": [0.03, 0.007], "round": 0.003}}}]},

@@ -43,11 +43,11 @@ def karate(spec, col, extra, ramps_out, outdir, name, size):
     extra["tail_a"] = {"material": "belt_k", "space": "pelvis", "prims": [{"cone": {"a": [0.03, 0.10, 0.215], "b": [0.09, -0.16, 0.225], "r": [0.03, 0.022], "elongate": [0.01, 0, 0]}}]}
     extra["tail_b"] = {"material": "belt_k", "space": "pelvis", "prims": [{"cone": {"a": [0.02, 0.10, 0.215], "b": [-0.03, -0.20, 0.225], "r": [0.03, 0.02], "elongate": [0.01, 0, 0]}}]}
     # --- bandeau : anneau, nœud derrière, deux rubans
-    extra["headband"] = {"material": "headband", "space": "head", "prims": [{"cylinder": {"a": [0, 0.232, -0.005], "b": [0, 0.278, -0.005], "r": 0.145, "round": 0.004}}]}
+    extra["headband"] = {"material": "headband", "space": "head", "prims": [{"cylinder": {"a": [0, 0.19, -0.005], "b": [0, 0.236, -0.005], "r": 0.143, "round": 0.004}}]}
     extra.pop("headband_tail", None)
-    extra["hb_knot"] = {"material": "headband", "space": "head", "priority": 2, "prims": [{"ellipsoid": {"c": [0.02, 0.24, -0.15], "r": [0.04, 0.035, 0.03]}}]}
-    extra["hb_ribbon_a"] = {"material": "headband", "space": "head", "prims": [{"cone": {"a": [0.03, 0.24, -0.155], "b": [0.14, 0.01, -0.22], "r": [0.026, 0.015], "elongate": [0.012, 0, 0]}}]}
-    extra["hb_ribbon_b"] = {"material": "headband", "space": "head", "prims": [{"cone": {"a": [0.01, 0.24, -0.155], "b": [0.04, -0.03, -0.27], "r": [0.026, 0.014], "elongate": [0.012, 0, 0]}}]}
+    extra["hb_knot"] = {"material": "headband", "space": "head", "priority": 2, "prims": [{"ellipsoid": {"c": [0.02, 0.215, -0.15], "r": [0.04, 0.035, 0.03]}}]}
+    extra["hb_ribbon_a"] = {"material": "headband", "space": "head", "prims": [{"cone": {"a": [0.03, 0.215, -0.155], "b": [0.14, 0.01, -0.22], "r": [0.026, 0.015], "elongate": [0.012, 0, 0]}}]}
+    extra["hb_ribbon_b"] = {"material": "headband", "space": "head", "prims": [{"cone": {"a": [0.01, 0.215, -0.155], "b": [0.04, -0.03, -0.27], "r": [0.026, 0.014], "elongate": [0.012, 0, 0]}}]}
     # --- gants sans doigts : paume bleue, manchette plus claire, doigts nus
     extra["glove_L"] = {"material": "gloves", "space": "wrist_L", "blend": 0.02, "prims": [
         {"ellipsoid": {"c": [0, 0, 0.06], "r": [0.066, 0.052, 0.075]}}]}

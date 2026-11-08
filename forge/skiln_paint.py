@@ -9,6 +9,8 @@ import numpy as np
 from PIL import Image
 
 CELL = 0.012
+FACE_CELL = 0.005
+FACE_NAMES = ("head", "nose", "ear_L", "ear_R")
 FLAT = {"cloth": 0.7, "collar": 0.6, "skin": 0.45}       # matériaux repeints « albédo moyen x ombrage SpriteKiln » (seconde passe)
 ALLOWED = {"boots": {"white"}, "sole": {"black"}, "skin": {"skin"}, "cloth": {"white"}, "collar": {"white"}, "gloves": {"blue"}, "cuff": {"blue"}, "headband": {"blue"},
            "leather": {"black", "white"}, "belt_k": {"black"}, "hair": {"black"}, "ink": {"black"}, "steel": {"white"}}
@@ -104,7 +106,7 @@ def align(src, mask_r, iters=2):
 class Learner:
     def __init__(self, spec_path, size=256, anim="idle", frame=0):
         self.spec, self.size, self.anim, self.frame = Path(spec_path), size, anim, frame
-        self.acc = {}; self.names = None
+        self.acc = {}; self.names = None; self.cells = {}
 
     def add(self, yaw_deg, src_rgb, src_mask, power=1.0, rad=7):
         """Accumule les couleurs d'une vue source. Calage PAR PIÈCE : pour chaque pièce, décalage (±rad px) qui maximise la part
@@ -125,7 +127,8 @@ class Learner:
                     if sc > best[0]: best = (sc, dx, dy)
             _, dx, dy = best; self.shifts[(round(yaw_deg), gi)] = (dx, dy)
             yy = np.clip(ys + dy, 0, S - 1); xx = np.clip(xs + dx, 0, S - 1); ok = good[yy, xx]
-            key = np.round(gp["q"][ys[ok], xs[ok]] / CELL).astype(np.int32); col = src_rgb[yy[ok], xx[ok]].astype(float); w = nz[ys[ok], xs[ok]]
+            cell = FACE_CELL if gp["names"][gi] in FACE_NAMES else CELL; self.cells[gi] = cell
+            key = np.round(gp["q"][ys[ok], xs[ok]] / cell).astype(np.int32); col = src_rgb[yy[ok], xx[ok]].astype(float); w = nz[ys[ok], xs[ok]]
             for k, c, ww in zip(map(tuple, key), col, w):
                 a = self.acc.setdefault((gi, k), [np.zeros(3), 0.0]); a[0] += c * ww; a[1] += ww
 
@@ -133,11 +136,11 @@ class Learner:
         """Une table par pièce : cellules locales -> couleur (médiane des k voisins : seconde passe de débruitage) + albédo moyen."""
         from scipy.spatial import cKDTree
         by = {}
-        for (g, k), (c, w) in self.acc.items(): by.setdefault(g, ([], []))[0].append(np.array(k) * CELL); by[g][1].append(c / w)
+        for (g, k), (c, w) in self.acc.items(): by.setdefault(g, ([], []))[0].append(np.array(k) * self.cells.get(g, CELL)); by[g][1].append(c / w)
         out = {}
         for g, (p, c) in by.items():
             p = np.array(p); c = np.array(c); tree = cKDTree(p)
-            if smooth and len(p) > smooth:
+            if smooth and len(p) > smooth and self.names[g] not in FACE_NAMES:
                 _, nb = tree.query(p, k=smooth); c = np.median(c[nb], axis=1)
             out[g] = (tree, c, np.percentile(c, 75, axis=0))
         return out
@@ -151,7 +154,7 @@ class Learner:
             sel = gp["gid"] == g
             if not sel.any(): continue
             _, idx = tree.query(gp["q"][sel]); c = cols[idx].astype(float)
-            w = FLAT.get(gp["mats"][g], 0.0) if relight else 0.0
+            w = FLAT.get(gp["mats"][g], 0.0) if relight and gp["names"][g] not in FACE_NAMES else 0.0
             if w:
                 lv = gp["shade"][sel]; f = np.clip(0.62 + 0.75 * (lv - lv.mean()) + 0.05, 0.45, 1.15)[:, None]
                 c = (1 - w) * c + w * np.clip(alb[None, :] * f * 1.02, 0, 255)
@@ -193,7 +196,17 @@ def cmd(a):
         best = max(((sum(M[i, (sg * i + sh) % 8] for i in range(8)), sg, sh) for sg in (1, -1) for sh in range(8)), key=lambda t: t[0])
     print(f"[skiln-paint] association colonnes -> directions : signe {best[1]:+d}, décalage {best[2]}, IoU moyen {best[0] / 8:.2f}")
     for i in range(8): L.add(meta[dirs[(best[1] * i + best[2]) % 8]], *AL[i, (best[1] * i + best[2]) % 8])
+    if getattr(a, "face", None):
+        from . import skiln_face
+        fj = json.loads(Path(a.face).read_text())
+        par = skiln_face.learn(L, fj["portrait"], fj["points"], tuple(fj["window"]), S=256)
+        print(f"[skiln-paint] visage : caméra du portrait lacet {np.degrees(par['yaw']):.0f}°, inclinaison {np.degrees(par['pitch']):.0f}°, erreur des repères {par['err']:.1f} px")
     T = L.tables(); pal = palette_from(T); n = 0
+    if getattr(a, "face", None):                          # contrôle : le modèle peint, vu depuis la caméra du portrait
+        L2 = Learner(L.spec.with_name(L.spec.stem + "_face.yaml"), 256, "idle", 0); L2.acc, L2.cells, L2.names = L.acc, L.cells, L.names
+        chk = L2.paint(T, "idle", 0, float(np.degrees(par["yaw"])), relight=True); x0, y0, w = tuple(fj["window"])
+        ref = Image.open(fj["portrait"]).convert("RGBA").crop((x0, y0, x0 + w, y0 + w)).resize((256, 256), Image.LANCZOS)
+        both = Image.new("RGBA", (512, 256), (40, 40, 52, 255)); both.alpha_composite(ref, (0, 0)); both.alpha_composite(chk, (256, 0)); both.save(out / "face_check.png")
     for anim in a.anims:
         for d in a.dirs.split(","):
             from spritekiln.anim import frames_of
