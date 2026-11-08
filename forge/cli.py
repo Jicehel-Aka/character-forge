@@ -112,6 +112,7 @@ def main(argv=None):
     s.add_argument("--refs", help="dossier refs/ de `consolidate build`")
     for k in ("front", "back", "left", "right"): s.add_argument("--" + k, help=f"image de la vue {k}")
     s.add_argument("--size", type=int, default=64, help="résolution de la grille (voxels)")
+    s.add_argument("--diag", type=float, default=1.0, help="coupe diagonale (45°) : 0 = aucune (boîte), 1 = octogone calé sur une ellipse")
     s.add_argument("--rounding", type=float, default=0.0, help="0 = hull pur (défaut, meilleur rendu mesuré), 2 = ellipse, 6+ = boîte")
     s.add_argument("--angles", type=int, default=8); s.add_argument("--out-size", type=int, default=96)
 

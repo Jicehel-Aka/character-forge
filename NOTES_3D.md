@@ -163,3 +163,9 @@ Testé sur planches LPC (lignes 8–11 = dos/gauche/face/droite) : IoU de re-ren
 Limites : sprites légèrement vus de dessus (pas orthographiques), doublement de texture aux diagonales (45°),
 l'a priori « ellipse » (--rounding 2) dégrade le rendu → désactivé par défaut.
 Ex. : python -m forge voxel --sheet body.png hair.png -o out --name N --cell 64 --row0 8
+
+### Diagonales (45°) — résultat des essais
+- Aucun outil gratuit existant ne résout ça (sprite2model, Pixhull, SpriteToVoxel : voxels depuis 1 à 3 vues, pas de synthèse de vues intermédiaires ; sprite2model compile mais sa lecture « outfit » vise des sprites Tibia 32 px).
+- Diagnostic : la géométrie est correcte à 45° (largeur de tête 21,9 vs 22 de face). Le « doublement » vient de la texture : face et profil peignent chacun un visage complet sur deux facettes voisines.
+- Ajoutés : `--diag` (coupe octogonale par rangée, volume plus juste à 45°) et texturage dépendant de la caméra (net aux 4 axes, plus de mélange). Le doublement à 45° persiste : 4 vues ne contiennent pas l'information du 45°.
+- Vraies solutions : (a) fournir les 8 directions (6+ planches RPG Maker/Tibia en ont) et les ajouter comme silhouettes/textures ; (b) synthèse de vues par modèle (Zero123++/Wonder3D/SV3D, GPU) pour générer les diagonales.

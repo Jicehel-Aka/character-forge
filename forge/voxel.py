@@ -61,7 +61,7 @@ def _runs(mask):
     return st, en
 
 
-def carve(views, rounding=0.0):
+def carve(views, rounding=0.0, diag=0.0):
     """views : dict de tableaux RGBA alignés (H, W, 4). -> occupation (x, y, z) booléenne.
     rounding : exposant d'une super-ellipse par segment de ligne (2 = ellipse, grand = boîte, 0/None = hull pur).
     L'a priori « section arrondie » évite l'effet de boîte plaquée de textures quand on tourne à 45°."""
@@ -82,20 +82,65 @@ def carve(views, rounding=0.0):
         X0 = xs0[y, x]; X1 = xs1[y, x]; Z0 = zs0[y, z]; Z1 = zs1[y, z]
         xc, rx = (X0 + X1) / 2, np.maximum((X1 - X0) / 2, 0.5); zc, rz = (Z0 + Z1) / 2, np.maximum((Z1 - Z0) / 2, 0.5)
         occ &= (np.abs((x + 0.5 - xc) / rx) ** rounding + np.abs((z + 0.5 - zc) / rz) ** rounding) <= 1.0
+    if diag:
+        occ = chamfer(occ, diag)
     return occ
+
+
+def chamfer(occ, t=1.0):
+    """Calcul du 45° : par rangée et par composante connexe (tronc, bras, jambe…), la section est un rectangle (hull de 4 vues
+    orthogonales). Sa projection à 45° est donc trop large (coin de boîte -> « double tête »). On recoupe par 2 plans diagonaux :
+    demi-largeur diagonale h = (1-t)*(rx+rz)/sqrt2 [boîte] + t*sqrt((rx**2+rz**2)/2)*... [ellipse] ; t=1 -> octogone ellipse."""
+    from scipy import ndimage
+    W, H, D = occ.shape
+    out = occ.copy()
+    for y in range(H):
+        sl = occ[:, y, :]
+        if not sl.any(): continue
+        lab, n = ndimage.label(sl)
+        for k in range(1, n + 1):
+            xs, zs = np.where(lab == k)
+            x0, x1, z0, z1 = xs.min(), xs.max() + 1, zs.min(), zs.max() + 1
+            rx, rz = (x1 - x0) / 2, (z1 - z0) / 2
+            if min(rx, rz) < 1.5: continue                      # trop fin pour être recoupé
+            cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
+            hb = (rx + rz) / np.sqrt(2)                          # support d'une boîte dans la direction 45°
+            he = np.sqrt((rx * rx + rz * rz) / 2)                # support d'une ellipse
+            h = (1 - t) * hb + t * he
+            X, Z = np.meshgrid(np.arange(W) + 0.5 - cx, np.arange(D) + 0.5 - cz, indexing="ij")
+            keep = (np.abs(X + Z) / np.sqrt(2) <= h) & (np.abs(X - Z) / np.sqrt(2) <= h)
+            m = lab == k
+            out[:, y, :][m & ~keep] = False
+    return out
 
 
 _N = {"front": (0, 0, -1), "back": (0, 0, 1), "left": (-1, 0, 0), "right": (1, 0, 0), "top": (0, 1, 0), "bottom": (0, -1, 0)}
 
 
-def faces(occ, views, blend=True, sigma=1.5):
+def radial(occ):
+    """Pour chaque voxel : vecteur (dx, dz) depuis le centre de sa composante de rangée (tronc, bras, jambe...)."""
+    from scipy import ndimage
+    W, H, D = occ.shape
+    dxa = np.zeros(occ.shape, np.float32); dza = np.zeros(occ.shape, np.float32)
+    for y in range(H):
+        sl = occ[:, y, :]
+        if not sl.any(): continue
+        lab, n = ndimage.label(sl)
+        for k in range(1, n + 1):
+            xs, zs = np.where(lab == k)
+            cx, cz = (xs.min() + xs.max()) / 2, (zs.min() + zs.max()) / 2
+            rx, rz = max((xs.max() - xs.min()) / 2, 0.5), max((zs.max() - zs.min()) / 2, 0.5)
+            dxa[xs, y, zs] = (xs - cx) / rx; dza[xs, y, zs] = (zs - cz) / rz   # normalisé par les demi-axes -> quadrants à 45° vrais
+    return dxa, dza
+
+
+def faces(occ, views, blend=True, sigma=1.5, power=4, cam=None, cpow=4, vpow=1.5):
     """Faces exposées -> liste de (4 sommets, normale, couleur RGB). y image vers le bas -> y 3D vers le haut."""
     W, H, D = occ.shape; out = []
     pad = np.pad(occ, 1)
     if blend:   # normale de surface lissée (plan horizontal) -> mélange pondéré des 4 projections, au lieu d'une face par vue
         from scipy import ndimage
-        g = ndimage.gaussian_filter(occ.astype(float), sigma)
-        gx, _, gz = np.gradient(g)
+        gx, gz = radial(occ)
     def col(name, x, y, z):
         a = views.get(name)
         if a is None: a = views["front"]
@@ -112,11 +157,16 @@ def faces(occ, views, blend=True, sigma=1.5):
             Y = H - 1 - y
             c = col(name if name in VIEWS else "front", x, y, z)
             if blend and name in VIEWS:
-                nx_, nz_ = -gx[x, y, z], -gz[x, y, z]; nrm = math.hypot(nx_, nz_)
+                nx_, nz_ = gx[x, y, z], gz[x, y, z]; nrm = math.hypot(nx_, nz_)
                 if nrm > 1e-6:
                     nx_, nz_ = nx_ / nrm, nz_ / nrm
                     wts = {"front": max(0.0, -nz_), "back": max(0.0, nz_), "right": max(0.0, nx_), "left": max(0.0, -nx_)}
-                    wts = {k: v ** 2 for k, v in wts.items() if k in views}
+                    if cam is None:
+                        wts = {k: v ** power for k, v in wts.items() if k in views}
+                    else:   # texturage dépendant de la caméra : on échantillonne la vue la plus proche de l'angle de rendu,
+                        # modulée par la visibilité du voxel dans cette vue -> une seule image du visage, pas deux
+                        A = {"front": 0, "right": 90, "back": 180, "left": 270}
+                        wts = {k: (max(0.0, math.cos(math.radians(cam - A[k]))) ** cpow) * (v ** vpow + 1e-3) for k, v in wts.items() if k in views}
                     tot = sum(wts.values())
                     if tot > 1e-9:
                         c = sum(np.array(col(k, x, y, z), float) * w for k, w in wts.items()) / tot
@@ -213,7 +263,7 @@ def cmd(a):
         raise SystemExit("il faut au moins 2 vues (idéalement face, dos, gauche, droite)")
     miss = [v for v in VIEWS if v not in views]
     al = align_views(views, a.size)
-    occ = carve(al, a.rounding or None); F = faces(occ, al)
+    occ = carve(al, a.rounding or None, a.diag); F = faces(occ, al)
     nv, nf = save_obj_ply(F, str(out / a.name))
     iou = {}
     ang = {"front": 0, "right": 90, "back": 180, "left": 270}
@@ -221,7 +271,7 @@ def cmd(a):
         r = render(F, occ.shape, ang[v], size=(a.size, a.size), scale=1.0, ss=4, foot=1.0)
         iou[v] = round(silhouette_iou(r, al[v][..., 3] > 0), 3)
     n = a.angles
-    fr = [render(F, occ.shape, 360 * i / n, size=(a.out_size, a.out_size)) for i in range(n)]
+    fr = [render(faces(occ, al, cam=360 * i / n), occ.shape, 360 * i / n, size=(a.out_size, a.out_size)) for i in range(n)]   # texturage dépendant de la caméra
     sheet = Image.new("RGBA", (a.out_size * n, a.out_size), (0, 0, 0, 0))
     for i, f in enumerate(fr): sheet.alpha_composite(f, (i * a.out_size, 0))
     sheet.save(out / f"{a.name}_turntable.png")
