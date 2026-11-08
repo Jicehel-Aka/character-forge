@@ -91,6 +91,9 @@ def build(desc, outdir, anims=None, size=64):
     if "gloves" in col:
         spec["materials"]["gloves"] = {"ramp": "gloves"}
         extra["glove_L"] = {"material": "gloves", "space": "wrist_L", "prims": [{"sphere": {"c": [0, 0, 0.045], "r": 0.068}}, {"cone": {"a": [0, 0, -0.07], "b": [0, 0, 0.0], "r": [0.06, 0.066]}}]}
+    if "karate" in desc.get("details", []):
+        from . import skiln_details
+        skiln_details.karate(spec, col, extra, ramps_out=ramps, outdir=out, name=name, size=size)
     if extra: spec.setdefault("parts", {}).update(extra)
     if anims:
         spec["animations"] = anims
