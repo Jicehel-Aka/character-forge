@@ -202,3 +202,7 @@ Sans kit SpriteKiln (couleurs seulement) : armures, bottes, gants, lunettes, rob
 `forge skiln-char ... --size 128` : même spec, même cadrage, rendu en 13 s pour 66 images. À 128 px apparaissent yeux, bouche, mains, détail du chignon et contours plus fins (comparaison 64 ×4 / 128 ×2).
 Coût AKA : une image RGB565 128×128 = 32 Ko (64×64 = 8 Ko) ; une animation de 8 images × 8 directions = 2 Mo -> à lire depuis la SD plutôt que de garder en RAM.
 Les clips appris portent le suffixe `_forge` quand leur nom est celui d'un clip du gabarit (idle, walk, attack).
+
+### Contrôle qualité à 256 px (combattante)
+Défauts relevés : peau presque blanche (mains, visage) -> rampe de peau à lumières contenues ; visage sans sourcils ni bouche -> parties `brow_L` et `mouth` ajoutées dès `--size 96` ;
+restent : mèches fines « bâtons » devant le visage, yeux en gros rectangles, cou masqué par le col, ceinture en « beignet » pendant le saut, membres en tubes, bottes sans cheville.

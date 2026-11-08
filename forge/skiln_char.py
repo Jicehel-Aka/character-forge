@@ -14,26 +14,26 @@ BUILD_W = {"human": 1.0, "slim": 0.9, "stocky": 1.12, "orc": 1.28, "child": 0.9}
 BUILD_HEAD = {"human": 1.0, "slim": 1.0, "stocky": 1.05, "orc": 1.15, "child": 1.25}
 
 
-def ramp(hexc, n=6, dark=None):
+def ramp(hexc, n=6, hi=0.6):
     """Rampe de n teintes : ombres vers le froid/saturées, lumières vers le chaud (convention de la palette gothic)."""
     h = hexc.lstrip("#"); r, g, b = (int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))
     H, L, S = colorsys.rgb_to_hls(r, g, b); out = []
     for i in range(n):
         t = i / (n - 1); l = 0.06 + t * (min(0.92, L + 0.30) - 0.06)
         # le point milieu de la rampe est la couleur demandée
-        l = L + (t - 0.6) * (0.55 if t < 0.6 else 0.6)
+        l = L + (t - 0.6) * (0.55 if t < 0.6 else hi)
         l = min(0.95, max(0.05, l)); hh = (H + (0.60 - t) * 0.03) % 1.0
         rr, gg, bb = colorsys.hls_to_rgb(hh, l, min(1.0, S * (0.9 + 0.2 * (1 - t))))
         out.append("#%02x%02x%02x" % (int(rr * 255), int(gg * 255), int(bb * 255)))
     return out
 
 
-def build(desc, outdir, anims=None):
+def build(desc, outdir, anims=None, size=64):
     out = Path(outdir); out.mkdir(parents=True, exist_ok=True)
     name = desc.get("name", "perso"); b = desc.get("build", "human"); col = desc.get("colors", {})
     base = yaml.safe_load(open(Path(__import__("spritekiln").__file__).parent / "data/palettes/gothic.yaml"))
     ramps = dict(base["ramps"])
-    for k, v in col.items(): ramps[k] = ramp(v)
+    for k, v in col.items(): ramps[k] = ramp(v, hi=0.32 if k == "skin" else 0.6)   # peau : lumières contenues (sinon mains et visage presque blancs)
     (out / f"{name}_palette.yaml").write_text(yaml.safe_dump({"ramps": ramps}, sort_keys=False))
     use, skipped, notes = [], [], []
     for g in desc.get("gear", []):
@@ -76,6 +76,12 @@ def build(desc, outdir, anims=None):
         rem.append("parts.coat")          # la « jupe » du gabarit cache les jambes : retirée sauf manteau/robe demandé
     rem += rem0
     if rem: spec["remove"] = rem
+    if size >= 96:                                         # assez de pixels pour un visage : sourcils et bouche (le gabarit n'a que les yeux)
+        spec["materials"]["mouth"] = {"ramp": "mouth"}
+        spec["parts"] = {
+            "brow_L": {"material": "ink", "space": "head", "prims": [{"extrude": {"c": [0.082, 0.168, 0.082], "rot": [0, 0.7, -0.12], "depth": 0.03, "profile": {"rect": [0.03, 0.007], "round": 0.003}}}]},
+            "mouth": {"material": "mouth", "space": "head", "prims": [{"extrude": {"c": [0, 0.035, 0.088], "rot": [0, 0, 0], "depth": 0.04, "profile": {"rect": [0.03, 0.006], "round": 0.003}}}]},
+        }
     if anims:
         spec["animations"] = anims
         spec["camera"] = {"center": [0, 1.15, 0]}          # marge en haut pour les sauts (sinon QA : sprite coupé)
@@ -99,7 +105,7 @@ def cmd(a):
             nm = (a.anim_name[i] if a.anim_name and i < len(a.anim_name) else m["type"])
             if nm in ("idle", "walk", "attack"): nm += "_forge"      # évite la fusion avec les clips du gabarit (clé « channels » inconnue)
             anims[nm] = {"loop": bool(m.get("periodic")), "keys": to_spritekiln.poses_to_keys(poses, a.ms)}
-    p, skipped = build(desc, a.output, anims)
+    p, skipped = build(desc, a.output, anims, a.size)
     print(f"[skiln-char] {p}" + (f" ; sans kit (couleurs seulement) : {skipped}" if skipped else ""))
     if a.render:
         names = ["idle"] + (list(anims) if anims else [])
