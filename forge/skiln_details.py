@@ -29,9 +29,9 @@ def karate(spec, col, extra, ramps_out, outdir, name, size):
         if u.get("kit") == "head": u["with"].update({"nose": 0.7, "ears": 1})
     # --- kimono : revers en V sur la poitrine (torse nu dans l'ouverture)
     extra["chest_v"] = {"material": "skin", "space": "pelvis", "prims": [{"ellipsoid": {"c": [0, 0.5, 0.125], "r": [0.06, 0.12, 0.04]}}]}
-    extra["lapel_a"] = {"material": "collar", "space": "pelvis", "prims": [{"cone": {"a": [0.085, 0.64, 0.085], "b": [-0.03, 0.16, 0.145], "r": [0.032, 0.024]}}]}
-    extra["lapel_b"] = {"material": "collar", "space": "pelvis", "priority": 2, "prims": [{"cone": {"a": [-0.085, 0.64, 0.085], "b": [0.05, 0.16, 0.15], "r": [0.032, 0.024]}}]}
-    extra["collar_back"] = {"material": "collar", "space": "pelvis", "prims": [{"cylinder": {"a": [0, 0.60, -0.02], "b": [0, 0.66, -0.02], "r": 0.1, "round": 0.01}}]}
+    extra["lapel_a"] = {"material": "collar", "space": "pelvis", "prims": [{"cone": {"a": [0.075, 0.66, 0.05], "b": [-0.03, 0.16, 0.145], "r": [0.03, 0.022]}}]}
+    extra["lapel_b"] = {"material": "collar", "space": "pelvis", "priority": 2, "prims": [{"cone": {"a": [-0.075, 0.66, 0.05], "b": [0.05, 0.16, 0.15], "r": [0.03, 0.022]}}]}
+    extra["collar_back"] = {"material": "collar", "space": "pelvis", "prims": [{"ellipsoid": {"c": [0, 0.615, -0.065], "r": [0.095, 0.045, 0.05]}}]}   # nuque seulement : un anneau complet entourait le cou
     # manches courtes : le haut du bras seul reste en tissu, l'avant-bras est nu
     spec["parts"] = spec.get("parts", {})
     spec["parts"]["arm_L"] = {"prims": [{"sphere": {"c": "@shoulder_L", "r": 0.095}}, {"cone": {"a": "@shoulder_L", "b": "@elbow_L", "r": [0.085, 0.072]}}]}

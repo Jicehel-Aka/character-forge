@@ -71,10 +71,18 @@ def learn(learner, portrait, points, window, S=256, weight=6.0, cell=0.005):
     cam = gp["cam"]; nz = np.clip(-(gp["normal"] @ cam.D), 0, 1)
     for gi, name in enumerate(gp["names"]):
         if name not in FACE_GROUPS: continue
-        m = (gp["gid"] == gi) & gp["hit"] & (nz > 0.2); ys, xs = np.where(m)
+        m = (gp["gid"] == gi) & gp["hit"] & (nz > 0.2)
+        if name in ("head", "nose"):                       # bas du visage : le fond sombre du portrait déborde sur le menton -> on ignore le très sombre sous la bouche
+            lum = src.max(-1) / 255.0; m &= ~((lum < 0.30) & (gp["q"][..., 1] < 0.07))
+        ys, xs = np.where(m)
         if not len(ys): continue
         key = np.round(gp["q"][ys, xs] / cell).astype(np.int32); col = src[ys, xs].astype(float); wgt = nz[ys, xs] * weight
         for k, c, ww in zip(map(tuple, key), col, wgt):
             a = learner.acc.setdefault((gi, k), [np.zeros(3), 0.0]); a[0] += c * ww; a[1] += ww
         learner.cells[gi] = cell
+        if name in ("head", "nose"):                       # le visage est quasi symétrique : le côté vu du portrait est recopié en miroir sur l'autre
+            near = gp["q"][ys, xs, 0] * par["flip"] > 0.005
+            qm = gp["q"][ys, xs][near].copy(); qm[:, 0] = -qm[:, 0]; km = np.round(qm / cell).astype(np.int32)
+            for k, c, ww in zip(map(tuple, km), col[near], wgt[near] * 0.7):
+                a = learner.acc.setdefault((gi, k), [np.zeros(3), 0.0]); a[0] += c * ww; a[1] += ww
     return par

@@ -140,8 +140,9 @@ class Learner:
         out = {}
         for g, (p, c) in by.items():
             p = np.array(p); c = np.array(c); tree = cKDTree(p)
-            if smooth and len(p) > smooth and self.names[g] not in FACE_NAMES:
-                _, nb = tree.query(p, k=smooth); c = np.median(c[nb], axis=1)
+            kk = 5 if self.names[g] in FACE_NAMES else smooth      # visage : lissage léger (joue, menton) sans effacer les traits
+            if smooth and len(p) > kk:
+                _, nb = tree.query(p, k=kk); c = np.median(c[nb], axis=1)
             out[g] = (tree, c, np.percentile(c, 75, axis=0))
         return out
 
