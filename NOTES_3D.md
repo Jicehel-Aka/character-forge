@@ -185,3 +185,8 @@ détecte les 17 points COCO sur des sprites, à condition de cadrer serré (marg
 Les points sont à exprimer en coordonnées locales à la cellule, sinon le bassin « dérive » d'une colonne à l'autre.
 `anim check` signale les os douteux (bras surtout) ; sur la ligne « coup de pied » l'animation apprise est reconnaissable (accroupi puis jambe tendue) mais les bras sont bruités.
 Limite : une seule vue (profil/3-4) par image -> pas de 3D par sculpture ; ces planches servent à l'apprentissage d'animations, pas à `forge voxel`.
+
+### Animation apprise -> sprites 8 directions (forge skiln + SpriteKiln)
+`forge skiln modele.json --render` convertit les poses 2D apprises en clés SpriteKiln (cibles IK foot_L/R, hand_L/R, lean, bob ; échelle d'après la jambe 0,82) et produit les sprites avec le gabarit `humanoid`.
+Essai : coup de pied appris sur un sprite de combattant (pose YOLO) -> 12 clés -> rendu 64 px en s/se/e (36 images, QA OK).
+Limites : poses bruitées (bras), hauteur du coup de pied sous-estimée (portée IK 0,82), gauche/droite et sens « avant = +x » supposés, personnage = gabarit humanoid (pas encore bâti depuis nos parties/gear).

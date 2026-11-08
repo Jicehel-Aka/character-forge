@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
 
-from . import anim, assets, atlas, flat, gear, gen3d, job, multiview, qa, voxel, persona, pipeline, props, sheet, sprites, turntable
+from . import to_spritekiln, anim, assets, atlas, flat, gear, gen3d, job, multiview, qa, voxel, persona, pipeline, props, sheet, sprites, turntable
 
 
 def add_extract_args(p):
@@ -116,6 +116,14 @@ def main(argv=None):
     s.add_argument("--rounding", type=float, default=0.0, help="0 = hull pur (défaut, meilleur rendu mesuré), 2 = ellipse, 6+ = boîte")
     s.add_argument("--angles", type=int, default=8); s.add_argument("--out-size", type=int, default=96)
 
+    s = sub.add_parser("skiln", help="animation apprise -> clip SpriteKiln (spec YAML) ; --render pour produire les sprites 8 directions")
+    s.add_argument("model", help="modèle appris (forge anim learn) ")
+    s.add_argument("-o", "--output", default="skiln_out"); s.add_argument("--name", default=None)
+    s.add_argument("--frames", type=int, default=12); s.add_argument("--height", type=float, default=60)
+    s.add_argument("--ms", type=int, default=80); s.add_argument("--loop", action="store_true")
+    s.add_argument("--render", action="store_true", help="lance `spritekiln render` (pip install spritekiln)")
+    s.add_argument("--dirs", default="s,se,e,ne,n,nw,w,sw")
+
     s = sub.add_parser("sheet", help="fiche de personnage (character.json + HTML)")
     s.add_argument("extract_dir")
     s.add_argument("--name")
@@ -190,6 +198,8 @@ def main(argv=None):
     elif a.cmd == "atlas":
         r = atlas.export(a.frames_dir, a.output, a.name, a.fps, not a.no_loop, as_array=a.array)
         print(f"[atlas] {r['frames']} images, cellule {r['cell']} -> {a.output}")
+    elif a.cmd == "skiln":
+        raise SystemExit(to_spritekiln.cmd(a))
     elif a.cmd == "voxel":
         raise SystemExit(voxel.cmd(a))
     elif a.cmd == "gear":
