@@ -125,3 +125,33 @@ TRELLIS (MIT) : le README annonce le « multi-image conditioning » (déc. 2024)
 résultats variables ; GPU NVIDIA ≥ 16 Go (testé A100/A6000). L'exemple `example_multi_image.py` existe, son appel
 exact n'a pas été lu. Une page tierce décrit « TRELLIS Multi-image » comme moins détaillé que TRELLIS.2.
 CharacterGen n'accepte qu'une image. `forge consolidate` prépare les deux cas.
+
+## Animations : état de l'existant (6e passe, 2026-11-08)
+Lu directement : README d'Animated Drawings, pages APES, Sprite Sheet Diffusion, pose des personnages illustrés,
+PerfectPixel Studio, Sprite Sheet Maker (Blender). Les autres résultats de recherche (Spritify, Pixel Kit, etc.) ne sont
+connus que par leur titre : non évalués.
+- **Animated Drawings (Meta, archivé le 09-03-25)** : code, poids et jeu de données Amateur Drawings en **MIT**.
+  Anime un personnage 2D humanoïde à partir de fichiers **BVH** (mocap quelconque, squelette Mixamo par défaut),
+  sorties GIF transparent / MP4, rendu sans écran possible. Annotations d'articulations corrigeables à la main
+  (`fix_annotations.py`). Détection automatique via Docker + TorchServe (~16 Go de mémoire conseillés). C'est la
+  brique la plus proche de « rejouer une animation apprise sur un autre personnage » ; à tester sur ton PC.
+- **PerfectPixel Studio (MIT)** : application Go/React qui génère des planches 8 directions / 100+ actions, mais
+  **via une API d'IA payante** (Gemini, OpenRouter, fal.ai, BytePlus : clé requise). Son post-traitement est à
+  reprendre : centrage par centre de masse alpha, découpe des frames par profils de projection, contrôle de dérive
+  d'identité (histogrammes de couleurs, hash perceptuel), palette partagée + grille, retry avec consignes corrigées,
+  export Aseprite JSON + manifest (FPS, boucle, pivot des pieds).
+- **Sprite Sheet Diffusion (arXiv 2412.03685)** : image de référence + suite de poses -> une image par pose (base
+  Animate Anyone). Code et poids : non indiqués. Limites déclarées : détails fins (cheveux, accessoires) et
+  cohérence du sujet ; évaluation qualitative sur 4 exemples.
+- **APES (Adobe, CVPR 2022)** : extrait les parties articulées d'un personnage à partir d'une planche de poses, pour
+  les recomposer en marionnette. Dépôt annoncé ; licence et poids non confirmés.
+- **Pose des personnages illustrés (Chen & Zwicker, WACV 2022)** : OpenPose standard tombe à 0,49 (OKS@50) sur des
+  illustrations, le modèle dédié atteint 0,898. Dépôt `ShuhongChen/bizarre-pose-estimator` : poids, démo, code ;
+  **Docker + GPU**, personnage seul en pied ; licence non confirmée. Ce sont des illustrations, pas du pixel art :
+  non testé sur sprites.
+- **Sprite Sheet Maker (Blender 5.1+, GPL-3.0+)** : 3D animé -> planche de sprites, pixélisation intégrée,
+  caméra auto, reprise après échec. Multi-angles et atlas non mentionnés.
+- **Sources d'animations** : Quaternius (CC0), Kenney (CC0), Mixamo (gratuit avec compte Adobe, usage commercial
+  sans redevance selon un résumé tiers ; bipèdes seulement ; vérifier les conditions Adobe pour redistribuer).
+- **Constat** : ici, MediaPipe s'installe (0.10.32) mais sans l'ancienne API `solutions` ni modèle téléchargeable
+  (hôtes non autorisés) : pas d'estimation de pose automatique dans ce bac à sable.

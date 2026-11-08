@@ -93,6 +93,16 @@ recollage sur la palette (`--no-snap` pour garder de nouvelles couleurs), clé d
 Testé : aller-retour sans perte sur une planche, et une retouche de 10×10 px revient à l'identique. Agrandir ne
 crée pas de détail ; une source compressée (webp/jpg) est ramenée à `--colors` couleurs.
 
+## Mode apprentissage des animations (`anim`)
+`python -m forge anim check annot.json` (cohérence des os) · `anim learn a.json b.json --type walk --loop -o animlib`
+(moyenne circulaire des angles d'os de plusieurs exemples) · `anim generate animlib/walk.json --character pose.json
+--frames 12 --height 64` (rejoue sur un autre squelette ; aperçu bonhomme-bâton `walk_gen.png`).
+Une annotation = JSON `{"facing":"right","loop":true,"frames":[{"pelvis":[x,y],"neck":[..],...15 articulations}]}`
+(voir `forge/anim.py`). Testé sur des données **synthétiques** (marche artificielle, 3 « exemples » à proportions
+différentes : écart moyen 2,4°) ; pas encore sur de vraies planches. Les articulations sont à annoter (ou à importer
+d'un estimateur lancé sur ton PC). Limite : vue de côté seulement (angles dans le plan de l'image). L'export
+Blender (`to_blender`) et le rendu 3D des poses restent à écrire/tester.
+
 ## Parties nommées
 `parts.json` : `{"image.png": {"head": [x,y,w,h], "body": [...], "weapon": [...]}}`.
 Les boîtes sont décidées en regardant l'image (par Claude ou à la main), puis découpées dans le détourage.
