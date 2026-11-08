@@ -194,3 +194,6 @@ Limites : poses bruitées (bras), hauteur du coup de pied sous-estimée (portée
 ### forge -> personnage SpriteKiln (forge skiln-char)
 `forge skiln-char exemple/orc_archer_skiln.json --anim modele.json --render` : build (largeur du tronc, tête), couleurs -> rampes de palette (ombres froides, lumières chaudes), équipement -> kits (casque, chapeau, capuche, cape, ceinture, bourse, bouclier, armes), puis idle + animation apprise en 8 directions.
 Sans kit SpriteKiln (couleurs seulement) : armures, bottes, gants, lunettes, robes... ; à modéliser en SDF/YAML si besoin.
+
+### Modification textuelle (forge skiln-char --edit)
+`--edit "sans la cape, cheveux plus longs, les cheveux roux"` (FR/EN, règles à mots-clés, pas de LLM) : retire/ajoute de l'équipement, change d'arme, longueur/style des cheveux (chauve, queue de cheval, chignon, frange, volume), couleurs (peau, cheveux, cape, tissu, cuir ; « plus foncé/clair »), corpulence. Ce qui n'est pas compris est listé, jamais deviné. `--save` garde la nouvelle description ; les sprites sont recalculés (`--render`).

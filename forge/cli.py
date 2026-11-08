@@ -127,6 +127,7 @@ def main(argv=None):
     s = sub.add_parser("skiln-char", help="description de personnage forge (build/couleurs/équipement) -> spec SpriteKiln, sprites 8 directions")
     s.add_argument("character", help="JSON : name, build, colors, gear, weapon, head")
     s.add_argument("-o", "--output", default="skiln_char"); s.add_argument("--anim", help="modèle appris à ajouter (forge anim learn)")
+    s.add_argument("--edit", help="modification en texte : « sans la cape, cheveux plus longs »"); s.add_argument("--save", help="enregistrer la description modifiée")
     s.add_argument("--anim-name"); s.add_argument("--frames", type=int, default=12); s.add_argument("--ms", type=int, default=80)
     s.add_argument("--render", action="store_true"); s.add_argument("--dirs", default="s,e,n")
 

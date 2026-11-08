@@ -57,13 +57,22 @@ def build(desc, outdir, anims=None):
     spec["bones"] = {"pelvis": {"scale": f"[{kw}/sqrt(squash), squash, {kw}/sqrt(squash)]"},
                      "head": {"scale": round(1.25 * BUILD_HEAD.get(b, 1.0), 3)}}
     hp = {"width": 1.0, "jaw": 0.4, "chin": 0.5, "nose": 0, "ears": 0}; hp.update(desc.get("head", {}))
+    hr = dict(desc.get("hair", {})); style = hr.pop("style", "short")
+    hair_with = {k: hr[k] for k in ("fringe", "part", "locks", "length", "volume") if k in hr}
     spec["use"] = [{"kit": "head", "at": "head", "with": hp}] + use
+    rem0 = []
+    if style == "bald": rem0.append("use.hair")
+    else:
+        spec["use"].append({"kit": "hair", "at": "head", "with": hair_with or {"length": 0.3}})
+        if style == "ponytail": spec["use"].append({"kit": "ponytail", "at": "head", "with": {"length": max(1.0, hr.get("length", 1.5))}})
+        if style == "bun": spec["use"].append({"kit": "bun", "at": "head"})
     rem = ["parts.belt"] if any(u.get("kit") == "belt" for u in spec["use"]) else []   # remplace la ceinture simple du gabarit
     if w in WEAPON and w != "sword":                       # le gabarit porte déjà une épée (use.sword)
         rem.append("use.sword"); spec["use"].append({"kit": w, "as": w, "at": "wrist_R"})
     elif w and w not in WEAPON: skipped.append(f"weapon:{w}")
     if w is None or w == "":
         rem.append("use.sword")
+    rem += rem0
     if rem: spec["remove"] = rem
     if anims: spec["animations"] = anims
     p = out / f"{name}.yaml"; p.write_text(yaml.safe_dump(spec, sort_keys=False, allow_unicode=True))
@@ -73,6 +82,11 @@ def build(desc, outdir, anims=None):
 def cmd(a):
     import subprocess
     desc = json.loads(Path(a.character).read_text()); anims = None
+    if getattr(a, "edit", None):
+        from . import edit_text
+        desc, done, unk = edit_text.apply(desc, a.edit)
+        print("[skiln-char] modifications : " + (", ".join(done) or "aucune") + (f" ; non compris : {unk}" if unk else ""))
+        if a.save: Path(a.save).parent.mkdir(parents=True, exist_ok=True); Path(a.save).write_text(json.dumps(desc, indent=1, ensure_ascii=False))
     if a.anim:
         from . import anim, to_spritekiln
         m = json.loads(Path(a.anim).read_text()); poses = anim.generate(m, a.frames, None, 60)
