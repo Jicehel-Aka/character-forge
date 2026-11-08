@@ -27,10 +27,12 @@ class _Quiet(http.server.SimpleHTTPRequestHandler):
 
 class Session:
     """Page de rendu : sert render.html + three.js + le modèle, ouvre Chromium."""
-    def __init__(self, model):
+    def __init__(self, model, texture=None):
         self.tmp = Path(tempfile.mkdtemp(prefix="forge_meshy_"))
         shutil.copy(ASSETS / "render.html", self.tmp / "index.html"); (self.tmp / "node_modules").symlink_to(_three_dir() / "node_modules")
         self.name = "model" + Path(model).suffix.lower(); shutil.copy(model, self.tmp / self.name)
+        if texture: shutil.copy(texture, self.tmp / "tex.png")
+        self.texture = "tex.png" if texture else None
         for extra in Path(model).parent.glob("*.mtl"): shutil.copy(extra, self.tmp / extra.name)
         self.srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), partial(_Quiet, directory=str(self.tmp)))
         threading.Thread(target=self.srv.serve_forever, daemon=True).start()
@@ -43,7 +45,7 @@ class Session:
     def inspect(self): return self.page.evaluate("u => window.inspect(u)", self.name)
 
     def render(self, size, dirs, anim=None, frames=1, yaw_offset=0, **kw):
-        opt = dict(url=self.name, size=size, dirs=[{"name": d, "yaw": DIRS[d] + yaw_offset} for d in dirs], anim=anim, frames=frames, **kw)
+        opt = dict(url=self.name, size=size, dirs=[{"name": d, "yaw": DIRS[d] + yaw_offset} for d in dirs], anim=anim, frames=frames, texture=self.texture, **kw)
         res = self.page.evaluate("o => window.render(o)", opt)
         out = {}
         for f in res["frames"]:
@@ -56,7 +58,7 @@ class Session:
 
 
 def cmd(a):
-    s = Session(a.model)
+    s = Session(a.model, getattr(a, 'texture', None))
     try:
         if a.info:
             i = s.inspect(); print(json.dumps(i, indent=1, ensure_ascii=False)); return 0

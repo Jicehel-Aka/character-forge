@@ -143,7 +143,7 @@ def main(argv=None):
     s.add_argument("model"); s.add_argument("--info", action="store_true", help="liste os, clips, textures, triangles"); s.add_argument("-o", "--output", default="meshy_out")
     s.add_argument("--size", type=int, default=64); s.add_argument("--ss", type=int, default=4, help="facteur de suréchantillonnage avant réduction"); s.add_argument("--dirs", default="s,se,e,ne,n,nw,w,sw")
     s.add_argument("--anim", default=None, help="nom d'un clip du fichier"); s.add_argument("--frames", type=int, default=1); s.add_argument("--pitch", type=float, default=38)
-    s.add_argument("--margin", type=float, default=1.25); s.add_argument("--colors", type=int, default=40); s.add_argument("--no-outline", dest="outline", action="store_false"); s.add_argument("--yaw-offset", type=float, default=0, help="degrés ajoutés à toutes les directions si le modèle ne regarde pas vers +Z (glTF : +Z = avant)")
+    s.add_argument("--margin", type=float, default=1.25); s.add_argument("--colors", type=int, default=40); s.add_argument("--no-outline", dest="outline", action="store_false"); s.add_argument("--texture", default=None, help="atlas PNG appliqué aux UV (FBX sans textures intégrées)"); s.add_argument("--yaw-offset", type=float, default=0, help="degrés ajoutés à toutes les directions si le modèle ne regarde pas vers +Z (glTF : +Z = avant)")
 
     s = sub.add_parser("shots", help="captures d'un visualiseur 3D (8 directions) -> sprites pixel art (détourage, échelle, alignement, réduction)")
     s.add_argument("images", nargs="+"); s.add_argument("--dirs", required=True, help="direction de chaque image, ex. sw,w,nw,n,ne,e,se,s")

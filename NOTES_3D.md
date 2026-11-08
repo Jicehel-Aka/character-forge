@@ -253,3 +253,8 @@ Dépendances : playwright + Chromium, npm (three@0.160 installé dans ~/.cache/f
 Constat : association des vues IoU 0.57, visage perdu (zone du visage = bandeau seul), pose des bras/jambes différente de la source,
 tissu délavé. Cette voie ne donne pas la fidélité de la source. Voie recommandée : GLB réel (Meshy Starter / Tripo) puis `forge meshy`.
 `hullcam.project` accepte désormais `persp` (perspective optionnelle).
+
+## FBX Mixamo (meshy)
+`forge meshy perso.fbx --anim mixamo.com --frames N --texture atlas.png ...` : échelle normalisée sur l'étendue des os (Mixamo en cm),
+atlas appliqué aux UV (flipY, metalness 0). Testé : Body_Jab_Cross + atlas boxeur OK. Viking.fbx : maillage T-pose + hache/bouclier
+séparés, sans squelette ni clip -> à ré-animer via un clip Mixamo (retargeting non fait).
