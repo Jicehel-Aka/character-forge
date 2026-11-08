@@ -136,6 +136,7 @@ def main(argv=None):
     s.add_argument("-o", "--output", default="paint_out"); s.add_argument("--anims", nargs="+", default=["idle"]); s.add_argument("--dirs", default="s,se,e,ne,n,nw,w,sw")
     s.add_argument("--size", type=int, default=256); s.add_argument("--final", type=int, default=64); s.add_argument("--meta", default=None, help="JSON SpriteKiln (direction_yaw)")
     s.add_argument("--face", default=None, help="JSON {portrait, window:[x0,y0,w], points:{eye_near,eye_far,nose,mouth,chin,ear}} : portrait net projeté sur la tête")
+    s.add_argument("--transplant", action="store_true", help="corps natif SpriteKiln + tête recopiée de la vue source (visage lisible)"); s.add_argument("--head-scale", type=float, default=1.0)
     s.add_argument("--sign", type=int, choices=[1, -1], default=None, help="sens de rotation des colonnes source (sinon choisi par IoU : ambigu)")
 
     s = sub.add_parser("hull8", help="planche de 8 vues sans caméra connue (dessin/IA) -> volume 3D de test (PLY) + tour de table")

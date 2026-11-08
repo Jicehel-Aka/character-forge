@@ -175,7 +175,7 @@ def palette_from(tables, ncol=32, per=400, seed=0):
 def to_final(im, size, pal, thr=0.45):
     """Image peinte grande -> taille finale : réduction par aire, alpha binaire, palette, contour sombre d'1 px."""
     from . import pixdown
-    a = pixdown.shrink(im, size, sharpen=0.8, thr=thr); a = pixdown.outline(a)
+    a = pixdown.shrink(im, size, sharpen=0.35, thr=thr); a = pixdown.outline(a)
     q = np.asarray(Image.fromarray(a[..., :3]).quantize(palette=pal, dither=Image.NONE).convert("RGB")).copy()
     r = np.dstack([q, a[..., 3]]); r[a[..., 3] == 0] = 0; return Image.fromarray(r, "RGBA")
 
@@ -203,6 +203,8 @@ def cmd(a):
         par = skiln_face.learn(L, fj["portrait"], fj["points"], tuple(fj["window"]), S=256)
         print(f"[skiln-paint] visage : caméra du portrait lacet {np.degrees(par['yaw']):.0f}°, inclinaison {np.degrees(par['pitch']):.0f}°, erreur des repères {par['err']:.1f} px")
     T = L.tables(); pal = palette_from(T); n = 0
+    if getattr(a, "transplant", False):
+        return _transplant(a, L, T, pal, cells, dirs, meta, best, out)
     if getattr(a, "face", None):                          # contrôle : le modèle peint, vu depuis la caméra du portrait
         L2 = Learner(L.spec.with_name(L.spec.stem + "_face.yaml"), 256, "idle", 0); L2.acc, L2.cells, L2.names = L.acc, L.cells, L.names
         chk = L2.paint(T, "idle", 0, float(np.degrees(par["yaw"])), relight=True); x0, y0, w = tuple(fj["window"])
@@ -217,3 +219,24 @@ def cmd(a):
                 big = L.paint(T, anim, f, meta[d]); big.save(out / f"{anim}_{d}_{f}_big.png")
                 to_final(big, a.final, pal).save(out / f"{anim}_{d}_{f}.png"); n += 1
     print(f"[skiln-paint] {n} images -> {out}"); return 0
+
+
+def _transplant(a, L, T, pal, cells, dirs, meta, best, out):
+    """Corps natif SpriteKiln + tête de la vue source (voir skiln_head)."""
+    from . import skiln_head
+    from spritekiln import pipeline
+    from spritekiln.anim import frames_of
+    heads = {}
+    for i in range(len(dirs)):
+        d = dirs[(best[1] * i + best[2]) % 8]; heads[d] = skiln_head.head_sprite(cells[i])
+        heads[d][0].save(out / f"head_{d}.png")
+    n = 0
+    for anim in a.anims:
+        for d in a.dirs.split(","):
+            spec = pipeline.get_spec(str(a.spec), a.size); fr = frames_of(spec, anim, meta[d])
+            for f, (env, _ms, _ev) in enumerate(fr):
+                from .skiln_paint import gpoints
+                env2 = dict(env, yaw=float(meta[d]), dir=d); nat = Image.fromarray(pipeline.frame_image(spec, env2, meta[d], maps=False)[0], "RGBA")
+                gp = gpoints(a.spec, a.size, anim, f, meta[d]); big = skiln_head.compose(nat, gp, *heads[d], scale_k=a.head_scale)
+                big.save(out / f"{anim}_{d}_{f}_big.png"); to_final(big, a.final, pal).save(out / f"{anim}_{d}_{f}.png"); n += 1
+    print(f"[skiln-paint] greffe de tête : {n} images -> {out}"); return 0
