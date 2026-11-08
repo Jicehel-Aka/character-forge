@@ -1,0 +1,125 @@
+{
+  "source": "orc5.png",
+  "size": [
+    768,
+    512
+  ],
+  "palette": [
+    "#4B5F3F",
+    "#211E20",
+    "#2A3027",
+    "#433E33",
+    "#8C8A67",
+    "#18111A",
+    "#74674D",
+    "#CAC19D",
+    "#312223",
+    "#0C0B16",
+    "#030310",
+    "#101219",
+    "#31412D",
+    "#191C1D",
+    "#090712",
+    "#5B443A"
+  ],
+  "elements": [
+    {
+      "bbox": [
+        0,
+        28,
+        667,
+        484
+      ],
+      "area": 114288,
+      "name": "orc5_000",
+      "file": "assets/orc5_000.png",
+      "rgb565": {
+        "file": "rgb565/orc5_000.raw",
+        "size": [
+          64,
+          46
+        ],
+        "endian": "LE"
+      }
+    }
+  ],
+  "parts": {
+    "head": {
+      "bbox": [
+        325,
+        40,
+        195,
+        200
+      ],
+      "name": "orc5_head",
+      "file": "assets/orc5_head.png",
+      "rgb565": {
+        "file": "rgb565/orc5_head.raw",
+        "size": [
+          62,
+          64
+        ],
+        "endian": "LE"
+      }
+    },
+    "weapon": {
+      "bbox": [
+        0,
+        30,
+        330,
+        300
+      ],
+      "name": "orc5_weapon",
+      "file": "assets/orc5_weapon.png",
+      "rgb565": {
+        "file": "rgb565/orc5_weapon.raw",
+        "size": [
+          64,
+          58
+        ],
+        "endian": "LE"
+      }
+    },
+    "body": {
+      "bbox": [
+        80,
+        200,
+        550,
+        312
+      ],
+      "name": "orc5_body",
+      "file": "assets/orc5_body.png",
+      "rgb565": {
+        "file": "rgb565/orc5_body.raw",
+        "size": [
+          64,
+          36
+        ],
+        "endian": "LE"
+      }
+    }
+  },
+  "spritesheet": {
+    "cell_w": 667,
+    "cell_h": 484,
+    "columns": 1,
+    "rows": 1,
+    "frames": [
+      {
+        "index": 0,
+        "cell": [
+          0,
+          0,
+          667,
+          484
+        ],
+        "sprite": [
+          0,
+          0,
+          667,
+          484
+        ]
+      }
+    ]
+  }
+}

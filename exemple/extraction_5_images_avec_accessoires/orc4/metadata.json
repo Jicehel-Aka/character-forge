@@ -1,0 +1,143 @@
+{
+  "source": "orc4.png",
+  "size": [
+    768,
+    512
+  ],
+  "palette": [
+    "#000000",
+    "#15100A",
+    "#212215",
+    "#393928",
+    "#898F76",
+    "#0B0503",
+    "#526040",
+    "#786E5F",
+    "#020101",
+    "#0D0E08",
+    "#040604",
+    "#28321B",
+    "#BCC1AF",
+    "#594033",
+    "#26130F",
+    "#020001"
+  ],
+  "elements": [
+    {
+      "bbox": [
+        116,
+        0,
+        648,
+        512
+      ],
+      "area": 103946,
+      "name": "orc4_000",
+      "file": "assets/orc4_000.png",
+      "rgb565": {
+        "file": "rgb565/orc4_000.raw",
+        "size": [
+          64,
+          51
+        ],
+        "endian": "LE"
+      }
+    }
+  ],
+  "parts": {
+    "head": {
+      "bbox": [
+        245,
+        50,
+        255,
+        220
+      ],
+      "name": "orc4_head",
+      "file": "assets/orc4_head.png",
+      "rgb565": {
+        "file": "rgb565/orc4_head.raw",
+        "size": [
+          64,
+          55
+        ],
+        "endian": "LE"
+      }
+    },
+    "body": {
+      "bbox": [
+        117,
+        170,
+        598,
+        342
+      ],
+      "name": "orc4_body",
+      "file": "assets/orc4_body.png",
+      "rgb565": {
+        "file": "rgb565/orc4_body.raw",
+        "size": [
+          64,
+          37
+        ],
+        "endian": "LE"
+      }
+    },
+    "weapon": {
+      "bbox": [
+        136,
+        103,
+        24,
+        72
+      ],
+      "name": "orc4_weapon",
+      "file": "assets/orc4_weapon.png",
+      "rgb565": {
+        "file": "rgb565/orc4_weapon.raw",
+        "size": [
+          21,
+          64
+        ],
+        "endian": "LE"
+      }
+    },
+    "arrow": {
+      "bbox": [
+        610,
+        312,
+        156,
+        108
+      ],
+      "name": "orc4_arrow",
+      "file": "assets/orc4_arrow.png",
+      "rgb565": {
+        "file": "rgb565/orc4_arrow.raw",
+        "size": [
+          64,
+          44
+        ],
+        "endian": "LE"
+      }
+    }
+  },
+  "spritesheet": {
+    "cell_w": 648,
+    "cell_h": 512,
+    "columns": 1,
+    "rows": 1,
+    "frames": [
+      {
+        "index": 0,
+        "cell": [
+          0,
+          0,
+          648,
+          512
+        ],
+        "sprite": [
+          0,
+          0,
+          648,
+          512
+        ]
+      }
+    ]
+  }
+}

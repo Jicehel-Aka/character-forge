@@ -1,0 +1,127 @@
+# Notes sur l'extrapolation 3D (état des sources au 2026-11-08)
+
+Ce document sépare **ce qui est établi par les sources** de **ce qui reste à tester**.
+
+## CharacterGen — ce que disent les sources
+
+- **Entrée** : une image d'un personnage de style **anime**, dans une pose quelconque. L'article dit accepter
+  « any input body pose » ; il ne dit pas explicitement si le personnage doit être en pied. Les auteurs
+  reconnaissent des pertes pour les poses extrêmes ou les points de vue inhabituels.
+- **Méthode** : diffusion multi-vues (base Stable Diffusion 2.1) qui produit 4 vues du personnage en **A-pose**,
+  puis reconstruction (triplane, SDF, mesh extrait par DMTet) et texture affinée par rétro-projection.
+- **Données d'entraînement** (Anime3D) : 13 746 personnages stylisés issus de VRoidHub, rendus en A-pose et en poses
+  de 10 animations Mixamo. Aucune licence n'est indiquée pour ce jeu de données : **à vérifier avant tout usage
+  commercial**. Les poids ont une licence Apache-2.0 (fiche Hugging Face).
+- **Sortie** (lue dans le code de l'app) : `output.obj` et `output.glb` dans `3D_Stage/outputs/@date-heure/`.
+  Les couleurs sont cuites **par sommet** ; le matériau GLB est blanc. **Pas de squelette** : les auteurs ont rigué
+  avec AccuRig (outil séparé) et montré le résultat dans Warudo.
+- **Préparation de l'image** (app) : détourage avec un modèle anime (`isnetis` de skytnt), recadrage sur le
+  personnage, canevas 2:3 redimensionné en **512×768**. Notre `gen3d` reproduit cette préparation ; notre détourage
+  utilise `isnet-anime` (probablement le même modèle, non vérifié).
+- **Vitesse** : moins d'une minute sur « un seul GPU » (non nommé). **VRAM : non documentée** (code en CUDA obligatoire,
+  fp16/bf16 côté 2D). Pas de version CPU.
+- **Version hébergée** : l'Espace Hugging Face `VAST-AI/CharacterGen` était en « Runtime error » à la vérification ;
+  la copie `YUGOROU/CharacterGen` était en pause. Il faut donc un GPU local (ou en louer un).
+
+### Ce qui reste incertain pour tes images
+Tes 5 images sont semi-réalistes (rendu photo de style fantasy), pas anime, et ce sont des plans buste/taille.
+Le modèle est entraîné sur des personnages anime en pied : **rien ne garantit un bon résultat**. Le seul moyen de
+le savoir est un essai (une image, une minute de calcul).
+
+## Alternatives généralistes (image → 3D), sans spécialisation personnage
+Sources : comparatifs de blogs, **pas de benchmarks indépendants** ; aucun ne teste les personnages.
+
+| Modèle | Licence (selon les sources) | VRAM annoncée |
+|---|---|---|
+| TRELLIS.2 | MIT | 16 Go ou 24 Go selon la source |
+| Hunyuan3D 2.1 | licence communautaire Tencent **excluant l'UE, le Royaume-Uni et la Corée du Sud** | 10 à 29 Go selon l'étape |
+| TripoSR | MIT | ~6 Go (moins de détails) |
+| Stable Fast 3D | gratuite sous 1 M$ de chiffre d'affaires | ~8 Go |
+| InstantMesh | Apache-2.0 | non indiquée |
+
+Point important si tu es en France : **Hunyuan3D 2.1 est exclu par sa propre licence**. À lire : la licence peut changer.
+
+## Rigging et animation (nécessaires pour « utiliser le personnage comme on veut »)
+- CharacterGen ne rigue pas. Il faut un squelette pour animer, puis des animations (Mixamo en propose).
+- Exigences d'un auto-rig : A-pose ou T-pose, surface unique et fermée, échelle humaine (~1,7–1,9 m), normales
+  vers l'extérieur, pas d'accessoires dans le fichier.
+- Échecs fréquents : pièces détachées (casque, gants), cheveux longs, capes, jupes, doigts mal rigués.
+- Outils cités : Mixamo (gratuit avec compte Adobe, bipèdes uniquement, marqueurs à placer), AccuRig (utilisé par les
+  auteurs), UniRig (open source, auto-hébergé), Meshy et Tripo (services hébergés).
+
+## Chaîne complète pour des sprites animés (non testée de bout en bout)
+```
+image -> forge extract/gen3d -> CharacterGen (GPU) -> output.glb (A-pose, couleurs par sommet)
+      -> nettoyage Blender (pièces détachées, échelle) -> rig + animation (Mixamo/AccuRig)
+      -> forge turntable --anim-step N  (un dossier par angle)
+      -> forge sprites (une spritesheet RGB565 par angle)
+```
+
+## Compléments de recherche (2e passe)
+
+### Autres modèles image → personnage 3D
+- **StdGEN** (CVPR 2025) : génère un personnage **décomposé en corps, vêtements et cheveux** à partir d'une image, en
+  ~3 minutes. C'est le plus proche de « utiliser le personnage comme on veut » (changer de tenue, séparer les
+  cheveux), mais les expériences portent sur de l'**anime** ; format, VRAM et licence ne sont pas indiqués sur la page
+  du projet. Le code et les poids sont annoncés (dépôt `hyz317/StdGEN`, que je n'ai pas pu lire).
+- **PSHuman** (CVPR 2025, licence MIT) : humains vêtus réalistes à partir d'une image, maillage texturé. **Plus de
+  40 Go de VRAM** pour le modèle actuel (768 px) : hors de portée d'une carte grand public ; une version 512 px est
+  seulement envisagée. Aucun format de sortie ni limite sur les accessoires n'est documenté.
+
+### Détourage (testé ici sur tes images)
+- `isnet-general-use` conserve nettement mieux les arcs, flèches et lances que `isnet-anime` sur tes images
+  semi-réalistes (essai visuel sur 2 images, puis extraction sur les 5). **C'est maintenant le défaut.**
+  `isnet-anime` reste préférable pour de vrais dessins anime.
+- Le bâton sombre de l'image 1 est perdu par tous les modèles testés (isnet-anime, isnet-general-use, u2net).
+- **BiRefNet** (souvent cité comme meilleur sur les structures fines) n'a pas pu être évalué : le processus est tué
+  faute de mémoire dans un environnement de 8 Go sans GPU, comme dans l'[article de test de rembg](https://www.creativeainews.com/articles/rembg-background-removal-models-tested-2026/)
+  qui constate la même chose sur 12 Go de RAM. À essayer sur ton PC : `--model birefnet-general`.
+  Cet article ne teste que des photos, pas des illustrations ni des personnages.
+
+### Sprites lisibles à petite taille (testé ici)
+Comparaison visuelle de 6 variantes à 64 px de haut (frames des orques, agrandies ×3) :
+- La version de base (réduction Lanczos + palette) est sombre et boueuse.
+- **Contraste + saturation + relevé des tons sombres** (`--boost 0.8`) : gain de lisibilité net.
+- **Contour sombre de 1 px** : détache la silhouette du fond. Le contour et le contraste sont maintenant les défauts.
+- **Tramage** (Floyd-Steinberg ou Bayer) : trop de bruit à cette taille ; désactivé par défaut.
+- **Réduction « nearest »** : un [article sur le pixel art](https://rangy.ai/blog/ai-pixel-art) la recommande, avec
+  palette réduite et sans tramage ; sur nos sources photographiques elle laisse des poussières de pixels sur les
+  flèches, donc Lanczos reste le défaut (`--resample nearest` pour comparer).
+- Limite : jugement visuel sur 2 frames et fond gris, **pas sur l'écran réel de l'AKA**.
+- Les outils commerciaux de rendu 3D → pixel art (ex. Pixel Kit pour Blender) rendent directement à basse résolution
+  avec un shader dédié plutôt que de réduire une image haute définition ; piste à étudier pour la partie Blender.
+
+### Sources (2e passe)
+- [PSHuman (GitHub)](https://github.com/pengHTYX/PSHuman)
+- [StdGEN, résumé arXiv](https://arxiv.org/abs/2411.05738) et [page du projet](https://stdgen.github.io)
+- [Test des modèles rembg en 2026](https://www.creativeainews.com/articles/rembg-background-removal-models-tested-2026/)
+- [Pixel art : pourquoi un redimensionnement n'en est pas](https://rangy.ai/blog/ai-pixel-art)
+- [Image vers pixel art : méthode « true pixel »](https://sorceress.games/tutorials/true-pixel)
+
+## Sources (1re passe)
+- [CharacterGen (arXiv 2402.17214)](https://arxiv.org/html/2402.17214v3)
+- [Fiche du modèle zjpshadow/CharacterGen](https://huggingface.co/zjpshadow/CharacterGen/blob/main/README.md?code=true)
+- [Code de l'interface 3D (VAST-AI/CharacterGen)](https://huggingface.co/spaces/VAST-AI/CharacterGen/blob/main/3D_Stage/webui.py)
+- [Code de l'app complète (copie YUGOROU)](https://huggingface.co/spaces/YUGOROU/CharacterGen/blob/main/app.py)
+- [Hunyuan3D-2.1 vs TRELLIS.2 : licence, GPU, coût](https://image3d.io/compare/hunyuan3d-2-1-vs-trellis-2-2026/)
+- [Open Source AI 3D Model Generator: 7 Best Options for 2026](https://www.cmarix.com/blog/top-open-source-ai-models-for-3d-image-generation/)
+- [Automatic rigging explained](https://app.cinevva.com/guides/automatic-rigging-explained)
+
+## Accessoires (3e passe)
+Le détourage perd parfois l'arme (bâton sombre de l'image 1, arc de l'image 4). `forge/props.py` permet de la
+remplacer : arc paramétrable (poignée, longueur, angle, courbure, corde tirée), flèche, lance, plus `erase` et
+`restore`. Limites : les accessoires sont dessinés (simples, sans texture) ; `restore` se base sur la teinte et
+peut laisser des bords irréguliers (visible sur le buste de l'image 4) ; l'arc et la flèche ne sont pas
+reliés automatiquement (position de la corde tirée et direction de la flèche à décider, comme dans la pose).
+
+## Base physique des équipements (4e passe)
+`forge/gear.py` : règles (couches, zones, incompatibilités, masse, proportions en têtes) pour que les accessoires
+et vêtements soient cohérents, y compris comme consignes pour une génération 3D ou le rigging (pièces séparées :
+casque, gants, cape sont les points d'échec cités plus haut). Proportions = canon d'anatomie artistique, **non
+vérifiées par sources dans cette session**. Rien n'est encore dessiné automatiquement : le module valide et place.
+
+## Multi-images (5e passe)
+TRELLIS (MIT) : le README annonce le « multi-image conditioning » (déc. 2024), méthode **sans réglage dédié**, donc
+résultats variables ; GPU NVIDIA ≥ 16 Go (testé A100/A6000). L'exemple `example_multi_image.py` existe, son appel
+exact n'a pas été lu. Une page tierce décrit « TRELLIS Multi-image » comme moins détaillé que TRELLIS.2.
+CharacterGen n'accepte qu'une image. `forge consolidate` prépare les deux cas.

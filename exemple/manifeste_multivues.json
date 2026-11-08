@@ -1,0 +1,4 @@
+{"name":"Test orques (étiquettes de démonstration, pas des faits)",
+ "images":{"orc1.png":{"view":"front","head_px":215,"attrs":{"helmet":"none","outfit":["undershirt","tunic","pants"],"weapon":"arc standard"}},
+           "orc3.png":{"view":"front","head_px":120,"attrs":{"helmet":"helmet_open","weapon":"lance"}},
+           "orc4.png":{"view":"three_quarter","head_px":160,"attrs":{"weapon":"arc standard","outfit":["undershirt","tunic","pants"]}}}}

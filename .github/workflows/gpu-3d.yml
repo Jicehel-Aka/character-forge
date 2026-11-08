@@ -1,0 +1,20 @@
+name: gpu-3d
+# NÉCESSITE un runner avec GPU NVIDIA : « larger runner » GPU (organisation Team/Enterprise) ou runner
+# auto-hébergé portant le label « gpu ». Sur GitHub gratuit ce workflow restera en attente : utiliser
+# notebooks/charactergen_colab.ipynb à la place. Non testé.
+on:
+  workflow_dispatch:
+    inputs:
+      image: {description: "Image du personnage dans le dépôt (ex. exemple/orc1.png)", required: true}
+jobs:
+  gen3d:
+    runs-on: [self-hosted, gpu]
+    steps:
+      - uses: actions/checkout@v4
+      - run: nvidia-smi
+      - run: pip install pillow numpy scipy rembg onnxruntime
+      - run: python -m forge extract "${{ inputs.image }}" --segment -o out
+      - run: python -m forge gen3d out/$(basename "${{ inputs.image }}" .png)
+      - run: echo "Étape CharacterGen : interface web (webui.py) dans ce flux, pas d'API sans écran vérifiée -> à finaliser sur le GPU"
+      - uses: actions/upload-artifact@v4
+        with: {name: gen3d-input, path: out}

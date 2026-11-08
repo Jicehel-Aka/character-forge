@@ -1,0 +1,33 @@
+{
+  "name": "orc",
+  "frames": 5,
+  "angles_deg": [
+    0.0,
+    72.0,
+    144.0,
+    216.0,
+    288.0
+  ],
+  "cell": [
+    142,
+    96
+  ],
+  "columns": 5,
+  "rows": 1,
+  "endian": "LE",
+  "transparent_key": "0xF81F",
+  "palette_size": 24,
+  "options": {
+    "resample": "lanczos",
+    "boost": 0.8,
+    "outline": true,
+    "dither": "none"
+  },
+  "sources": [
+    "f01.png",
+    "f02.png",
+    "f03.png",
+    "f04.png",
+    "f05.png"
+  ]
+}
