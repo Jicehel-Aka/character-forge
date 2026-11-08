@@ -76,7 +76,9 @@ def build(desc, outdir, anims=None):
         rem.append("parts.coat")          # la « jupe » du gabarit cache les jambes : retirée sauf manteau/robe demandé
     rem += rem0
     if rem: spec["remove"] = rem
-    if anims: spec["animations"] = anims
+    if anims:
+        spec["animations"] = anims
+        spec["camera"] = {"center": [0, 1.15, 0]}          # marge en haut pour les sauts (sinon QA : sprite coupé)
     p = out / f"{name}.yaml"; p.write_text(yaml.safe_dump(spec, sort_keys=False, allow_unicode=True))
     return p, skipped
 

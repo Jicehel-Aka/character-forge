@@ -12,7 +12,7 @@ GEAR = {"cape": "cloak", "cloak": "cloak", "manteau": "cloak", "ceinture": "belt
 WEAPONS = {"arc": "bow", "bow": "bow", "epee": "sword", "sword": "sword", "hache": "axe", "axe": "axe", "lance": "spear", "spear": "spear",
            "baton": "staff", "staff": "staff", "marteau": "hammer", "hammer": "hammer", "masse": "mace", "mace": "mace"}
 COLORS = {"noir": "#1c1a18", "black": "#1c1a18", "blanc": "#e8e4dc", "white": "#e8e4dc", "gris": "#7a7a80", "grey": "#7a7a80", "gray": "#7a7a80",
-          "roux": "#b4501e", "red-haired": "#b4501e", "rouge": "#a8262c", "red": "#a8262c", "brun": "#5a3a22", "marron": "#5a3a22", "brown": "#5a3a22",
+          "blanche": "#e8e4dc", "noire": "#1c1a18", "verte": "#3f7a35", "bleue": "#2f5aa0", "grise": "#7a7a80", "brune": "#5a3a22", "violette": "#6a3a8a", "roux": "#b4501e", "rousse": "#b4501e", "red-haired": "#b4501e", "rouge": "#a8262c", "red": "#a8262c", "brun": "#5a3a22", "marron": "#5a3a22", "brown": "#5a3a22",
           "blond": "#d2b45a", "blonde": "#d2b45a", "vert": "#3f7a35", "green": "#3f7a35", "bleu": "#2f5aa0", "blue": "#2f5aa0",
           "jaune": "#d8b830", "yellow": "#d8b830", "violet": "#6a3a8a", "purple": "#6a3a8a", "orange": "#d2701e", "rose": "#d2688a", "pink": "#d2688a"}
 TARGET = {"peau": "skin", "skin": "skin", "cheveux": "hair", "hair": "hair", "cape": "cape", "cloak": "cape", "tissu": "cloth", "cloth": "cloth",
@@ -65,6 +65,14 @@ def apply(desc, text):
             if c: d["colors"][tgt] = c; done.append(f"{tgt} -> {c}"); hit = True
             else:
                 f = 0.75 if re.search(r"fonce|sombre|dark", s) else 1.3; d["colors"][tgt] = _shade(cur, f); done.append(f"{tgt} {'plus foncé' if f < 1 else 'plus clair'}"); hit = True
+        # tenue / ceinture : couleur du tissu ou du cuir
+        c2 = _color(words)
+        if c2 and re.search(r"tenue|habit|vetement|kimono|gi\b|outfit|clothes", s): d["colors"]["cloth"] = c2; done.append(f"tenue -> {c2}"); hit = True
+        elif c2 and re.search(r"ceinture|belt", s) and not hit: d["colors"]["leather"] = c2; done.append(f"ceinture/cuir -> {c2}"); hit = True
+        if re.search(r"peau (claire|pale)|pale skin|fair skin", s): d["colors"]["skin"] = "#ecc4a0"; done.append("peau claire"); hit = True
+        if re.search(r"combattante|femme|fille|female|woman|girl", s):
+            d["build"] = "slim"; d["head"] = {**d.get("head", {}), "jaw": 0.3, "width": 0.95, "chin": 0.4}; done.append("silhouette féminine (mince, mâchoire fine)"); hit = True
+        if re.search(r"combattant\b|homme|male\b|\bman\b", s): done.append("silhouette masculine (inchangée)"); hit = True
         # corpulence
         for pat, b in ((r"costaud|stocky|massif|muscl", "stocky"), (r"mince|slim|fin\b", "slim"), (r"\borc\b", "orc"), (r"humain|human", "human"), (r"enfant|child", "child")):
             if re.search(pat, s): d["build"] = b; done.append(f"corpulence : {b}"); hit = True
@@ -74,5 +82,6 @@ def apply(desc, text):
 
 def _color(words):
     for w in words:
-        if w in COLORS: return COLORS[w]
+        for v in (w, w.rstrip("s"), w[:-1] if w.endswith("e") else w, w.rstrip("s")[:-1] if w.rstrip("s").endswith("e") else w):
+            if v in COLORS: return COLORS[v]       # accords : noirs, blanche, rousse...
     return None

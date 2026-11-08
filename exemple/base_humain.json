@@ -1,0 +1,19 @@
+{
+ "name": "perso",
+ "build": "human",
+ "colors": {
+  "skin": "#d9a77c",
+  "cloth": "#4a4a58",
+  "leather": "#6a4a30",
+  "hair": "#2a2018",
+  "steel": "#8a93a0"
+ },
+ "gear": [
+  "belt"
+ ],
+ "weapon": null,
+ "hair": {
+  "length": 0.3
+ },
+ "summary": "base humaine"
+}
