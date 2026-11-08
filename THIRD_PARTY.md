@@ -12,3 +12,9 @@ Licences lues sur les pages/README des projets, à re-vérifier avant tout usage
 | APES (Adobe) | non confirmée | rien (code/poids non confirmés) ; `parts.json` manuel en attendant | veille |
 | Sprite Sheet Diffusion | non indiquée | rien (code/poids non indiqués) | veille |
 | Mixamo / Quaternius / Kenney | Mixamo : compte Adobe ; Quaternius, Kenney : CC0 | sources de BVH/animations pour `anim import-bvh` | non téléchargé ici |
+
+## Données récupérées (4e ajout)
+| Données | Licence / conditions | Usage |
+|---|---|---|
+| CMU Motion Capture (BVH cgspeed, via Shriinivas/cmubvh) | « aucune restriction » selon le README du dépôt (reprenant cgspeed) | `animlib/` (modèles appris), annotations dérivées ; BVH non copiés |
+| LPC sprite sheets (via YingzhenLi/Sprites) | CC-BY-SA 3.0 / GPL-3.0, attribution | test de `sheetops` seulement, non redistribué |

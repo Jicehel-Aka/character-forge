@@ -112,6 +112,23 @@ def _resample(A, n, periodic):
     return out
 
 
+def find_cycle(ann, min_p=8):
+    """Période d'un mouvement cyclique (images) par auto-similarité des angles d'os ; -> (P, erreur moyenne en °).
+    Prend la plus petite période dont l'erreur reste proche du minimum global (évite les multiples)."""
+    A = np.array(to_angles(ann)["angles"]); T = len(A)
+    errs = {}
+    for P in range(min_p, T // 2 + 1):
+        d = (A[P:] - A[:-P] + 180) % 360 - 180
+        errs[P] = float(np.abs(d).mean())
+    if not errs:
+        return T, 0.0
+    best = min(errs.values())
+    P = next(p for p in sorted(errs) if errs[p] <= best * 1.3 + 0.5)
+    lo = max(min_p, P - 3)
+    P = min(range(lo, min(P + 4, T // 2 + 1)), key=lambda p: errs[p])
+    return P, errs[P]
+
+
 def learn(annotations, atype, n_frames=16, periodic=None, mirror_aug=False):
     """Plusieurs annotations d'un même type -> modèle moyen (angles circulaires) + écart-type."""
     exs = []
@@ -120,6 +137,12 @@ def learn(annotations, atype, n_frames=16, periodic=None, mirror_aug=False):
         per = ann.get("loop", False) if periodic is None else periodic
         exs.append((_resample(d["angles"], n_frames, per), np.array(_resample(d["root"], n_frames, per)), d, per))
     per = exs[0][3]
+    if per and len(exs) > 1:   # alignement de phase des cycles : cuisse gauche à son maximum en image 0
+        k = BONES.index("knee_l"); al = []
+        for a_, r_, d_, p_ in exs:
+            sh = -int(np.argmax(np.cos(np.radians(a_[:, k] - 90))))
+            al.append((np.roll(a_, sh, 0), np.roll(r_, sh, 0), d_, p_))
+        exs = al
     A = np.stack([e[0] for e in exs])
     rad = np.radians(A)
     mean = np.degrees(np.arctan2(np.sin(rad).mean(0), np.cos(rad).mean(0)))
@@ -191,6 +214,10 @@ def cmd(a):
     if a.action == "import-bvh":
         from . import bvh
         ann = bvh.to_annotation(a.inputs[0], a.forward, a.flip, a.loop, stride=a.stride)
+        ann["frames"] = ann["frames"][a.skip:(a.skip + a.count) if a.count else None]
+        if a.cycle:
+            P, e = find_cycle(ann); ann["frames"] = ann["frames"][:P]; ann["loop"] = True
+            print(f"[anim] cycle détecté : {P} images (erreur d'auto-similarité {e:.1f}°)")
         t = out / (Path(a.inputs[0]).stem + "_annot.json"); t.write_text(json.dumps(ann))
         print(f"[anim] {len(ann['frames'])} images -> {t}"); return 0
     if a.action == "import-coco":

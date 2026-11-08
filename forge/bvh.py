@@ -153,6 +153,14 @@ def to_annotation(path, forward="x", flip=False, loop=False, scale=100.0, node_m
     out = []
     for fr in frames[::stride]:
         f = {}
+        if forward == "auto":   # de profil par rapport au corps (hanches), sur chaque image : pas de dérive de cap
+            up = np.array([0.0, 1.0, 0.0]); hv = np.array(fr["LeftUpLeg"]) - np.array(fr["RightUpLeg"]); hv[1] = 0
+            fwd = np.cross(hv, up); fwd /= (np.linalg.norm(fwd) or 1.0); root = np.array(fr["Hips"])
+            for node, joint in nm.items():
+                src = "HeadTop_End" if (node == "Head" and "HeadTop_End" in fr) else node
+                if src in fr:
+                    p = np.array(fr[src]); f[joint] = [float(np.dot(p - root, fwd)) * (-1 if flip else 1), float(-p[1])]
+            out.append(f); continue
         for node, joint in nm.items():
             src = "HeadTop_End" if (node == "Head" and "HeadTop_End" in fr) else node
             if src not in fr:

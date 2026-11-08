@@ -17,3 +17,12 @@
 - **Sprites de jeu** : le jeu « Sprites » de [V7](https://www.v7labs.com/open-datasets/sprites) (672 personnages,
   20 animations, 60 px) n'indique ni licence ni points-clés ; [spraix](https://huggingface.co/datasets/pawkanarek/spraix_1024_best_96/blob/main/README.md?code=true)
   est en GPL-3.0 sans annotations de pose. Aucun jeu de sprites avec points-clés COCO n'a été trouvé.
+
+## Données réelles récupérées (via GitHub, seul hôte joignable depuis ce bac à sable)
+- **CMU mocap BVH** (`Shriinivas/cmubvh`, 2 505 clips zip, « no restrictions ») : utilisé pour `animlib/` ; voir `tools/fetch_cmu.sh`.
+  Clips de combat repérés dans ses README : 90_05-07 (coup de pied sauté), 113_13 (coup de poing et de pied),
+  144_05/06/09/10 (coups de pied de face), 144_13/14/20/21 (suites de coups de poing), 02_07-09 (escrime), 86_xx (mélanges).
+- **Planches LPC** (`YingzhenLi/Sprites` : scripts + calques Liberated Pixel Cup, licences CC-BY-SA 3.0 et GPL-3.0, avec
+  attribution) : planche 832×1344 en grille 13×21 de cases 64 px ; `sheetops slice` y retrouve bien 21 lignes × 13 colonnes
+  (178 cellules) et `flatten`/`reintegrate` rendent l'image exacte (82 couleurs, palette 128). **Non copiées dans le dépôt**
+  (obligations d'attribution et de partage à l'identique).
