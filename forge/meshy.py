@@ -1,0 +1,76 @@
+"""Source 3D (Meshy, ou tout GLB/FBX/OBJ) -> sprites pixel art dans les 8 directions.
+Rendu avec three.js dans Chromium sans tête (caméra orthographique inclinée comme SpriteKiln, lumière fixe dans le monde), animations du fichier
+(clips d'un GLB riggé/animé par Meshy) ; puis réduction pixel art (aire, palette commune, contour 1 px) avec forge.pixdown.
+CLI : forge meshy modele.glb --info | -o dir --size 64 --dirs s,se,e,... [--anim Nom --frames 8] [--ss 4]"""
+import base64, http.server, io, json, os, shutil, subprocess, tempfile, threading
+from functools import partial
+from pathlib import Path
+import numpy as np
+from PIL import Image
+
+DIRS = {"s": 0, "se": 45, "e": 90, "ne": 135, "n": 180, "nw": -135, "w": -90, "sw": -45}
+THREE = "three@0.160.0"
+ASSETS = Path(__file__).resolve().parent.parent / "tools" / "meshy"
+
+
+def _three_dir():
+    cache = Path(os.environ.get("FORGE_CACHE", Path.home() / ".cache" / "forge")) / "three"
+    if not (cache / "node_modules" / "three").exists():
+        cache.mkdir(parents=True, exist_ok=True); (cache / "package.json").write_text("{}")
+        subprocess.run(["npm", "install", THREE], cwd=cache, check=True, capture_output=True)
+    return cache
+
+
+class _Quiet(http.server.SimpleHTTPRequestHandler):
+    def log_message(self, *a): pass
+
+
+class Session:
+    """Page de rendu : sert render.html + three.js + le modèle, ouvre Chromium."""
+    def __init__(self, model):
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge_meshy_"))
+        shutil.copy(ASSETS / "render.html", self.tmp / "index.html"); (self.tmp / "node_modules").symlink_to(_three_dir() / "node_modules")
+        self.name = "model" + Path(model).suffix.lower(); shutil.copy(model, self.tmp / self.name)
+        for extra in Path(model).parent.glob("*.mtl"): shutil.copy(extra, self.tmp / extra.name)
+        self.srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), partial(_Quiet, directory=str(self.tmp)))
+        threading.Thread(target=self.srv.serve_forever, daemon=True).start()
+        from playwright.sync_api import sync_playwright
+        self.pw = sync_playwright().start()
+        self.br = self.pw.chromium.launch(args=["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"])
+        self.page = self.br.new_page(); self.page.on("pageerror", lambda e: print("[meshy] erreur page:", e))
+        self.page.goto(f"http://127.0.0.1:{self.srv.server_address[1]}/index.html"); self.page.wait_for_function("window.ready === true", timeout=60000)
+
+    def inspect(self): return self.page.evaluate("u => window.inspect(u)", self.name)
+
+    def render(self, size, dirs, anim=None, frames=1, yaw_offset=0, **kw):
+        opt = dict(url=self.name, size=size, dirs=[{"name": d, "yaw": DIRS[d] + yaw_offset} for d in dirs], anim=anim, frames=frames, **kw)
+        res = self.page.evaluate("o => window.render(o)", opt)
+        out = {}
+        for f in res["frames"]:
+            out[(f["dir"], f["frame"])] = Image.open(io.BytesIO(base64.b64decode(f["png"].split(",", 1)[1]))).convert("RGBA")
+        return out, res
+
+    def close(self):
+        try: self.br.close(); self.pw.stop(); self.srv.shutdown()
+        finally: shutil.rmtree(self.tmp, ignore_errors=True)
+
+
+def cmd(a):
+    s = Session(a.model)
+    try:
+        if a.info:
+            i = s.inspect(); print(json.dumps(i, indent=1, ensure_ascii=False)); return 0
+        from . import pixdown, skiln_paint as K
+        out = Path(a.output); out.mkdir(parents=True, exist_ok=True); dirs = a.dirs.split(",")
+        big = a.size * a.ss
+        imgs, res = s.render(big, dirs, a.anim, a.frames, yaw_offset=a.yaw_offset, pitch=a.pitch, margin=a.margin)
+        print(f"[meshy] clip {res['clip']!r}, hauteur modèle {res['height']:.2f}, {len(imgs)} images en {big} px")
+        arrs = {k: pixdown.shrink(v, a.size, sharpen=0.35) for k, v in imgs.items()}
+        allpx = np.concatenate([x[x[..., 3] > 0][:, :3] for x in arrs.values()]).astype(np.uint8)
+        pal = Image.fromarray(allpx[None, ...]).quantize(a.colors, Image.MEDIANCUT)
+        for (d, f), x in arrs.items():
+            x = pixdown.outline(x) if a.outline else x
+            q = np.asarray(Image.fromarray(x[..., :3]).quantize(palette=pal, dither=Image.NONE).convert("RGB")).copy(); r = np.dstack([q, x[..., 3]]); r[x[..., 3] == 0] = 0
+            Image.fromarray(r, "RGBA").save(out / f"{a.anim or 'pose'}_{d}_{f}.png"); imgs[(d, f)].save(out / f"{a.anim or 'pose'}_{d}_{f}_big.png")
+        print(f"[meshy] -> {out}"); return 0
+    finally: s.close()

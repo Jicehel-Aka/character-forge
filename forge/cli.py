@@ -139,6 +139,12 @@ def main(argv=None):
     s.add_argument("--transplant", action="store_true", help="corps natif SpriteKiln + tête recopiée de la vue source (visage lisible)"); s.add_argument("--head-scale", type=float, default=1.0)
     s.add_argument("--sign", type=int, choices=[1, -1], default=None, help="sens de rotation des colonnes source (sinon choisi par IoU : ambigu)")
 
+    s = sub.add_parser("meshy", help="modèle 3D Meshy (GLB/FBX/OBJ) -> sprites pixel art 8 directions, animations du fichier")
+    s.add_argument("model"); s.add_argument("--info", action="store_true", help="liste os, clips, textures, triangles"); s.add_argument("-o", "--output", default="meshy_out")
+    s.add_argument("--size", type=int, default=64); s.add_argument("--ss", type=int, default=4, help="facteur de suréchantillonnage avant réduction"); s.add_argument("--dirs", default="s,se,e,ne,n,nw,w,sw")
+    s.add_argument("--anim", default=None, help="nom d'un clip du fichier"); s.add_argument("--frames", type=int, default=1); s.add_argument("--pitch", type=float, default=38)
+    s.add_argument("--margin", type=float, default=1.25); s.add_argument("--colors", type=int, default=40); s.add_argument("--no-outline", dest="outline", action="store_false"); s.add_argument("--yaw-offset", type=float, default=0, help="degrés ajoutés à toutes les directions si le modèle ne regarde pas vers +Z (glTF : +Z = avant)")
+
     s = sub.add_parser("hull8", help="planche de 8 vues sans caméra connue (dessin/IA) -> volume 3D de test (PLY) + tour de table")
     s.add_argument("sheet"); s.add_argument("-o", "--output", default="hull8_out"); s.add_argument("--name", default="perso")
     s.add_argument("--cols", type=int, default=4); s.add_argument("--rows", type=int, default=2); s.add_argument("--key", default="ff00ff")
@@ -222,6 +228,9 @@ def main(argv=None):
     elif a.cmd == "skiln-paint":
         from . import skiln_paint
         raise SystemExit(skiln_paint.cmd(a))
+    elif a.cmd == "meshy":
+        from . import meshy
+        raise SystemExit(meshy.cmd(a))
     elif a.cmd == "hull8":
         raise SystemExit(hullfit.cmd(a))
     elif a.cmd == "skiln-char":

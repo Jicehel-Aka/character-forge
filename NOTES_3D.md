@@ -239,3 +239,8 @@ Résultat : yeux, sourcils, bandeau et rubans lisibles en 256 px et encore recon
 ## Marionnette 2D (`forge/puppet.py`, début) : constat sur la planche de Kenji
 Détection du squelette (YOLOv8-pose) sur les 8 vues de la planche : tronc et jambes corrects, **bras faux sur la majorité des vues** (poings en garde devant le tronc, gants masquant coudes et poignets). Dans toutes les vues les avant-bras passent devant le tronc : découpés puis ré-articulés, ils laisseraient des trous et des doublons.
 Conclusion : une marionnette (ou une texture projetée) demande une planche source en **pose neutre ou en A** (bras écartés du corps, mains visibles), pas une garde. Voir aussi le moucheté du tronc dans `skiln-paint` : il vient du même défaut.
+
+## Source 3D Meshy (`forge meshy`, `forge/meshy.py`, `tools/meshy/render.html`)
+GLB (aussi FBX/OBJ) -> sprites pixel art dans les 8 directions. Rendu three.js dans Chromium sans tête (playwright), caméra orthographique inclinée (38°), lumière fixe, animations/clips du fichier (`--anim`, `--frames`), pieds au sol et centrage sur la pose de repos. `--info` liste os, clips, textures, triangles. Réduction : suréchantillonnage (`--ss 4`), aire, palette commune, contour 1 px. `--yaw-offset` si le modèle ne regarde pas vers +Z (testé sur le Soldier de three.js : 180).
+Dépendances : playwright + Chromium, npm (three@0.160 installé dans ~/.cache/forge).
+À faire : retarget des animations apprises (forge anim -> os du squelette Meshy/Mixamo), vérification sur un vrai GLB Meshy.

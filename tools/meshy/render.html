@@ -1,0 +1,54 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0">
+<script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js","three/addons/":"./node_modules/three/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {OBJLoader} from 'three/addons/loaders/OBJLoader.js';
+import {FBXLoader} from 'three/addons/loaders/FBXLoader.js';
+
+async function load(url){
+  const ext = url.split('?')[0].split('.').pop().toLowerCase();
+  if (ext==='glb'||ext==='gltf'){ const g = await new GLTFLoader().loadAsync(url); return {root:g.scene, clips:g.animations}; }
+  if (ext==='fbx'){ const o = await new FBXLoader().loadAsync(url); return {root:o, clips:o.animations||[]}; }
+  if (ext==='obj'){ const o = await new OBJLoader().loadAsync(url); return {root:o, clips:[]}; }
+  throw new Error('format non géré: '+ext);
+}
+function info(root, clips){
+  const bones=[]; let tris=0, mats=new Set(), tex=[];
+  root.traverse(o=>{ if(o.isBone) bones.push(o.name);
+    if(o.isMesh){ const g=o.geometry; tris += (g.index? g.index.count : g.attributes.position.count)/3;
+      [].concat(o.material).forEach(m=>{ mats.add(m.name||'(sans nom)'); for(const k of ['map','normalMap','roughnessMap','metalnessMap','emissiveMap']) if(m[k]) tex.push(k+':'+(m[k].image?.width||'?')+'x'+(m[k].image?.height||'?')); }); } });
+  const box = new THREE.Box3().setFromObject(root); const s=new THREE.Vector3(); box.getSize(s);
+  return {bones, triangles:tris, materials:[...mats], textures:tex, clips:clips.map(c=>({name:c.name,duration:c.duration})), size:[s.x,s.y,s.z]};
+}
+window.inspect = async (url)=>{ const {root,clips}=await load(url); return info(root,clips); };
+window.render = async (o)=>{
+  const {root,clips}=await load(o.url); const S=o.size;
+  const renderer = new THREE.WebGLRenderer({antialias:true, alpha:true, preserveDrawingBuffer:true});
+  renderer.setSize(S,S,false); renderer.setPixelRatio(1); renderer.setClearColor(0x000000,0); renderer.outputColorSpace = THREE.SRGBColorSpace;
+  document.body.appendChild(renderer.domElement);
+  const scene = new THREE.Scene(); const pivot = new THREE.Group(); scene.add(pivot); pivot.add(root);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x8890a0, o.ambient ?? 1.1));
+  const sun = new THREE.DirectionalLight(0xffffff, o.sun ?? 1.6); sun.position.set(-0.55,1.0,0.45).multiplyScalar(10); scene.add(sun);
+  let mixer=null, clip=null;
+  if (o.anim){ clip = clips.find(c=>c.name===o.anim) || clips[0]; if (clip){ mixer=new THREE.AnimationMixer(root); mixer.clipAction(clip).play(); } }
+  // cadrage : boîte englobante sur toute l'animation (échantillonnée), pieds au sol, centré
+  const N = Math.max(1, o.frames||1); const times=[...Array(N).keys()].map(i=> clip? (i/N)*clip.duration : 0);
+  let lo=new THREE.Vector3(1e9,1e9,1e9), hi=new THREE.Vector3(-1e9,-1e9,-1e9);
+  for (const t of (clip? times.concat([0]) : [0])){ if(mixer){mixer.setTime(t);} root.updateMatrixWorld(true);
+    const b=new THREE.Box3().setFromObject(root,true); lo.min(b.min); hi.max(b.max); }
+  if (mixer) mixer.setTime(0); root.updateMatrixWorld(true);
+  const b0=new THREE.Box3().setFromObject(root,true); const h=b0.max.y-b0.min.y; const cx=(b0.min.x+b0.max.x)/2, cz=(b0.min.z+b0.max.z)/2;
+  root.position.set(-cx,-b0.min.y,-cz);                 // pieds au sol, centré sur la pose de repos
+  const world = (o.height ?? h)*(o.margin ?? 1.25), half = world/2, pitch=(o.pitch ?? 38)*Math.PI/180;
+  const cam = new THREE.OrthographicCamera(-half,half,half,-half,0.01,1000);
+  const cen = new THREE.Vector3(0,(o.center ?? 0.5)*h,0), dist=100;
+  cam.position.set(0, cen.y + Math.sin(pitch)*dist, Math.cos(pitch)*dist); cam.lookAt(cen);
+  const out=[];
+  for (const d of o.dirs){ pivot.rotation.y = -d.yaw*Math.PI/180;
+    for (let i=0;i<N;i++){ if(mixer) mixer.setTime(times[i]); root.updateMatrixWorld(true); renderer.render(scene,cam);
+      out.push({dir:d.name, frame:i, png: renderer.domElement.toDataURL('image/png')}); } }
+  return {frames:out, height:h, clip: clip? clip.name : null};
+};
+window.ready = true;
+</script>
