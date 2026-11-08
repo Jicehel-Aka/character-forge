@@ -244,3 +244,6 @@ Conclusion : une marionnette (ou une texture projetée) demande une planche sour
 GLB (aussi FBX/OBJ) -> sprites pixel art dans les 8 directions. Rendu three.js dans Chromium sans tête (playwright), caméra orthographique inclinée (38°), lumière fixe, animations/clips du fichier (`--anim`, `--frames`), pieds au sol et centrage sur la pose de repos. `--info` liste os, clips, textures, triangles. Réduction : suréchantillonnage (`--ss 4`), aire, palette commune, contour 1 px. `--yaw-offset` si le modèle ne regarde pas vers +Z (testé sur le Soldier de three.js : 180).
 Dépendances : playwright + Chromium, npm (three@0.160 installé dans ~/.cache/forge).
 À faire : retarget des animations apprises (forge anim -> os du squelette Meshy/Mixamo), vérification sur un vrai GLB Meshy.
+
+## Captures d'un visualiseur 3D -> sprites (`forge shots`, `forge/shots.py`)
+8 captures (plateau tournant, fond uni, zoom fixe) -> détourage par écart au fond ligne par ligne + retrait de l'ombre au sol, hauteur commune, pieds alignés et centrage sur le bas du corps, réduction par aire, palette commune, contour. `--dirs` donne la direction de chaque image (ex. `sw,w,nw,n,ne,e,se,s`). Testé sur les 8 vues Meshy de Kenji : visage, bandeau, kimono, gants reconnaissables en 64, 96 et 128 px. Pose figée (garde) ; pas d'animation sans fichier 3D.

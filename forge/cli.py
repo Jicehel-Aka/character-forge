@@ -145,6 +145,11 @@ def main(argv=None):
     s.add_argument("--anim", default=None, help="nom d'un clip du fichier"); s.add_argument("--frames", type=int, default=1); s.add_argument("--pitch", type=float, default=38)
     s.add_argument("--margin", type=float, default=1.25); s.add_argument("--colors", type=int, default=40); s.add_argument("--no-outline", dest="outline", action="store_false"); s.add_argument("--yaw-offset", type=float, default=0, help="degrés ajoutés à toutes les directions si le modèle ne regarde pas vers +Z (glTF : +Z = avant)")
 
+    s = sub.add_parser("shots", help="captures d'un visualiseur 3D (8 directions) -> sprites pixel art (détourage, échelle, alignement, réduction)")
+    s.add_argument("images", nargs="+"); s.add_argument("--dirs", required=True, help="direction de chaque image, ex. sw,w,nw,n,ne,e,se,s")
+    s.add_argument("-o", "--output", default="shots_out"); s.add_argument("--name", default="perso"); s.add_argument("--size", type=int, default=96)
+    s.add_argument("--colors", type=int, default=40); s.add_argument("--no-outline", dest="outline", action="store_false")
+
     s = sub.add_parser("hull8", help="planche de 8 vues sans caméra connue (dessin/IA) -> volume 3D de test (PLY) + tour de table")
     s.add_argument("sheet"); s.add_argument("-o", "--output", default="hull8_out"); s.add_argument("--name", default="perso")
     s.add_argument("--cols", type=int, default=4); s.add_argument("--rows", type=int, default=2); s.add_argument("--key", default="ff00ff")
@@ -231,6 +236,9 @@ def main(argv=None):
     elif a.cmd == "meshy":
         from . import meshy
         raise SystemExit(meshy.cmd(a))
+    elif a.cmd == "shots":
+        from . import shots
+        raise SystemExit(shots.cmd(a))
     elif a.cmd == "hull8":
         raise SystemExit(hullfit.cmd(a))
     elif a.cmd == "skiln-char":
