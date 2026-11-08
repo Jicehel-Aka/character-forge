@@ -5,6 +5,8 @@ import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {OBJLoader} from 'three/addons/loaders/OBJLoader.js';
 import {FBXLoader} from 'three/addons/loaders/FBXLoader.js';
+import {GLTFExporter} from 'three/addons/exporters/GLTFExporter.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 async function load(url){
   const ext = url.split('?')[0].split('.').pop().toLowerCase();
@@ -55,6 +57,75 @@ window.render = async (o)=>{
     for (let i=0;i<N;i++){ if(mixer) mixer.setTime(times[i]); root.updateMatrixWorld(true); renderer.render(scene,cam);
       out.push({dir:d.name, frame:i, png: renderer.domElement.toDataURL('image/png')}); } }
   return {frames:out, height:h, clip: clip? clip.name : null};
+};
+window.islands = async (url)=>{ const {root}=await load(url); root.updateMatrixWorld(true); const out=[];
+  root.traverse(o=>{ if(!o.isMesh) return; const g=o.geometry, P=g.attributes.position, n=P.count, idx=g.index? g.index.array : [...Array(n).keys()];
+    // soudure par position pour relier les sommets dupliqués (coutures UV)
+    const key=new Map(), rep=new Int32Array(n); for(let i=0;i<n;i++){ const k=Math.round(P.getX(i)*1e3)+','+Math.round(P.getY(i)*1e3)+','+Math.round(P.getZ(i)*1e3); if(!key.has(k)) key.set(k,i); rep[i]=key.get(k); }
+    const par=new Int32Array(n).map((_,i)=>i); const f=a=>{while(par[a]!==a){par[a]=par[par[a]];a=par[a];}return a;};
+    for(let t=0;t<idx.length;t+=3){ const a=f(rep[idx[t]]),b=f(rep[idx[t+1]]),c=f(rep[idx[t+2]]); par[b]=a; par[f(c)]=f(a); }
+    const isl=new Map(); for(let i=0;i<n;i++){ const r=f(rep[i]); let e=isl.get(r); if(!e){e={n:0,lo:[1e9,1e9,1e9],hi:[-1e9,-1e9,-1e9]}; isl.set(r,e);} e.n++; for(const [k,v] of [[0,P.getX(i)],[1,P.getY(i)],[2,P.getZ(i)]]){ e.lo[k]=Math.min(e.lo[k],v); e.hi[k]=Math.max(e.hi[k],v);} }
+    out.push({name:o.name, skinned:!!o.isSkinnedMesh, verts:n, mats:[].concat(o.material).map(m=>m.name), scale:o.scale.toArray(), rot:o.rotation.toArray().slice(0,3), islands:[...isl.values()].sort((a,b)=>b.n-a.n).slice(0,o.maxIsl||60)}); });
+  return out; };
+// ---- rigging : maillage statique (T-pose) + squelette Mixamo de référence -> GLB skinné, accessoires séparés, clips Mixamo
+window.rig = async (o)=>{
+  const V=(await load(o.model)).root, S=(await load(o.skeleton)).root;
+  let vm; V.traverse(n=>{ if(n.isMesh&&!vm) vm=n; }); let sm0; S.traverse(n=>{ if(n.isSkinnedMesh&&!sm0) sm0=n; });
+  const G=vm.geometry, P=G.attributes.position, n=P.count, N=G.attributes.normal, UV=G.attributes.uv;
+  const idx=G.index? Array.from(G.index.array) : [...Array(n).keys()];
+  // îlots (soudure par position)
+  const key=new Map(), rep=new Int32Array(n); for(let i=0;i<n;i++){ const k=Math.round(P.getX(i)*1e3)+','+Math.round(P.getY(i)*1e3)+','+Math.round(P.getZ(i)*1e3); if(!key.has(k)) key.set(k,i); rep[i]=key.get(k); }
+  const par=new Int32Array(n).map((_,i)=>i); const f=a=>{while(par[a]!==a){par[a]=par[par[a]];a=par[a];}return a;};
+  for(let t=0;t<idx.length;t+=3){ const a=f(rep[idx[t]]); par[f(rep[idx[t+1]])]=a; par[f(rep[idx[t+2]])]=f(a); }
+  const isl=new Map(); for(let i=0;i<n;i++){ const r=f(rep[i]); let e=isl.get(r); if(!e){e={lo:[1e9,1e9,1e9],hi:[-1e9,-1e9,-1e9]}; isl.set(r,e);} for(let k=0;k<3;k++){ const v=k==0?P.getX(i):k==1?P.getY(i):P.getZ(i); e.lo[k]=Math.min(e.lo[k],v); e.hi[k]=Math.max(e.hi[k],v);} }
+  const role=new Map(); // r -> 'body'|'axe'|'shield'
+  for(const [r,e] of isl){ const cx=(e.lo[0]+e.hi[0])/2; role.set(r, (Math.abs(cx)>(o.propx??28) && e.hi[1]<(o.propy??90))? (cx>0?'shield':'axe') : 'body'); }
+  const part=i=>role.get(f(rep[i]));
+  // alignement Viking -> espace du squelette de référence (hauteur des îlots du corps)
+  let vlo=1e9,vhi=-1e9; for(let i=0;i<n;i++) if(part(i)==='body'){ vlo=Math.min(vlo,P.getY(i)); vhi=Math.max(vhi,P.getY(i)); }
+  sm0.geometry.computeBoundingBox(); const bb=sm0.geometry.boundingBox, r=(bb.max.y-bb.min.y)/(vhi-vlo);
+  const map=(x,y,z)=>[x*r, (y-vlo)*r+bb.min.y, z*r];
+  // grille des sommets de référence
+  const RP=sm0.geometry.attributes.position, RI=sm0.geometry.attributes.skinIndex, RW=sm0.geometry.attributes.skinWeight, C=2.5, grid=new Map(), gk=(a,b,c)=>a+','+b+','+c;
+  for(let i=0;i<RP.count;i++){ const k=gk(Math.floor(RP.getX(i)/C),Math.floor(RP.getY(i)/C),Math.floor(RP.getZ(i)/C)); let l=grid.get(k); if(!l){l=[];grid.set(k,l);} l.push(i); }
+  const nb=sm0.skeleton.bones.length, K=o.knn??8;
+  function weights(x,y,z){ const cx=Math.floor(x/C),cy=Math.floor(y/C),cz=Math.floor(z/C); let best=[];
+    for(let R=1;R<=4 && best.length<K;R++){ best=[]; for(let a=-R;a<=R;a++)for(let b=-R;b<=R;b++)for(let c=-R;c<=R;c++){ const l=grid.get(gk(cx+a,cy+b,cz+c)); if(!l) continue; for(const j of l){ const dx=RP.getX(j)-x,dy=RP.getY(j)-y,dz=RP.getZ(j)-z; best.push([dx*dx+dy*dy+dz*dz,j]); } } }
+    best.sort((p,q)=>p[0]-q[0]); best=best.slice(0,K); const acc=new Float32Array(nb);
+    for(const [d2,j] of best){ const w=1/(d2+0.5); for(let k=0;k<4;k++) acc[RI.getComponent(j,k)] += w*RW.getComponent(j,k); }
+    const top=[...acc.keys()].sort((a,b)=>acc[b]-acc[a]).slice(0,4); let sum=top.reduce((s,b)=>s+acc[b],0)||1; return top.map(b=>[b,acc[b]/sum]); }
+  // géométrie du corps
+  const remap=new Map(), pos=[], nor=[], uv=[], si=[], sw=[], bidx=[];
+  const take=i=>{ let k=remap.get(i); if(k!==undefined) return k; k=pos.length/3; remap.set(i,k);
+    const [x,y,z]=map(P.getX(i),P.getY(i),P.getZ(i)); pos.push(x,y,z); nor.push(N.getX(i),N.getY(i),N.getZ(i)); uv.push(UV.getX(i),1-UV.getY(i));
+    const w=weights(x,y,z); for(let q=0;q<4;q++){ si.push(w[q]?w[q][0]:0); sw.push(w[q]?w[q][1]:0); } return k; };
+  const props={axe:{pos:[],nor:[],uv:[],idx:[],map:new Map()}, shield:{pos:[],nor:[],uv:[],idx:[],map:new Map()}};
+  for(let t=0;t<idx.length;t+=3){ const pr=part(idx[t]);
+    if(pr==='body'){ for(let q=0;q<3;q++) bidx.push(take(idx[t+q])); }
+    else { const pp=props[pr]; for(let q=0;q<3;q++){ const i=idx[t+q]; let k=pp.map.get(i); if(k===undefined){ k=pp.pos.length/3; pp.map.set(i,k); const [x,y,z]=map(P.getX(i),P.getY(i),P.getZ(i)); pp.pos.push(x,y,z); pp.nor.push(N.getX(i),N.getY(i),N.getZ(i)); pp.uv.push(UV.getX(i),1-UV.getY(i)); } pp.idx.push(k); } } }
+  const tex=await new THREE.TextureLoader().loadAsync(o.texture); tex.colorSpace=THREE.SRGBColorSpace; tex.flipY=false; tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
+  const mat=new THREE.MeshStandardMaterial({map:tex, roughness:0.9, metalness:0, name:'Viking'});
+  const root=SkeletonUtils.clone(S); let sm; root.traverse(c=>{ if(c.isSkinnedMesh) sm=c; });
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(nor,3)); g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
+  g.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(si,4)); g.setAttribute('skinWeight',new THREE.Float32BufferAttribute(sw,4)); g.setIndex(bidx);
+  sm.geometry=g; sm.material=mat; sm.name='Viking_body'; sm.frustumCulled=false;
+  // accessoires : enfants de la main, placement T-pose conservé (+ décalage/rotation en repère main)
+  const mats=sm.skeleton.boneInverses, bones=sm.skeleton.bones, bm=sm.bindMatrix;
+  const attach=(name,boneName,pp,off)=>{ if(!pp.pos.length) return 0; const bi=bones.findIndex(b=>b.name===boneName);
+    const M=new THREE.Matrix4().multiplyMatrices(mats[bi],bm); const pg=new THREE.BufferGeometry();
+    pg.setAttribute('position',new THREE.Float32BufferAttribute(pp.pos,3)); pg.setAttribute('normal',new THREE.Float32BufferAttribute(pp.nor,3)); pg.setAttribute('uv',new THREE.Float32BufferAttribute(pp.uv,2)); pg.setIndex(pp.idx);
+    pg.applyMatrix4(M); // coord. repère main
+    if(off){ pg.computeBoundingBox(); const c=new THREE.Vector3(); pg.boundingBox.getCenter(c); const gp=off.grip? new THREE.Vector3(...map(...off.grip)).applyMatrix4(M) : c;
+      const T=new THREE.Matrix4().makeTranslation(-gp.x,-gp.y,-gp.z); const R=new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(...(off.rot||[0,0,0]).map(d=>d*Math.PI/180)));
+      const B=new THREE.Matrix4().makeTranslation(...(off.pos||[0,0,0]).map(x=>x*100)); pg.applyMatrix4(new THREE.Matrix4().multiplyMatrices(B,new THREE.Matrix4().multiplyMatrices(R,T))); }
+    const m=new THREE.Mesh(pg,mat); m.name=name; bones[bi].add(m); return pp.idx.length/3; };
+  const rep_={}; rep_.axe=attach('Axe',o.axeBone||'mixamorigRightHand',props.axe,o.axe||{grip:[-63.5,48,-29]}); rep_.shield=attach('Shield',o.shieldBone||'mixamorigLeftForeArm',props.shield,o.shield||{grip:[62,50,-25],rot:[0,90,0]});
+  // clips
+  const clips=[]; for(const c of (o.clips||[])){ const A=(await load(c.url)).clips[0]; if(A){ A.name=c.name; clips.push(A); } }
+  const out=new THREE.Group(); out.name='Armature'; out.scale.setScalar(1e-4); out.add(root); const scene=new THREE.Scene(); scene.add(out);
+  const buf=await new Promise((ok,ko)=> new GLTFExporter().parse(scene, ok, ko, {binary:true, animations:clips}));
+  let bin=''; const u8=new Uint8Array(buf); for(let i=0;i<u8.length;i+=0x8000) bin+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));
+  return {glb:btoa(bin), body:bidx.length/3, props:rep_, clips:clips.map(c=>c.name), ratio:r, islands:[...role.values()].reduce((a,v)=>(a[v]=(a[v]||0)+1,a),{})};
 };
 window.ready = true;
 </script>

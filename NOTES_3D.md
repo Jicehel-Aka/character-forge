@@ -258,3 +258,9 @@ tissu délavé. Cette voie ne donne pas la fidélité de la source. Voie recomma
 `forge meshy perso.fbx --anim mixamo.com --frames N --texture atlas.png ...` : échelle normalisée sur l'étendue des os (Mixamo en cm),
 atlas appliqué aux UV (flipY, metalness 0). Testé : Body_Jab_Cross + atlas boxeur OK. Viking.fbx : maillage T-pose + hache/bouclier
 séparés, sans squelette ni clip -> à ré-animer via un clip Mixamo (retargeting non fait).
+
+## forge rig (Viking)
+`forge rig Viking.fbx --skeleton Idle.fbx --texture atlas.png --clips Idle.fbx Jab.fbx ... -o viking_rigged.glb` : îlots de maillage (soudure par position) ->
+hache (-x) et bouclier (+x) séparés, attachés à la main droite / l'avant-bras gauche ; corps skinné par poids kNN copiés du maillage Mixamo
+(mise à l'échelle par hauteur) ; clips Mixamo embarqués (mêmes noms d'os). Rendu : `forge meshy viking_rigged.glb --anim Combo_Punch ...`.
+Limites : poids approximatifs (cape/armure près du torse), pas de doigts (squelette 25 os).

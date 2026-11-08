@@ -145,6 +145,11 @@ def main(argv=None):
     s.add_argument("--anim", default=None, help="nom d'un clip du fichier"); s.add_argument("--frames", type=int, default=1); s.add_argument("--pitch", type=float, default=38)
     s.add_argument("--margin", type=float, default=1.25); s.add_argument("--colors", type=int, default=40); s.add_argument("--no-outline", dest="outline", action="store_false"); s.add_argument("--texture", default=None, help="atlas PNG appliqué aux UV (FBX sans textures intégrées)"); s.add_argument("--yaw-offset", type=float, default=0, help="degrés ajoutés à toutes les directions si le modèle ne regarde pas vers +Z (glTF : +Z = avant)")
 
+    s = sub.add_parser("rig", help="FBX statique T-pose + squelette Mixamo -> GLB skinné (accessoires séparés, clips Mixamo)")
+    s.add_argument("model"); s.add_argument("--skeleton", required=True, help="FBX Mixamo skinné de référence (ex. Idle.fbx)"); s.add_argument("--texture", required=True)
+    s.add_argument("--clips", nargs="*", help="FBX Mixamo dont on embarque l'animation"); s.add_argument("-o", "--output", default="rigged.glb"); s.add_argument("--knn", type=int, default=8)
+    s.add_argument("--axe", default=None, help='JSON {"grip":[x,y,z],"rot":[dx,dy,dz],"pos":[x,y,z]} (repère main)'); s.add_argument("--shield", default=None); s.add_argument("--axe-bone", default=None); s.add_argument("--shield-bone", default=None)
+
     s = sub.add_parser("shots", help="captures d'un visualiseur 3D (8 directions) -> sprites pixel art (détourage, échelle, alignement, réduction)")
     s.add_argument("images", nargs="+"); s.add_argument("--dirs", required=True, help="direction de chaque image, ex. sw,w,nw,n,ne,e,se,s")
     s.add_argument("-o", "--output", default="shots_out"); s.add_argument("--name", default="perso"); s.add_argument("--size", type=int, default=96)
@@ -233,6 +238,9 @@ def main(argv=None):
     elif a.cmd == "skiln-paint":
         from . import skiln_paint
         raise SystemExit(skiln_paint.cmd(a))
+    elif a.cmd == "rig":
+        from . import rig
+        raise SystemExit(rig.cmd(a))
     elif a.cmd == "meshy":
         from . import meshy
         raise SystemExit(meshy.cmd(a))
