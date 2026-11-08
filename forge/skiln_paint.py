@@ -9,7 +9,8 @@ import numpy as np
 from PIL import Image
 
 CELL = 0.012
-ALLOWED = {"skin": {"skin"}, "cloth": {"white"}, "collar": {"white"}, "gloves": {"blue"}, "cuff": {"blue"}, "headband": {"blue"},
+FLAT = {"cloth": 0.7, "collar": 0.6, "skin": 0.45}       # matériaux repeints « albédo moyen x ombrage SpriteKiln » (seconde passe)
+ALLOWED = {"boots": {"white"}, "sole": {"black"}, "skin": {"skin"}, "cloth": {"white"}, "collar": {"white"}, "gloves": {"blue"}, "cuff": {"blue"}, "headband": {"blue"},
            "leather": {"black", "white"}, "belt_k": {"black"}, "hair": {"black"}, "ink": {"black"}, "steel": {"white"}}
 
 
@@ -51,7 +52,9 @@ def gpoints(spec_path, size, anim, frame, yaw_deg):
             oo, R, s = g.frame; qq = ((P[sel] - oo) @ R) / s
             if g.mirror: qq[:, 0] = -qq[:, 0]
             q[sel] = qq
-    return {"mats": [g.mat for g in groups], "gid": gid, "normal": buf.normal.astype(float), "q": q, "P": P, "names": [g.name for g in groups], "cam": cam, "hit": hit}
+    from spritekiln.render import Light, shade
+    lv = shade(buf, cam, Light(**spec["light"]))
+    return {"shade": lv, "mats": [g.mat for g in groups], "gid": gid, "normal": buf.normal.astype(float), "q": q, "P": P, "names": [g.name for g in groups], "cam": cam, "hit": hit}
 
 
 def source_cells(path, y0, y1, n=8, key=(255, 0, 255), tol=120):
@@ -103,38 +106,63 @@ class Learner:
         self.spec, self.size, self.anim, self.frame = Path(spec_path), size, anim, frame
         self.acc = {}; self.names = None
 
-    def add(self, yaw_deg, src_rgb, src_mask, power=1.0):
+    def add(self, yaw_deg, src_rgb, src_mask, power=1.0, rad=7):
+        """Accumule les couleurs d'une vue source. Calage PAR PIÈCE : pour chaque pièce, décalage (±rad px) qui maximise la part
+        de ses pixels tombant sur une couleur source de la bonne classe."""
         gp = gpoints(self.spec, self.size, self.anim, self.frame, yaw_deg); self.names = gp["names"]
         cam = gp["cam"]; nz = np.clip(-(gp["normal"] @ cam.D), 0, 1) ** power
-        sel = gp["hit"] & src_mask & (nz > 0.15)
-        cls = classify(src_rgb); ok = np.zeros_like(sel)
+        cls = classify(src_rgb); S = nz.shape[0]; self.shifts = getattr(self, "shifts", {})
         for gi, mat in enumerate(gp["mats"]):
-            allowed = ALLOWED.get(mat); m = gp["gid"] == gi
-            ok |= m & (np.isin(cls, list(allowed)) if allowed else True)
-        sel &= ok
-        key = np.round(gp["q"][sel] / CELL).astype(np.int32); gid = gp["gid"][sel]; col = src_rgb[sel].astype(float); w = nz[sel]
-        for g, k, c, ww in zip(gid, map(tuple, key), col, w):
-            a = self.acc.setdefault((int(g), k), [np.zeros(3), 0.0]); a[0] += c * ww; a[1] += ww
+            m = (gp["gid"] == gi) & gp["hit"] & (nz > 0.15)
+            if not m.any(): continue
+            allowed = ALLOWED.get(mat); ys, xs = np.where(m)
+            good = (np.isin(cls, list(allowed)) & src_mask) if allowed else src_mask
+            best = (-1, 0, 0)
+            for dy in range(-rad, rad + 1):
+                for dx in range(-rad, rad + 1):
+                    yy = np.clip(ys + dy, 0, S - 1); xx = np.clip(xs + dx, 0, S - 1)
+                    sc = good[yy, xx].mean() - 0.004 * (abs(dx) + abs(dy))
+                    if sc > best[0]: best = (sc, dx, dy)
+            _, dx, dy = best; self.shifts[(round(yaw_deg), gi)] = (dx, dy)
+            yy = np.clip(ys + dy, 0, S - 1); xx = np.clip(xs + dx, 0, S - 1); ok = good[yy, xx]
+            key = np.round(gp["q"][ys[ok], xs[ok]] / CELL).astype(np.int32); col = src_rgb[yy[ok], xx[ok]].astype(float); w = nz[ys[ok], xs[ok]]
+            for k, c, ww in zip(map(tuple, key), col, w):
+                a = self.acc.setdefault((gi, k), [np.zeros(3), 0.0]); a[0] += c * ww; a[1] += ww
 
-    def tables(self):
+    def tables(self, smooth=7):
+        """Une table par pièce : cellules locales -> couleur (médiane des k voisins : seconde passe de débruitage) + albédo moyen."""
         from scipy.spatial import cKDTree
         by = {}
         for (g, k), (c, w) in self.acc.items(): by.setdefault(g, ([], []))[0].append(np.array(k) * CELL); by[g][1].append(c / w)
-        return {g: (cKDTree(np.array(p)), np.array(c)) for g, (p, c) in by.items()}
+        out = {}
+        for g, (p, c) in by.items():
+            p = np.array(p); c = np.array(c); tree = cKDTree(p)
+            if smooth and len(p) > smooth:
+                _, nb = tree.query(p, k=smooth); c = np.median(c[nb], axis=1)
+            out[g] = (tree, c, np.percentile(c, 75, axis=0))
+        return out
 
-    def paint(self, tables, anim, frame, yaw_deg, size=None):
+    def paint(self, tables, anim, frame, yaw_deg, size=None, relight=True):
+        """Repeint une image : couleur apprise ; pour les matériaux « plats » (kimono, peau), mélange avec albédo moyen x ombrage
+        de SpriteKiln (plis et volumes propres, plus de taches)."""
         gp = gpoints(self.spec, size or self.size, anim, frame, yaw_deg); S = gp["gid"].shape[0]
         out = np.zeros((S, S, 4), np.uint8)
-        for g, (tree, cols) in tables.items():
+        for g, (tree, cols, alb) in tables.items():
             sel = gp["gid"] == g
-            if sel.any(): _, idx = tree.query(gp["q"][sel]); out[sel, :3] = cols[idx].astype(np.uint8)
+            if not sel.any(): continue
+            _, idx = tree.query(gp["q"][sel]); c = cols[idx].astype(float)
+            w = FLAT.get(gp["mats"][g], 0.0) if relight else 0.0
+            if w:
+                lv = gp["shade"][sel]; f = np.clip(0.62 + 0.75 * (lv - lv.mean()) + 0.05, 0.45, 1.15)[:, None]
+                c = (1 - w) * c + w * np.clip(alb[None, :] * f * 1.02, 0, 255)
+            out[sel, :3] = np.clip(c, 0, 255).astype(np.uint8)
         out[..., 3] = np.where(gp["hit"], 255, 0); return Image.fromarray(out, "RGBA")
 
 
 def palette_from(tables, ncol=32, per=400, seed=0):
     """Palette commune : couleurs apprises, échantillonnées à parts égales par pièce (les petites zones — gants, bandeau, visage — pèsent autant que le kimono)."""
     rng = np.random.default_rng(seed); px = []
-    for _g, (_t, cols) in tables.items():
+    for _g, (_t, cols, _a) in tables.items():
         px.append(cols[rng.choice(len(cols), min(per, len(cols)), replace=False)])
     arr = np.concatenate(px).astype(np.uint8)
     return Image.fromarray(arr[None, ...]).quantize(ncol, Image.MEDIANCUT)

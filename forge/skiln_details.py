@@ -18,6 +18,12 @@ def karate(spec, col, extra, ramps_out, outdir, name, size):
     ramps["ink2"] = ["#0b0b10", "#14141c", "#1c1c28", "#262634", "#303044", "#3a3a52"]
     (outdir / f"{name}_palette.yaml").write_text(yaml.safe_dump({"ramps": ramps}, sort_keys=False))
     m = spec["materials"]; m["ink"] = {"ramp": "ink2", "emissive": True, "band": 0, "outline": False}; m["collar"] = {"ramp": "collar"}; m["cuff"] = {"ramp": "cuff"}; m["belt_k"] = {"ramp": "belt_k"}
+    # --- chaussures blanches à semelle noire
+    ramps["shoe"] = ramp(col.get("shoes", "#e8ecf4"), hi=0.3); ramps["sole"] = ramp("#202028", hi=0.9)
+    (outdir / f"{name}_palette.yaml").write_text(yaml.safe_dump({"ramps": ramps}, sort_keys=False))
+    m["boots"] = {"ramp": "shoe"}; m["sole"] = {"ramp": "sole"}
+    spec.setdefault("parts", {})["boot_L"] = {"material": "boots"}
+    extra["sole_L"] = {"material": "sole", "space": "sole_L", "blend": 0.01, "prims": [{"ellipsoid": {"c": [0, -0.075, 0.05], "r": [0.068, 0.016, 0.118]}}]}
     # --- visage : nez et oreilles du kit head
     for u in spec["use"]:
         if u.get("kit") == "head": u["with"].update({"nose": 0.7, "ears": 1})
