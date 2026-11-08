@@ -72,6 +72,8 @@ def build(desc, outdir, anims=None):
     elif w and w not in WEAPON: skipped.append(f"weapon:{w}")
     if w is None or w == "":
         rem.append("use.sword")
+    if not any(g in ("coat", "robe", "dress", "long_coat") for g in desc.get("gear", [])):
+        rem.append("parts.coat")          # la « jupe » du gabarit cache les jambes : retirée sauf manteau/robe demandé
     rem += rem0
     if rem: spec["remove"] = rem
     if anims: spec["animations"] = anims
@@ -89,8 +91,11 @@ def cmd(a):
         if a.save: Path(a.save).parent.mkdir(parents=True, exist_ok=True); Path(a.save).write_text(json.dumps(desc, indent=1, ensure_ascii=False))
     if a.anim:
         from . import anim, to_spritekiln
-        m = json.loads(Path(a.anim).read_text()); poses = anim.generate(m, a.frames, None, 60)
-        anims = {a.anim_name or m["type"]: {"loop": False, "keys": to_spritekiln.poses_to_keys(poses, a.ms)}}
+        anims = {}
+        for i, f in enumerate(a.anim):
+            m = json.loads(Path(f).read_text()); poses = anim.generate(m, a.frames, None, 60)
+            nm = (a.anim_name[i] if a.anim_name and i < len(a.anim_name) else m["type"])
+            anims[nm] = {"loop": bool(m.get("periodic")), "keys": to_spritekiln.poses_to_keys(poses, a.ms)}
     p, skipped = build(desc, a.output, anims)
     print(f"[skiln-char] {p}" + (f" ; sans kit (couleurs seulement) : {skipped}" if skipped else ""))
     if a.render:

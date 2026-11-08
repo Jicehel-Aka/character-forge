@@ -12,3 +12,6 @@ Les BVH d'origine (2,1 Go) ne sont pas copiés ici : `tools/fetch_cmu.sh`. `sour
 extraites. Limites : un seul sujet pour le coup de pied ; la vue de profil perd la profondeur (os raccourcis quand
 un membre pointe vers la caméra : `anim check` les signale, sans gravité) ; `*_apercu.png` = bonhommes-bâton, pas
 des sprites.
+
+## sources_fight/ — lignes apprises depuis une planche de combattant (pose YOLO automatique, bruitées)
+row11, row12, row14, row16, row17 : non nommées (sémantique non vérifiée) ; row14 ressemble à une chute au sol. À renommer après relecture.
