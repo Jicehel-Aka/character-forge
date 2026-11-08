@@ -188,6 +188,20 @@ def to_blender(model_or_poses_angles, path, frames_angles):
 
 def cmd(a):
     out = Path(a.output); out.mkdir(parents=True, exist_ok=True)
+    if a.action == "import-bvh":
+        from . import bvh
+        ann = bvh.to_annotation(a.inputs[0], a.forward, a.flip, a.loop, stride=a.stride)
+        t = out / (Path(a.inputs[0]).stem + "_annot.json"); t.write_text(json.dumps(ann))
+        print(f"[anim] {len(ann['frames'])} images -> {t}"); return 0
+    if a.action == "import-coco":
+        from . import pose_import
+        ann = pose_import.from_coco(json.loads(Path(a.inputs[0]).read_text()), loop=a.loop)
+        t = out / (Path(a.inputs[0]).stem + "_annot.json"); t.write_text(json.dumps(ann))
+        print(f"[anim] {len(ann['frames'])} images ({ann['low_confidence_frames']} à faible confiance) -> {t}"); return 0
+    if a.action == "export-bvh":
+        from . import bvh
+        m = json.loads(Path(a.inputs[0]).read_text()); t = out / f"{m['type']}.bvh"
+        bvh.write_bvh(m, t, frames=a.frames, height=a.height); print(f"[anim] BVH -> {t}"); return 0
     if a.action == "check":
         for f in a.inputs:
             ann = json.loads(Path(f).read_text()); pr = validate_annotation(ann)

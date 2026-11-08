@@ -23,7 +23,8 @@ def check_frame(path, max_colors=24):
     H, W = fg.shape
     bb = (xs.min(), ys.min(), xs.max() + 1, ys.max() + 1)
     out["bbox"] = [int(v) for v in bb]
-    cut = [n for n, c in (("haut", bb[1] <= 0), ("bas", bb[3] >= H), ("gauche", bb[0] <= 0), ("droite", bb[2] >= W)) if c]
+    tight = bb[0] <= 0 and bb[1] <= 0 and bb[2] >= W and bb[3] >= H   # recadrage serré : le bord touché est normal
+    cut = [] if tight else [n for n, c in (("haut", bb[1] <= 0), ("bas", bb[3] >= H), ("gauche", bb[0] <= 0), ("droite", bb[2] >= W)) if c]
     if cut:
         out["issues"].append(("cadre", f"personnage coupé par le bord {', '.join(cut)} : agrandir le canevas ou recadrer"))
     lab, n = ndimage.label(fg)
@@ -58,12 +59,46 @@ def run(folder, max_colors=24):
     return rep
 
 
+def _hist(im):
+    a = np.asarray(im.convert("RGBA")); op = a[..., 3] > 0
+    q = (a[op][:, :3] >> 4).astype(int); idx = q[:, 0] * 256 + q[:, 1] * 16 + q[:, 2]
+    h = np.bincount(idx, minlength=4096).astype(float)
+    return h / max(h.sum(), 1)
+
+
+def _dhash(im):
+    g = Image.new("RGBA", im.size, (128, 128, 128, 255)); g.alpha_composite(im.convert("RGBA"))
+    v = np.asarray(g.convert("L").resize((9, 8), Image.LANCZOS)).astype(int)
+    return (v[:, 1:] > v[:, :-1]).flatten()
+
+
+def drift(folder, min_hist=0.55, max_ham=24):
+    """Dérive d'identité d'une frame à l'autre : intersection d'histogrammes de couleurs et hash perceptuel, contre
+    la frame médiane. Seuils heuristiques (non calibrés) : à ajuster."""
+    files = sorted(Path(folder).glob("*.png")); ims = [Image.open(f).convert("RGBA") for f in files]
+    if len(ims) < 3:
+        return []
+    H = np.array([_hist(i) for i in ims]); ref = np.median(H, 0); ref /= max(ref.sum(), 1e-9)
+    hs = [_dhash(i) for i in ims]; res = []
+    for f, h, d in zip(files, H, hs):
+        inter = float(np.minimum(h, ref).sum()); ham = 0
+        res.append((f.name, inter))
+    out = []
+    for f, inter in res:
+        if inter < min_hist:
+            out.append((f, f"couleurs éloignées de la plupart des frames (intersection {inter:.2f} < {min_hist}) : dérive d'identité ou éclairage"))
+    return out
+
+
 def cmd(a):
     rep = run(a.folder, a.max_colors)
     bad = 0
     for r in rep:
         for kind, msg in r["issues"]:
             bad += 1; print(f"{r['file']}: [{kind}] {msg}")
+    if getattr(a, "identity", False):
+        for f, msg in drift(a.folder):
+            bad += 1; print(f"{f}: [identité] {msg}")
     print(f"[qa] {len(rep)} image(s), {bad} problème(s)")
     if a.json:
         Path(a.json).write_text(json.dumps(rep, indent=2, ensure_ascii=False, default=str))

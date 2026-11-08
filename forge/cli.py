@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
 
-from . import anim, assets, flat, gear, gen3d, job, multiview, qa, persona, pipeline, props, sheet, sprites, turntable
+from . import anim, assets, atlas, flat, gear, gen3d, job, multiview, qa, persona, pipeline, props, sheet, sprites, turntable
 
 
 def add_extract_args(p):
@@ -66,6 +66,7 @@ def main(argv=None):
     s = sub.add_parser("qa", help="contrôles qualité d'un dossier de frames (cadre, poussières, taille, pieds, couleurs)")
     s.add_argument("folder")
     s.add_argument("--max-colors", type=int, default=24)
+    s.add_argument("--identity", action="store_true", help="ajoute le contrôle de dérive d'identité (couleurs)")
     s.add_argument("--json")
 
     s = sub.add_parser("sheetops", help="planche de sprites : slice | flatten | reintegrate")
@@ -79,14 +80,24 @@ def main(argv=None):
     s.add_argument("--limit", type=int, default=0, help="slice : n'écrire que N cellules")
 
     s = sub.add_parser("anim", help="mode apprentissage : check | learn | generate (voir forge/anim.py)")
-    s.add_argument("action", choices=["check", "learn", "generate"])
+    s.add_argument("action", choices=["check", "learn", "generate", "import-bvh", "import-coco", "export-bvh"])
     s.add_argument("inputs", nargs="+", help="annotations .json (check/learn) ou modèle appris (generate)")
     s.add_argument("--type", default="anim", help="nom du type d'animation (learn)")
     s.add_argument("--frames", type=int, default=16, help="images du modèle (learn) / à générer (generate)")
     s.add_argument("--loop", action="store_true", help="animation cyclique (marche, idle)")
+    s.add_argument("--forward", choices=["x", "y", "z"], default="x", help="import-bvh : axe « avant » du mocap")
+    s.add_argument("--flip", action="store_true", help="import-bvh : inverser le sens avant/arrière")
+    s.add_argument("--stride", type=int, default=1, help="import-bvh : garder 1 image sur N")
     s.add_argument("--character", help="JSON d'une pose annotée du personnage cible (proportions)")
     s.add_argument("--height", type=float, default=64.0, help="hauteur tronc+jambe en px (generate)")
     s.add_argument("-o", "--output", default="animlib")
+
+    s = sub.add_parser("atlas", help="export moteur : atlas aligné + JSON Aseprite + manifest + GIF")
+    s.add_argument("frames_dir")
+    s.add_argument("-o", "--output", required=True)
+    s.add_argument("--name", default="anim")
+    s.add_argument("--fps", type=int, default=12)
+    s.add_argument("--no-loop", action="store_true")
 
     s = sub.add_parser("sheet", help="fiche de personnage (character.json + HTML)")
     s.add_argument("extract_dir")
@@ -159,6 +170,9 @@ def main(argv=None):
         raise SystemExit(flat.cmd(a))
     elif a.cmd == "anim":
         raise SystemExit(anim.cmd(a))
+    elif a.cmd == "atlas":
+        r = atlas.export(a.frames_dir, a.output, a.name, a.fps, not a.no_loop)
+        print(f"[atlas] {r['frames']} images, cellule {r['cell']} -> {a.output}")
     elif a.cmd == "gear":
         raise SystemExit(gear.cmd(a))
     elif a.cmd == "sheet":

@@ -103,6 +103,13 @@ différentes : écart moyen 2,4°) ; pas encore sur de vraies planches. Les arti
 d'un estimateur lancé sur ton PC). Limite : vue de côté seulement (angles dans le plan de l'image). L'export
 Blender (`to_blender`) et le rendu 3D des poses restent à écrire/tester.
 
+### Ponts avec l'existant (voir THIRD_PARTY.md)
+`anim import-bvh mocap.bvh --forward x [--flip] --loop` : apprend une animation depuis un mocap (Mixamo, Quaternius…
+noms de nœuds Mixamo requis) ; `anim import-coco kp.json` : depuis un estimateur de pose (COCO-17) ;
+`anim export-bvh animlib/walk.json` : BVH rejouable ; `atlas frames/ -o out --name walk --fps 12` : atlas aligné aux
+pieds + JSON Aseprite + manifest + GIF ; `qa dossier --identity` : dérive d'identité des couleurs (seuils non calibrés).
+Les 4 petits os (clavicules, bassin) ne sont pas animés à l'export BVH.
+
 ## Parties nommées
 `parts.json` : `{"image.png": {"head": [x,y,w,h], "body": [...], "weapon": [...]}}`.
 Les boîtes sont décidées en regardant l'image (par Claude ou à la main), puis découpées dans le détourage.
