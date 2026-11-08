@@ -115,10 +115,21 @@ def cmd(a):
     from pathlib import Path
     out = Path(a.output); out.mkdir(parents=True, exist_ok=True)
     key = tuple(int(a.key[i:i + 2], 16) for i in (0, 2, 4)); v = split_sheet(a.sheet, a.cols, a.rows, key)
+    report = {}
+    if a.clean:
+        from . import hullclean
+        v, report = hullclean.clean(v, key)
     base = prepare(v); cam0 = make_cam(a.pitch); vv, sh = refine(base, cam0, 1, -1, rounds=2, rad=6)
     cam = make_cam(a.pitch, n=160, upp=1.0, height=200)
     occ, pts, shp = H.carve(vv, cam, sy=1, sd=-1, dil=0, vote=a.vote or None); surf = H.surface(occ, shp)
     ious = {d: round(H.iou(H.reproject(occ, pts, d, cam, cam["size"], 1, -1), vv[d][..., 3] > 0), 2) for d in vv}
+    if a.clean:
+        from . import hullclean
+        cam64 = make_cam(a.pitch, n=64, upp=2.0, height=200); cr = hullclean.consensus_report(vv, cam64, None)
+        report["consensus"] = {d: {k: x for k, x in r.items() if not k.startswith("_")} for d, r in cr.items()}
+        worst = sorted(cr, key=lambda d: cr[d]["cos"])[:2]
+        print("[hull8] accord des normales de contour (1 = identique) : " + ", ".join(f"{d} {cr[d]['cos']:.2f}" for d in cr) + f" ; vues les plus en désaccord : {worst}")
+        import json as _j; (out / f"{a.name}_clean_report.json").write_text(_j.dumps(report, indent=1, default=float))
     frames = []
     for k in range(a.angles):
         yaw = 360.0 * k / a.angles; i, c = H.colorize(pts, surf, vv, cam, yaw, list(vv), power=6); frames.append(H.render(pts, i, c, cam, yaw, ss=2))

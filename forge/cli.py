@@ -135,7 +135,7 @@ def main(argv=None):
     s.add_argument("sheet"); s.add_argument("-o", "--output", default="hull8_out"); s.add_argument("--name", default="perso")
     s.add_argument("--cols", type=int, default=4); s.add_argument("--rows", type=int, default=2); s.add_argument("--key", default="ff00ff")
     s.add_argument("--pitch", type=float, default=10); s.add_argument("--vote", type=int, default=7, help="vues minimales contenant un voxel (8 = intersection stricte)")
-    s.add_argument("--angles", type=int, default=8)
+    s.add_argument("--angles", type=int, default=8); s.add_argument("--no-clean", dest="clean", action="store_false", help="ne pas nettoyer les vues avant sculpture (stats, halo, îlots, normales)")
 
     s = sub.add_parser("sheet", help="fiche de personnage (character.json + HTML)")
     s.add_argument("extract_dir")
