@@ -129,7 +129,7 @@ def main(argv=None):
     s.add_argument("-o", "--output", default="skiln_char"); s.add_argument("--anim", nargs="+", help="modèle(s) appris à ajouter (forge anim learn)")
     s.add_argument("--edit", help="modification en texte : « sans la cape, cheveux plus longs »"); s.add_argument("--save", help="enregistrer la description modifiée")
     s.add_argument("--anim-name", nargs="+"); s.add_argument("--frames", type=int, default=12); s.add_argument("--ms", type=int, default=80)
-    s.add_argument("--render", action="store_true"); s.add_argument("--dirs", default="s,e,n")
+    s.add_argument("--render", action="store_true"); s.add_argument("--dirs", default="s,e,n"); s.add_argument("--size", type=int, default=64, help="taille d'une image : 64, 96, 128…")
 
     s = sub.add_parser("sheet", help="fiche de personnage (character.json + HTML)")
     s.add_argument("extract_dir")

@@ -197,3 +197,8 @@ Sans kit SpriteKiln (couleurs seulement) : armures, bottes, gants, lunettes, rob
 
 ### Modification textuelle (forge skiln-char --edit)
 `--edit "sans la cape, cheveux plus longs, les cheveux roux"` (FR/EN, règles à mots-clés, pas de LLM) : retire/ajoute de l'équipement, change d'arme, longueur/style des cheveux (chauve, queue de cheval, chignon, frange, volume), couleurs (peau, cheveux, cape, tissu, cuir ; « plus foncé/clair »), corpulence. Ce qui n'est pas compris est listé, jamais deviné. `--save` garde la nouvelle description ; les sprites sont recalculés (`--render`).
+
+### Résolution (64 -> 128 px)
+`forge skiln-char ... --size 128` : même spec, même cadrage, rendu en 13 s pour 66 images. À 128 px apparaissent yeux, bouche, mains, détail du chignon et contours plus fins (comparaison 64 ×4 / 128 ×2).
+Coût AKA : une image RGB565 128×128 = 32 Ko (64×64 = 8 Ko) ; une animation de 8 images × 8 directions = 2 Mo -> à lire depuis la SD plutôt que de garder en RAM.
+Les clips appris portent le suffixe `_forge` quand leur nom est celui d'un clip du gabarit (idle, walk, attack).

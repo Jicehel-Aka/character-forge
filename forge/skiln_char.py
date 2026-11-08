@@ -97,10 +97,11 @@ def cmd(a):
         for i, f in enumerate(a.anim):
             m = json.loads(Path(f).read_text()); poses = anim.generate(m, a.frames, None, 60)
             nm = (a.anim_name[i] if a.anim_name and i < len(a.anim_name) else m["type"])
+            if nm in ("idle", "walk", "attack"): nm += "_forge"      # évite la fusion avec les clips du gabarit (clé « channels » inconnue)
             anims[nm] = {"loop": bool(m.get("periodic")), "keys": to_spritekiln.poses_to_keys(poses, a.ms)}
     p, skipped = build(desc, a.output, anims)
     print(f"[skiln-char] {p}" + (f" ; sans kit (couleurs seulement) : {skipped}" if skipped else ""))
     if a.render:
         names = ["idle"] + (list(anims) if anims else [])
-        subprocess.run(["spritekiln", "render", str(p), "--anims", ",".join(names), "--dirs", a.dirs, "-o", str(Path(a.output) / "render"), "--size", "64"], check=True)
+        subprocess.run(["spritekiln", "render", str(p), "--anims", ",".join(names), "--dirs", a.dirs, "-o", str(Path(a.output) / "render"), "--size", str(a.size)], check=True)
     return 0
