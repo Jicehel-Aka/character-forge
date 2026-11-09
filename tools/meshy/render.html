@@ -107,12 +107,24 @@ function buildClassGeoms(root){
       for(let q=0;q<3;q++){ col[(t+q)*3]=c*30/255; } }
     g2.setAttribute('color',new THREE.BufferAttribute(col,3)); out.push({m,g2,g0:m.geometry,mat0:m.material}); });
   return out; }
+// Proportions « sprite » : gonfle mains, poings, pieds, avant-bras et jambes le long des normales (en repos, avant skinning) pour que chevilles,
+// poignets et poings ne tombent pas sous quelques pixels une fois réduits. k = fraction de la hauteur du maillage (ex. 0.012).
+function chunky(root,k){
+  const fac=n=>/Hand/.test(n)?2.2 : /Toe/.test(n)?1.6 : /Foot/.test(n)?1.7 : /ForeArm/.test(n)?0.9 : /[^p]Leg$/.test(n)?0.9 : /UpLeg|[^e]Arm$/.test(n)?0.35 : 0;
+  root.traverse(m=>{ if(!m.isSkinnedMesh) return; const g=m.geometry, P=g.attributes.position, N=g.attributes.normal, SI=g.attributes.skinIndex, SW=g.attributes.skinWeight; if(!N||!SI||!SW) return;
+    let lo=1e9,hi=-1e9; for(let i=0;i<P.count;i++){ lo=Math.min(lo,P.getY(i)); hi=Math.max(hi,P.getY(i)); } const H=hi-lo;
+    const bf=m.skeleton.bones.map(b=>fac(b.name));
+    for(let i=0;i<P.count;i++){ let f=0; for(let q=0;q<4;q++) f+=SW.getComponent(i,q)*bf[SI.getComponent(i,q)]; if(f<=0) continue;
+      const d=k*H*f; P.setXYZ(i,P.getX(i)+N.getX(i)*d,P.getY(i)+N.getY(i)*d,P.getZ(i)+N.getZ(i)*d); }
+    P.needsUpdate=true; });
+}
 window.render = async (o)=>{
   const {root,clips}=await load(o.url); const S=o.size;
   const renderer = new THREE.WebGLRenderer({antialias:true, alpha:true, preserveDrawingBuffer:true});
   renderer.setSize(S,S,false); renderer.setPixelRatio(1); renderer.setClearColor(0x000000,0); renderer.outputColorSpace = THREE.SRGBColorSpace;
   document.body.appendChild(renderer.domElement);
   await prep(root,o);
+  if (o.chunk) chunky(root, o.chunk);
   if (o.donor){ const D=await load(o.donor.url); await prep(D.root,o.donor); window._compose=composeHead(root,D.root,o); }
   const scene = new THREE.Scene(); const pivot = new THREE.Group(); scene.add(pivot); pivot.add(root);
   scene.add(new THREE.HemisphereLight(0xffffff, 0x8890a0, o.ambient ?? 1.1));

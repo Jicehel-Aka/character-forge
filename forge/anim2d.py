@@ -45,7 +45,7 @@ def cmd(a):
             if miss: raise SystemExit(f"clips introuvables : {miss} (disponibles : {names})")
             big = min(1024, max(a.size * a.ss, 768)); render_dirs = sorted({r[1] for r in rows}); H = None; imgs = {}; cls = {}
             for nm in want:
-                kw = dict(pitch=pitch, margin=a.margin); 
+                kw = dict(pitch=pitch, margin=a.margin, chunk=a.chunk); 
                 if H: kw["height"] = H
                 im, res = s.render(big, render_dirs, nm, a.frames, **kw)
                 H = H or res["height"]; print(f"[anim2d] {nm}: {len(im)} images")
