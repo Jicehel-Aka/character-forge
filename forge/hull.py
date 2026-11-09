@@ -7,6 +7,7 @@ projetée depuis les vues qui le voient de face ; 6. export GLB.
 Limites : une enveloppe visuelle ne voit pas les concavités (entre les jambes vues de profil, aisselles) -> formes un peu enveloppantes."""
 import json, struct, math
 from pathlib import Path
+import os
 import numpy as np
 from PIL import Image
 from scipy import ndimage as ndi
@@ -17,14 +18,21 @@ def segment(path, thr=16):
     yy, xx = np.mgrid[0:h, 0:w]; u = (xx - w / 2) / (w / 2); v = (yy - h / 2) / (h / 2)
     basis = np.stack([np.ones_like(u), u, v, u * u, v * v, u * v, u ** 2 * v ** 2], -1).reshape(-1, 7)
     lum = a.mean(-1); sat = a.max(-1) - a.min(-1)
-    fg = (lum > 62) | (sat > 40)                      # personnage évident : peau, sous-vêtement, cheveux
-    fg = ndi.binary_dilation(fg, iterations=6)
+    # amorce : le fond est supposé visible sur le pourtour de l'image (un personnage sombre sur fond sombre, ex. cheveux noirs, ne doit pas servir
+    # d'échantillon de fond) ; on ajuste d'abord sur ce cadre, puis on affine en excluant ce qui s'écarte du modèle
+    ring = np.ones((h, w), bool); mg = max(4, int(0.07 * min(h, w))); ring[mg:h - mg, mg:w - mg] = False
+    fg = ~ring
+    if os.environ.get("FORGE_HULL_OLDSEG"): fg = ndi.binary_dilation((lum > 62) | (sat > 40), iterations=6)
     for _ in range(4):
         sel = (~fg).ravel(); sub = np.nonzero(sel)[0][:: max(1, sel.sum() // 40000)]
         coef = np.stack([np.linalg.lstsq(basis[sub], a[..., k].ravel()[sub], rcond=None)[0] for k in range(3)], 1)
         bg = (basis @ coef).reshape(h, w, 3); d = np.abs(a - bg).max(-1)
         fg = ndi.binary_dilation(d > thr, iterations=3)
     m = d > thr
+    # fond lisse : une zone texturée (mèches, reflets) est du personnage même si sa couleur moyenne est proche du fond (cheveux noirs sur fond sombre)
+    lum = a.mean(-1); mu = ndi.uniform_filter(lum, 5); tex = np.sqrt(np.maximum(ndi.uniform_filter(lum * lum, 5) - mu * mu, 0))
+    t = ndi.binary_dilation(tex > 3.0, iterations=2) & (d > 5)
+    m = m | ndi.binary_closing(t, iterations=3)
     m = ndi.binary_opening(m, iterations=1); m = ndi.binary_closing(m, iterations=2); m = ndi.binary_fill_holes(m)
     lab, n = ndi.label(m)
     if n > 1:
