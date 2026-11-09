@@ -55,7 +55,7 @@ def carve(views, P, sign):
         ok = (ci >= 0) & (ci < v.w) & (ri >= 0) & (ri < v.h); occ = np.zeros(len(P), bool); occ[ok] = getattr(v, 'cmask', v.mask)[ri[ok], ci[ok]]; inside &= occ
     return inside
 
-def calibrate(views, sign, extent, height, vox=5, rounds=3, rng=16):
+def calibrate(views, sign, extent, height, vox=5, rounds=3, rng=16, scale=True):
     xs, ys, P = grid(extent, height, vox)
     for r in range(rounds):
         for v in (views[1:] if r == 0 else views):
@@ -69,6 +69,21 @@ def calibrate(views, sign, extent, height, vox=5, rounds=3, rng=16):
                         if best is None or n > best[0]: best = (n, dx, dy, ph)
             v.dx, v.dy, v.phi = ox + best[1], oy + best[2], op + best[3]
         rng = max(4, rng // 2)
+    if scale:   # perspective / cadrage : échelle propre à chaque vue, jugée par l'IoU silhouette projetée / masque
+        for r in range(2):
+            for v in views:
+                others = [u for u in views if u is not v]; sub = P[carve(others, P, sign)]
+                if len(sub) < 50: continue
+                best = None; o_sc, o_dx, o_dy = v.sc, v.dx, v.dy
+                for sc in (o_sc * k for k in (0.95, 0.975, 1.0, 1.025, 1.05)):
+                    for dx in (-3, 0, 3):
+                        for dy in (-4, 0, 4):
+                            v.sc, v.dx, v.dy = sc, o_dx + dx, o_dy + dy; col, row = v.project(sub, sign)
+                            ci = np.round(col).astype(int); ri = np.round(row).astype(int); ok = (ci >= 0) & (ci < v.w) & (ri >= 0) & (ri < v.h)
+                            im = np.zeros((v.h, v.w), bool); im[ri[ok], ci[ok]] = True; im = ndi.binary_closing(im, iterations=2)
+                            iou = (im & v.mask).sum() / max(1, (im | v.mask).sum())
+                            if best is None or iou > best[0]: best = (iou, sc, o_dx + dx, o_dy + dy)
+                v.sc, v.dx, v.dy = best[1], best[2], best[3]
     return int(carve(views, P, sign).sum())
 
 def taubin(verts, faces, iters=12, lam=0.5, mu=-0.53):
@@ -152,8 +167,8 @@ def build(paths, thetas=None, out="modele.glb", vox=2.5, height_m=1.75, sign=Non
     height = max(v.bot - v.top for v in views) * 1.05; extent = max(v.w for v in views) * 0.62
     best = None
     for sg in ([sign] if sign else [1, -1]):
-        for v in views: v.dx = 0.0; v.dy = 0.0; v.cmask = v.mask
-        n = calibrate(views, sg, extent, height); calibrate(views, sg, extent, height, vox=3, rounds=1, rng=4)
+        for v in views: v.dx = 0.0; v.dy = 0.0; v.sc = 1.0; v.cmask = v.mask
+        n = calibrate(views, sg, extent, height); calibrate(views, sg, extent, height, vox=3, rounds=1, rng=4, scale=False)
         for v in views: sm = ndi.gaussian_filter(v.mask.astype(np.float32), 2.0) > 0.5; v.cmask = ndi.binary_dilation(sm, iterations=grow) if grow else sm
         V, F, N = surface(views, sg, extent, height, vox, smooth); C, score = colorize(views, V, smooth_normals(V, F, N), sg)
         if photo:
