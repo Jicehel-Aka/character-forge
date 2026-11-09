@@ -15,7 +15,8 @@ def metrics(big, small):
     sz = small.width; a = np.asarray(big.convert("RGBA"), np.float32)[..., 3] / 255
     A = np.asarray(Image.fromarray((a * 255).astype(np.uint8)).resize((sz, sz), Image.BOX), np.float32) / 255
     S = np.asarray(small.convert("RGBA"))[..., 3] > 0; R = A >= 0.2
-    lost = float((R & ~S).sum()) / max(1, R.sum())
+    near = ndimage.binary_dilation(S, ST)  # le liseré de bord (couverture partielle) n'est pas une perte : seules comptent les parties sans voisin dans le sprite
+    lost = float((R & ~near).sum()) / max(1, R.sum())
     cs = ndimage.label(S, ST)[1]; cr = ndimage.label(A >= 0.2, ST)[1]
     return dict(perte=round(lost, 4), morceaux_sprite=int(cs), morceaux_ref=int(cr), aire_ratio=round(float(S.sum()) / max(1, float(R.sum())), 3))
 
@@ -30,7 +31,7 @@ def scan(d):
     return items
 
 
-def sheet(d, title=None, rows=6, scale=2, seuil=0.06):
+def sheet(d, title=None, rows=6, scale=2, seuil=0.015):
     items = scan(d)
     if not items: print("[control] rien dans", d); return None
     dirs = [x for x in "s se e ne n nw w sw".split() if any(k[0] == x for k in items)]
@@ -48,7 +49,7 @@ def sheet(d, title=None, rows=6, scale=2, seuil=0.06):
             img.paste(sm, (x, y), sm); m = res[f"{dd}_{fi}"]; flag = m["perte"] > seuil or m["morceaux_sprite"] > m["morceaux_ref"] + 1
             dr.text((x + 2, y + 1), f"{dd}{fi} {m['perte']*100:.0f}%", fill=(255, 90, 90) if flag else (140, 150, 170))
             if flag: dr.rectangle([x, y, x + cell - 1, y + cell - 1], outline=(255, 70, 70))
-    dr.text((4, 5), f"{title or Path(d).name} : {len(items)} images, {bad} signalées (perte>{int(seuil*100)}% ou membre coupé)", fill=(230, 230, 240))
+    dr.text((4, 5), f"{title or Path(d).name} : {len(items)} images, {bad} signalées (perte>{seuil*100:.1f}% ou membre coupé)", fill=(230, 230, 240))
     img.save(Path(d) / "control.png"); (Path(d) / "control.json").write_text(json.dumps(res, indent=1))
     pm = np.mean([v["perte"] for v in res.values()])
     print(f"[control] {Path(d).name}: {len(items)} images, {bad} signalées, perte moyenne {pm*100:.1f}%")
