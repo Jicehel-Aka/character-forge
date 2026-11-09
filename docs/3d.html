@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>character-forge — chaîne 3D</title>
+<style>
+:root{--bg:#f6f5f2;--panel:#fff;--ink:#1d1d1b;--mute:#6b6a66;--line:#d9d6cf;--acc:#2f6f4f}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#171715;--panel:#222220;--ink:#ecebe6;--mute:#a09e97;--line:#3a3935;--acc:#6fbf94}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
+h1{font-size:18px;margin:0}h2{font-size:17px;margin:0 0 8px}h3{font-size:15px;margin:12px 0 4px}
+main{max-width:980px;margin:auto;padding:16px;display:grid;gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+a{color:var(--acc)}code,pre{background:var(--bg);border:1px solid var(--line);border-radius:6px;font-size:13px}code{padding:1px 5px}
+pre{padding:10px;overflow:auto;white-space:pre-wrap}img{max-width:100%;height:auto;border:1px solid var(--line);border-radius:8px;image-rendering:pixelated}
+.mute{color:var(--mute);font-size:13px}ul{margin:4px 0 4px 18px;padding:0}
+</style>
+</head>
+<body>
+<header><h1>character-forge · chaîne 3D</h1><a href="index.html">← Atelier</a></header>
+<main>
+
+<section class="card"><h2>Du personnage de BD au sprite</h2>
+<ol>
+<li><b>Fiche en pied</b> : détourage, pose T, vues de face / profil / dos (atelier).</li>
+<li><b>Reconstruction 3D</b> : <a href="https://www.meshy.ai/">Meshy</a>, mode image vers 3D, sortie GLB ou FBX.</li>
+<li><b>Squelette</b> : <code>forge rig</code> avec un squelette Mixamo, objets séparés (arme, bouclier).</li>
+<li><b>Animations</b> : clips Mixamo ou banque d'animations du dépôt.</li>
+<li><b>Sprites</b> : <code>forge meshy</code> en 8 directions, 64 / 96 / 128 px, palette RGB565 pour l'AKA.</li>
+<li><b>Contrôle</b> : <code>forge control</code> signale les membres qui disparaissent ou se confondent avec le corps.</li>
+</ol></section>
+
+<section class="card"><h2>Commandes</h2>
+<pre>forge meshy MODELE.fbx --info                      # os, clips, textures
+forge meshy MODELE.fbx --anim "NomClip" --frames 6 --size 64 --texdir DOSSIER -o sortie
+forge rig STATIQUE.glb --skeleton Idle.fbx --texture atlas.png --clips Idle.fbx ... -o rigge.glb
+forge bank list                                    # banque de personnages
+forge bank render NOM [--head AUTRE_PERSO]         # mélange de pièces (greffe de tête)
+forge control sortie/ ...                          # planche control.png + control.json</pre>
+<p class="mute">Détails et limites : <a href="https://github.com/Jicehel-Aka/character-forge/blob/main/NOTES_3D.md">NOTES_3D.md</a>.</p></section>
+
+<section class="card"><h2>Planches de contrôle</h2>
+<p class="mute">8 directions × 6 images, les images douteuses sont encadrées en rouge.</p>
+<h3>Danseuse (animation Dance)</h3><img src="img/control_dancing_girl.png" alt="Planche de contrôle de la danseuse">
+<h3>Danseuse avec la tête de Bulma (greffe)</h3><img src="img/control_greffe_dancing_girl_bulma.png" alt="Planche de contrôle de la greffe">
+<h3>Scorpion</h3><img src="img/control_scorpion.png" alt="Planche de contrôle du scorpion">
+<h3>Bulma</h3><img src="img/control_bulma.png" alt="Planche de contrôle de Bulma"></section>
+
+<section class="card"><h2>Pour la reconstruction (Meshy)</h2>
+<pre>Full-body 3D character, [description courte].
+Neutral T-pose, arms straight out to the sides, palms down, legs slightly apart, feet flat, facing the camera.
+Clean humanoid anatomy, separated limbs (no arm touching the torso, no legs fused together).
+Keep the original comic-book design, colours and outfit details. No flowing cape, no floating parts.
+Weapon/accessory kept as a separate prop. Cel-shaded look, flat colours, no background.</pre>
+<p class="mute">Réglages : T-pose, 10 000 à 30 000 polygones, texture activée, sortie GLB ou FBX.</p></section>
+
+<section class="card"><h2>Liens utiles</h2><ul>
+<li><a href="https://www.meshy.ai/">Meshy</a> : image vers 3D, texture, rig et animation automatiques</li>
+<li><a href="https://www.mixamo.com/">Mixamo</a> : squelette et bibliothèque d'animations (compte Adobe gratuit)</li>
+<li><a href="https://threejs.org/docs/#examples/en/loaders/FBXLoader">three.js FBXLoader</a> : le lecteur utilisé pour les rendus</li>
+<li><a href="https://www.blender.org/">Blender</a> : réexporter un FBX ancien (version 6100) en FBX 2013+ ou GLB</li>
+<li><a href="https://github.com/Jicehel-Aka/character-forge">Dépôt character-forge</a></li>
+</ul></section>
+
+<section class="card"><h2>Limites connues</h2><ul>
+<li>FBX version 6100 illisible : à réexporter en GLB ou FBX récent.</li>
+<li>Greffes de tête fragiles sur les squelettes <code>rp_*</code> (Sophia, Manuel).</li>
+<li>Orc et Cocomyos n'ont pas de squelette : à rigger.</li>
+<li>Un modèle reconstruit avec des bras collés au corps se riggue mal : exiger la pose T.</li>
+</ul></section>
+</main>
+</body>
+</html>
