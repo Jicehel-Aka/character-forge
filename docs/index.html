@@ -62,7 +62,9 @@ table{border-collapse:collapse;width:100%;font-size:13px}td,th{border-bottom:1px
       <label class="chip"><input type="radio" name="tool" value="none" checked> aucun</label>
       <label class="chip"><input type="radio" name="tool" value="erase"> gomme</label>
       <label class="chip"><input type="radio" name="tool" value="restore"> restaurer</label>
+      <label class="chip"><input type="radio" name="tool" value="pipette"> pipette (couleur à effacer)</label>
       <label class="chip"><input type="radio" name="tool" value="erase-rect"> zone à effacer</label>
+      <label class="chip"><input type="radio" name="tool" value="crop"> garder une zone → nouvelle vue</label>
       <label class="chip"><input type="radio" name="tool" value="part-rect"> partie nommée</label>
       <label class="chip"><input type="radio" name="tool" value="head-top"> tête (haut puis menton)</label>
       <label class="chip"><input type="radio" name="tool" value="grip"> poignée</label>
@@ -85,9 +87,18 @@ table{border-collapse:collapse;width:100%;font-size:13px}td,th{border-bottom:1px
   <div class="pane on" id="p-cut">
     <h2>Détourage</h2>
     <p class="mute">Détourage simple par couleur de fond (bords de l'image). Pour un détourage IA, utilise la commande <code>extract --segment</code> puis ouvre le <code>cutout.png</code> ici : l'alpha est conservé.</p>
-    <label>Tolérance couleur de fond : <span id="tolv">40</span></label>
+    <div class="row"><button id="undo">↶ Annuler</button><button id="redo">↷ Rétablir</button><span class="mute">Ctrl+Z / Ctrl+Y — chaque trait, zone ou détourage s'annule.</span></div>
+    <label>Couleur à effacer</label>
+    <div class="row"><input type="color" id="bgcol" value="#ffffff"><span class="sw" id="bgsw"></span><span class="mute" id="bginfo">auto (4 coins)</span><button id="bgauto">Auto (coins)</button></div>
+    <p class="mute">Choisis l'outil <b>pipette</b> puis clique sur la couleur à enlever (fond, bulle, trame…) : on peut enchaîner plusieurs couleurs, sans toucher au reste.</p>
+    <label>Étendue</label>
+    <select id="bgmode"><option value="click">depuis le point cliqué (zone contiguë)</option><option value="edge">depuis les bords de l'image</option><option value="all">partout (toute l'image)</option></select>
+    <label>Tolérance : <span id="tolv">40</span></label>
     <input type="range" id="tol" min="5" max="120" value="40">
-    <div class="row"><button id="autocut">Détourer par couleur de fond</button><button id="resetcut">Annuler le détourage</button></div>
+    <div class="row"><button id="autocut">Effacer cette couleur</button><button id="resetcut">Tout restaurer</button></div>
+    <h2>Découper une vue</h2>
+    <p class="mute">Image avec plusieurs poses : outil <b>garder une zone</b>, trace un rectangle autour d'une pose ; elle devient une nouvelle vue (l'image d'origine reste intacte).</p>
+    <div class="row"><button id="delview">Supprimer cette vue</button></div>
     <h2>Zones et parties</h2>
     <div class="row"><label style="margin:0">Nom de la partie</label><input id="partname" value="head" size="10"></div>
     <div id="zones" class="mute"></div>
@@ -165,7 +176,7 @@ function addImage(file){return new Promise(res=>{const u=URL.createObjectURL(fil
  im.onload=()=>{const o=document.createElement("canvas");o.width=im.naturalWidth;o.height=im.naturalHeight;o.getContext("2d").drawImage(im,0,0);
   const cut=document.createElement("canvas");cut.width=o.width;cut.height=o.height;cut.getContext("2d").drawImage(o,0,0);
   const hasAlpha=(()=>{const d=o.getContext("2d").getImageData(0,0,o.width,o.height).data;for(let i=3;i<d.length;i+=4*97)if(d[i]<250)return true;return false})();
-  imgs.push({name:file.name,orig:o,cut,hasAlpha,view:"unknown",head:0,headTop:null,cx:0,props:[],erase:[],parts:{},attrs:"",sel:-1,spr:null});
+  imgs.push({name:file.name,orig:o,cut,hasAlpha,view:"unknown",head:0,headTop:null,cx:0,props:[],erase:[],parts:{},attrs:"",sel:-1,spr:null,hist:[],redo:[],bg:null});
   URL.revokeObjectURL(u);select(imgs.length-1);res()};im.src=u})}
 function img(){return imgs[cur]}
 function select(i){cur=i;const m=img();$("#headpx").value=m.head||"";$("#cx").value=m.cx||Math.round(bboxOf(m).x+bboxOf(m).w/2);renderThumbs();renderProps();renderZones();renderGear();renderMulti();redraw();cli()}
@@ -178,15 +189,33 @@ function bboxOf(m){const c=m.cut,d=c.getContext("2d").getImageData(0,0,c.width,c
 
 /* ---------- détourage par couleur de fond ---------- */
 $("#tol").oninput=e=>$("#tolv").textContent=e.target.value;
-$("#autocut").onclick=()=>{const m=img();if(!m)return;const W=m.orig.width,H=m.orig.height,o=m.orig.getContext("2d").getImageData(0,0,W,H),d=o.data,tol=+$("#tol").value;
- const px=(x,y)=>{const i=(y*W+x)*4;return[d[i],d[i+1],d[i+2]]},cs=[px(0,0),px(W-1,0),px(0,H-1),px(W-1,H-1)],bg=[0,1,2].map(k=>cs.reduce((a,c)=>a+c[k],0)/4);
- const near=(x,y)=>{const i=(y*W+x)*4;return Math.hypot(d[i]-bg[0],d[i+1]-bg[1],d[i+2]-bg[2])<=tol};
- const seen=new Uint8Array(W*H),st=[];const push=(x,y)=>{if(x<0||y<0||x>=W||y>=H)return;const k=y*W+x;if(seen[k]||!near(x,y))return;seen[k]=1;st.push(k)};
- for(let x=0;x<W;x++){push(x,0);push(x,H-1)}for(let y=0;y<H;y++){push(0,y);push(W-1,y)}
- while(st.length){const k=st.pop(),x=k%W,y=(k/W)|0;push(x+1,y);push(x-1,y);push(x,y+1);push(x,y-1)}
- const out=m.cut.getContext("2d").createImageData(W,H);for(let k=0;k<W*H;k++){out.data[k*4]=d[k*4];out.data[k*4+1]=d[k*4+1];out.data[k*4+2]=d[k*4+2];out.data[k*4+3]=seen[k]?0:255}
- m.cut.getContext("2d").putImageData(out,0,0);renderThumbs();redraw();status("Détourage par couleur de fond (fond estimé sur les 4 coins). Retouche avec gomme / restaurer.")};
-$("#resetcut").onclick=()=>{const m=img();if(!m)return;const x=m.cut.getContext("2d");x.clearRect(0,0,m.cut.width,m.cut.height);x.drawImage(m.orig,0,0);renderThumbs();redraw()};
+const hex2=v=>[1,3,5].map(i=>parseInt(v.slice(i,i+2),16));
+function setBg(m,c){m.bg=c;const h="#"+c.map(v=>Math.round(v).toString(16).padStart(2,"0")).join("");$("#bgcol").value=h;$("#bgsw").style.background=h;$("#bginfo").textContent=h}
+$("#bgcol").oninput=e=>{const m=img();if(m)setBg(m,hex2(e.target.value))};
+$("#bgauto").onclick=()=>{const m=img();if(!m)return;m.bg=null;$("#bgsw").style.background="";$("#bginfo").textContent="auto (4 coins)"};
+/* historique : un cliché de l'alpha + zones avant chaque opération */
+function snap(m){const c=m.cut;m.hist.push({d:c.getContext("2d").getImageData(0,0,c.width,c.height),erase:m.erase.map(r=>r.slice()),parts:JSON.parse(JSON.stringify(m.parts))});if(m.hist.length>25)m.hist.shift();m.redo=[]}
+function restore(m,from,to){const s0=from.pop();if(!s0)return false;const c=m.cut,x=c.getContext("2d");to.push({d:x.getImageData(0,0,c.width,c.height),erase:m.erase.map(r=>r.slice()),parts:JSON.parse(JSON.stringify(m.parts))});x.putImageData(s0.d,0,0);m.erase=s0.erase;m.parts=s0.parts;return true}
+function undo(){const m=img();if(m&&restore(m,m.hist,m.redo)){renderZones();renderThumbs();redraw();cli();status("Annulé.")}else status("Rien à annuler.")}
+function redo(){const m=img();if(m&&restore(m,m.redo,m.hist)){renderZones();renderThumbs();redraw();cli();status("Rétabli.")}}
+$("#undo").onclick=undo;$("#redo").onclick=redo;
+addEventListener("keydown",e=>{if(!(e.ctrlKey||e.metaKey)||/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))return;const k=e.key.toLowerCase();if(k==="z"&&!e.shiftKey){e.preventDefault();undo()}else if(k==="y"||(k==="z"&&e.shiftKey)){e.preventDefault();redo()}});
+/* efface une couleur : cumulatif (ne touche qu'aux pixels proches de la couleur, le reste de la découpe est conservé) */
+function eraseColor(m,bg,tol,mode,seed){const W=m.orig.width,H=m.orig.height,d=m.orig.getContext("2d").getImageData(0,0,W,H).data,cx=m.cut.getContext("2d"),o=cx.getImageData(0,0,W,H),a=o.data;
+ const near=k=>{const i=k*4;return Math.hypot(d[i]-bg[0],d[i+1]-bg[1],d[i+2]-bg[2])<=tol};
+ const ok=k=>a[k*4+3]===0||near(k);let n=0;
+ if(mode==="all"){for(let k=0;k<W*H;k++)if(a[k*4+3]&&near(k)){a[k*4+3]=0;n++}}
+ else{const seen=new Uint8Array(W*H),st=[],push=(x,y)=>{if(x<0||y<0||x>=W||y>=H)return;const k=y*W+x;if(seen[k]||!ok(k))return;seen[k]=1;st.push(k)};
+  if(mode==="edge"){for(let x=0;x<W;x++){push(x,0);push(x,H-1)}for(let y=0;y<H;y++){push(0,y);push(W-1,y)}}else push(Math.round(seed[0]),Math.round(seed[1]));
+  while(st.length){const k=st.pop(),x=k%W,y=(k/W)|0;push(x+1,y);push(x-1,y);push(x,y+1);push(x,y-1)}
+  for(let k=0;k<W*H;k++)if(seen[k]&&a[k*4+3]){a[k*4+3]=0;n++}}
+ cx.putImageData(o,0,0);return n}
+$("#autocut").onclick=()=>{const m=img();if(!m)return;let bg=m.bg;if(!bg){const W=m.orig.width,H=m.orig.height,d=m.orig.getContext("2d").getImageData(0,0,W,H).data,px=(x,y)=>{const i=(y*W+x)*4;return[d[i],d[i+1],d[i+2]]},cs=[px(0,0),px(W-1,0),px(0,H-1),px(W-1,H-1)];bg=[0,1,2].map(k=>cs.reduce((a,c)=>a+c[k],0)/4)}
+ const mode=$("#bgmode").value==="click"?"edge":$("#bgmode").value;snap(m);const n=eraseColor(m,bg,+$("#tol").value,mode);renderThumbs();redraw();status(n+" pixels effacés. Trop ? ↶ Annuler puis baisse la tolérance ; pas assez ? relance (cumulatif).")};
+$("#resetcut").onclick=()=>{const m=img();if(!m)return;snap(m);const x=m.cut.getContext("2d");x.clearRect(0,0,m.cut.width,m.cut.height);x.drawImage(m.orig,0,0);renderThumbs();redraw();status("Détourage restauré (↶ pour revenir).")};
+$("#delview").onclick=()=>{if(imgs.length<2){status("Il faut garder au moins une vue.");return}imgs.splice(cur,1);select(Math.max(0,cur-1))};
+function cropView(m,r){const[x,y,w,h]=r,mk=src=>{const c=document.createElement("canvas");c.width=w;c.height=h;c.getContext("2d").drawImage(src,x,y,w,h,0,0,w,h);return c};
+ imgs.splice(cur+1,0,{name:m.name.replace(/(\.[^.]*)?$/,"")+"#"+(imgs.filter(i=>i.name.startsWith(m.name.replace(/(\.[^.]*)?$/,"")+"#")).length+1),orig:mk(m.orig),cut:mk(m.cut),hasAlpha:m.hasAlpha,view:"unknown",head:0,headTop:null,cx:0,props:[],erase:[],parts:{},attrs:"",sel:-1,spr:null,hist:[],redo:[],bg:m.bg});select(cur+1);status("Nouvelle vue découpée ("+w+"×"+h+"). L'image d'origine reste intacte.")}
 
 /* ---------- affichage ---------- */
 let scale=1;
@@ -230,12 +259,14 @@ let drag=null;
 function pos(e){const r=stage.getBoundingClientRect();return[(e.clientX-r.left)*(stage.width/r.width)/scale,(e.clientY-r.top)*(stage.height/r.height)/scale]}
 const tool=()=>document.querySelector("input[name=tool]:checked").value;
 stage.addEventListener("pointerdown",e=>{const m=img();if(!m)return;const p=pos(e),t=tool();stage.setPointerCapture(e.pointerId);
- if(t==="erase"||t==="restore"){drag={t};brush(m,p,t)}
- else if(t==="erase-rect"||t==="part-rect"){drag={t,s:p,cur:p}}
+ if(t==="erase"||t==="restore"){snap(m);drag={t};brush(m,p,t)}
+ else if(t==="pipette"){const W=m.orig.width,i=(Math.min(m.orig.height-1,Math.max(0,Math.round(p[1])))*W+Math.min(W-1,Math.max(0,Math.round(p[0]))))*4,d=m.orig.getContext("2d").getImageData(0,0,W,m.orig.height).data;setBg(m,[d[i],d[i+1],d[i+2]]);snap(m);const n=eraseColor(m,m.bg,+$("#tol").value,$("#bgmode").value,p);renderThumbs();redraw();status(n+" pixels effacés ("+$("#bginfo").textContent+"). ↶ pour annuler, ajuste la tolérance si besoin.")}
+ else if(t==="erase-rect"||t==="part-rect"||t==="crop"){drag={t,s:p,cur:p}}
  else if(t==="head-top"){if(m.headStage!==1){m.headTop=p[1];m.headStage=1;status("Haut du crâne posé : clique le menton.")}else{m.head=Math.max(1,Math.round(p[1]-m.headTop));m.headStage=0;$("#headpx").value=m.head;renderProps();cli();status("Hauteur de tête = "+m.head+" px")}redraw()}
  else if(["grip","pull","tail","toward"].includes(t)){const pr=m.props[m.sel];if(!pr){status("Sélectionne ou ajoute d'abord une arme (onglet Armes).");return}pr[t]=[Math.round(p[0]),Math.round(p[1])];renderProps();redraw();cli()}});
 stage.addEventListener("pointermove",e=>{const m=img();if(!m||!drag)return;const p=pos(e);if(drag.t==="erase"||drag.t==="restore"){brush(m,p,drag.t)}else{drag.cur=p;redraw();sctx.save();sctx.scale(scale,scale);sctx.strokeStyle="#fff";sctx.lineWidth=1/scale;const[x,y,w,h]=rect(drag.s,drag.cur);sctx.strokeRect(x,y,w,h);sctx.restore()}});
-stage.addEventListener("pointerup",e=>{const m=img();if(!m||!drag)return;if(drag.t==="erase-rect"||drag.t==="part-rect"){const r=rect(drag.s,drag.cur).map(Math.round);if(r[2]>3&&r[3]>3){if(drag.t==="erase-rect"){m.erase.push(r);m.cut.getContext("2d").clearRect(...r)}else m.parts[$("#partname").value||"part"]=r}renderZones();cli()}drag=null;renderThumbs();redraw()});
+stage.addEventListener("pointerup",e=>{const m=img();if(!m||!drag)return;if(drag.t==="crop"){const r=rect(drag.s,drag.cur).map(Math.round);drag=null;if(r[2]>8&&r[3]>8)cropView(m,r);return}
+if(drag.t==="erase-rect"||drag.t==="part-rect"){const r=rect(drag.s,drag.cur).map(Math.round);if(r[2]>3&&r[3]>3){if(drag.t==="erase-rect"){snap(m);m.erase.push(r);m.cut.getContext("2d").clearRect(...r)}else m.parts[$("#partname").value||"part"]=r}renderZones();cli()}drag=null;renderThumbs();redraw()});
 const rect=(a,b)=>[Math.min(a[0],b[0]),Math.min(a[1],b[1]),Math.abs(a[0]-b[0]),Math.abs(a[1]-b[1])];
 function brush(m,p,t){const r=+$("#brush").value/scale,x=m.cut.getContext("2d");x.save();x.beginPath();x.arc(p[0],p[1],r,0,7);if(t==="erase"){x.globalCompositeOperation="destination-out";x.fill()}else{x.clip();x.drawImage(m.orig,0,0)}x.restore();redraw()}
 function renderZones(){const m=img(),z=$("#zones");if(!m){z.innerHTML="";return}z.innerHTML=(m.erase.length?"<b>Zones à effacer</b> : "+m.erase.map((b,i)=>`[${b}] <a href="#" data-e="${i}">✕</a>`).join(" "):"")+
