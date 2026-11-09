@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: nvidia-smi
-      - run: pip install pillow numpy scipy rembg onnxruntime
+      - run: pip install pillow numpy scipy pyyaml rembg onnxruntime
       - run: python -m forge extract "${{ inputs.image }}" --segment -o out
       - run: python -m forge gen3d out/$(basename "${{ inputs.image }}" .png)
       - run: echo "Étape CharacterGen : interface web (webui.py) dans ce flux, pas d'API sans écran vérifiée -> à finaliser sur le GPU"
