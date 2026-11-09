@@ -172,6 +172,7 @@ window.rig = async (o)=>{
   // pose A : on baisse les bras du squelette de référence (angle sous l'horizontale) ; les poids viennent du maillage posé,
   // et le modèle est "dé-posé" en T par le champ de déplacement (posé -> repos) du maillage de référence
   const RT=sm0.geometry.attributes.position; let POSED=null, DISP=null;
+  let INVA=null; const Q0=new Map(); sm0.skeleton.bones.forEach(b=>Q0.set(b,b.quaternion.clone()));
   if(o.armDown){ const a=o.armDown*Math.PI/180; const bn=nm=>{let b; sm0.skeleton.bones.forEach(x=>{ if(x.name===nm) b=x; }); return b;};
     for(const [nm,child] of [['mixamorigLeftArm','mixamorigLeftForeArm'],['mixamorigRightArm','mixamorigRightForeArm']]){ const b=bn(nm), c=bn(child); if(!b||!c) continue; sm0.updateMatrixWorld(true);
       const p0=new THREE.Vector3(), p1=new THREE.Vector3(); b.getWorldPosition(p0); c.getWorldPosition(p1); const dW=p1.clone().sub(p0).normalize();
@@ -180,8 +181,9 @@ window.rig = async (o)=>{
       const tW=sm0.localToWorld(L0.clone().add(new THREE.Vector3(sx*Math.cos(a),-Math.sin(a),0))).sub(p0).normalize();
       const dq=new THREE.Quaternion().setFromUnitVectors(dW,tW); const wq=new THREE.Quaternion(); b.getWorldQuaternion(wq); const pq=new THREE.Quaternion(); b.parent.getWorldQuaternion(pq);
       b.quaternion.copy(pq.invert().multiply(dq.multiply(wq))); }
-    sm0.updateMatrixWorld(true); sm0.skeleton.update(); POSED=new Float32Array(RT.count*3); DISP=new Float32Array(RT.count*3); const tv=new THREE.Vector3();
+    sm0.updateMatrixWorld(true); INVA=new Map(); sm0.skeleton.bones.forEach(b=>INVA.set(b.name,b.matrixWorld.clone().invert())); sm0.skeleton.update(); POSED=new Float32Array(RT.count*3); DISP=new Float32Array(RT.count*3); const tv=new THREE.Vector3();
     for(let i=0;i<RT.count;i++){ sm0.applyBoneTransform(i,tv.set(RT.getX(i),RT.getY(i),RT.getZ(i))); POSED[3*i]=tv.x; POSED[3*i+1]=tv.y; POSED[3*i+2]=tv.z; DISP[3*i]=RT.getX(i)-tv.x; DISP[3*i+1]=RT.getY(i)-tv.y; DISP[3*i+2]=RT.getZ(i)-tv.z; } }
+    sm0.skeleton.bones.forEach(b=>b.quaternion.copy(Q0.get(b))); sm0.updateMatrixWorld(true); sm0.skeleton.update();
   const RPg=sm0.geometry.attributes.position, RP={count:RPg.count, getX:i=>POSED?POSED[3*i]:RPg.getX(i), getY:i=>POSED?POSED[3*i+1]:RPg.getY(i), getZ:i=>POSED?POSED[3*i+2]:RPg.getZ(i)};
   // grille des sommets de référence
   const RI=sm0.geometry.attributes.skinIndex, RW=sm0.geometry.attributes.skinWeight, C=2.5, grid=new Map(), gk=(a,b,c)=>a+','+b+','+c;
@@ -198,7 +200,7 @@ window.rig = async (o)=>{
   // géométrie du corps
   const remap=new Map(), pos=[], nor=[], uv=[], col=[], si=[], sw=[], bidx=[];
   const take=i=>{ let k=remap.get(i); if(k!==undefined) return k; k=pos.length/3; remap.set(i,k);
-    let [x,y,z]=map(P.getX(i),P.getY(i),P.getZ(i)); const w=weights(x,y,z); if(DISP){ const d=disp(x,y,z); x+=d[0]; y+=d[1]; z+=d[2]; } pos.push(x,y,z); nor.push(N.getX(i),N.getY(i),N.getZ(i)); if(UV) uv.push(UV.getX(i),1-UV.getY(i)); if(COL) col.push(COL.getX(i),COL.getY(i),COL.getZ(i));
+    let [x,y,z]=map(P.getX(i),P.getY(i),P.getZ(i)); const w=weights(x,y,z); if(0){ const d=disp(x,y,z); x+=d[0]; y+=d[1]; z+=d[2]; } pos.push(x,y,z); nor.push(N.getX(i),N.getY(i),N.getZ(i)); if(UV) uv.push(UV.getX(i),1-UV.getY(i)); if(COL) col.push(COL.getX(i),COL.getY(i),COL.getZ(i));
     for(let q=0;q<4;q++){ si.push(w[q]?w[q][0]:0); sw.push(w[q]?w[q][1]:0); } return k; };
   const props={axe:{pos:[],nor:[],uv:[],idx:[],map:new Map()}, shield:{pos:[],nor:[],uv:[],idx:[],map:new Map()}};
   for(let t=0;t<idx.length;t+=3){ const pr=part(idx[t]);
@@ -208,6 +210,7 @@ window.rig = async (o)=>{
   const root=SkeletonUtils.clone(S); let sm; root.traverse(c=>{ if(c.isSkinnedMesh) sm=c; });
   const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(nor,3)); if(UV) g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2)); if(COL) g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));
   g.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(si,4)); g.setAttribute('skinWeight',new THREE.Float32BufferAttribute(sw,4)); g.setIndex(bidx);
+  if(INVA){ sm.skeleton.boneInverses=sm.skeleton.bones.map((b,i)=>INVA.has(b.name)? INVA.get(b.name).clone() : sm.skeleton.boneInverses[i]); }
   sm.geometry=g; sm.material=mat; sm.name='Viking_body'; sm.frustumCulled=false;
   // accessoires : enfants de la main, placement T-pose conservé (+ décalage/rotation en repère main)
   const mats=sm.skeleton.boneInverses, bones=sm.skeleton.bones, bm=sm.bindMatrix;
