@@ -59,11 +59,16 @@ def grid(extent_xz, height, vox):
 import os
 TOL = int(os.environ.get('FORGE_HULL_TOL', '1'))  # nb de vues qui peuvent contredire un voxel (tolérance aux erreurs de calage/perspective)
 
+ARMTOL = int(os.environ.get('FORGE_HULL_ARMTOL', '3'))  # tolérance plus forte dans la bande des bras en T (bouts de bras coupés par la perspective)
+ZONE = None  # (y0, y1, |x| min) en unités px, posé par build()
+
 def carve(views, P, sign, tol=0):
     miss = np.zeros(len(P), np.int8)
     for v in views:
         col, row = v.project(P, sign); ci = np.round(col).astype(int); ri = np.round(row).astype(int)
         ok = (ci >= 0) & (ci < v.w) & (ri >= 0) & (ri < v.h); occ = np.zeros(len(P), bool); occ[ok] = getattr(v, 'cmask', v.mask)[ri[ok], ci[ok]]; miss += ~occ
+    if ZONE is not None and ARMTOL > tol:
+        z = (P[:, 1] >= ZONE[0]) & (P[:, 1] <= ZONE[1]) & (np.abs(P[:, 0]) >= ZONE[2]); return np.where(z, miss <= ARMTOL, miss <= tol)
     return miss <= tol
 
 def calibrate(views, sign, extent, height, vox=5, rounds=3, rng=16, scale=True, yaw=False):
@@ -190,6 +195,11 @@ def build(paths, thetas=None, out="modele.glb", vox=2.5, height_m=1.75, sign=Non
     thetas = thetas or [45 * i for i in range(len(paths))]
     views = [View(p, t) for p, t in zip(paths, thetas)]
     height = max(v.bot - v.top for v in views) * 1.05; extent = max(v.w for v in views) * 0.62
+    global ZONE; ZONE = None
+    try:   # bande des bras : rangées où la silhouette de face est la plus large (pose en T)
+        v0 = views[0]; ws = np.array([ (np.ptp(np.nonzero(r)[0]) if r.any() else 0) for r in v0.mask ]); rows = np.nonzero(ws > 0.9 * ws.max())[0]
+        if ws.max() > 0.75 * (v0.bot - v0.top): rc = v0.bot - float(np.median(rows)); ZONE = (rc - 0.045 * height, rc + 0.045 * height, 0.22 * ws.max())
+    except Exception: ZONE = None
     best = None
     for sg in ([sign] if sign else [1, -1]):
         for v in views: v.dx = 0.0; v.dy = 0.0; v.sc = 1.0; v.dth = 0.0; v.cmask = v.mask

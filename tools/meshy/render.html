@@ -180,7 +180,16 @@ window.rig = async (o)=>{
   // alignement Viking -> espace du squelette de référence (hauteur des îlots du corps)
   let vlo=1e9,vhi=-1e9; for(let i=0;i<n;i++) if(part(i)==='body'){ vlo=Math.min(vlo,P.getY(i)); vhi=Math.max(vhi,P.getY(i)); }
   sm0.geometry.computeBoundingBox(); const bb=sm0.geometry.boundingBox, r=(bb.max.y-bb.min.y)/(vhi-vlo);
-  const map=(x,y,z)=>[x*r, (y-vlo)*r+bb.min.y, z*r];
+  let YB=null; // calage vertical par repères (modèles aux proportions différentes du squelette : chibi, jambes courtes...)
+  if(o.fit){ S.updateMatrixWorld(true); const bpos=nm=>{ let q=null; sm0.skeleton.bones.forEach(b=>{ if(b.name===nm){ const v=new THREE.Vector3(); b.getWorldPosition(v); q=sm0.worldToLocal(v); } }); return q; };
+    const hl=bpos('mixamorigLeftUpLeg'), hr=bpos('mixamorigRightUpLeg'), al=bpos('mixamorigLeftArm'), ar=bpos('mixamorigRightArm');
+    const Hr=bb.max.y-bb.min.y; const crR=(hl.y+hr.y)/2-0.045*Hr, armR=(al.y+ar.y)/2; const Hm=vhi-vlo; let mx=0; const ys=[], xs=[];
+    for(let i=0;i<n;i++) if(part(i)==='body'){ ys.push(P.getY(i)); xs.push(Math.abs(P.getX(i))); mx=Math.max(mx,Math.abs(P.getX(i))); }
+    let sa=0,na=0; for(let i=0;i<ys.length;i++) if(xs[i]>0.85*mx){ sa+=ys[i]; na++; } const armM=sa/Math.max(1,na);
+    let crM=vlo+(o.fitCrotch??0.47)*Hm;
+    YB={m:[vlo,crM,armM,vhi], r:[bb.min.y,crR,armR,bb.max.y]}; console.log('fit',JSON.stringify(YB)); }
+  const ymap=y=>{ if(!YB) return (y-vlo)*r+bb.min.y; const M=YB.m,R=YB.r; for(let k=0;k<3;k++){ if(y<=M[k+1]||k==2) return R[k]+(y-M[k])*(R[k+1]-R[k])/Math.max(1e-6,M[k+1]-M[k]); } };
+  const map=(x,y,z)=>[x*r, ymap(y), z*r];
   // pose A : on baisse les bras du squelette de référence (angle sous l'horizontale) ; les poids viennent du maillage posé,
   // et le modèle est "dé-posé" en T par le champ de déplacement (posé -> repos) du maillage de référence
   const RT=sm0.geometry.attributes.position; let POSED=null, DISP=null;
