@@ -301,3 +301,11 @@ seulement s'ils relient deux zones du masque ou forment une pièce isolée qui d
 - Passe de classes (bras G/D, jambes G/D, tête, reste) par triangle d'après l'os dominant → `*_cls.png` ; `pixdown.separate` assombrit les pixels de membre voisins d'une autre classe avec peu de contraste (`--no-separate` pour désactiver).
 - `forge control` : ajoute `contraste_membres` (part des frontières membre/autre assez contrastées) et `px_membres`; une image est signalée si perte, membre coupé ou contraste < 0.55.
 - Limites : classes déduites des noms d'os (rigs sans noms standard → tout « reste ») ; les T-pose à bras 1 px (Goku) restent visibles mais signalés ; vêtements sombres sur peau sombre (Sophia) signalés.
+
+## Photos -> GLB (forge hull) puis rig (forge rig)
+Sans Meshy : `python -m forge hull v1.png … v8.png -o modele.glb --vox 2` (8 vues tous les 45°, fond uni ou dégradé, personnage entier).
+Visual hull : détourage, calibration (dx, dy, échelle par vue), sculpture de voxels, marching cubes, lissage Taubin, couleurs de sommets (GLB COLOR_0).
+Limites : pas de creux (visual hull), couleur par sommet, bandes de couleur sur les cuisses ; jambes serrées = cuisses fusionnées ; caméra en perspective = pieds décalés.
+Conseils de capture : caméra orthographique ou longue focale, jambes légèrement écartées, mêmes cadrage/hauteur de caméra sur les 8 vues, T-pose de préférence.
+Rig : `python -m forge rig modele.glb --skeleton Idle.fbx --noprops --arm-down 62 --clips Idle.fbx Walk.fbx -o rig.glb`
+`--arm-down A` : modèle en pose A, bras à A° sous l'horizontale (≈ 60 pour une pose A classique, 0 pour une T-pose). Poids kNN pris sur le maillage de référence aux bras baissés ; les matrices de liaison inverses des os du bras sont celles de la pose A (le maillage n'est pas déformé).

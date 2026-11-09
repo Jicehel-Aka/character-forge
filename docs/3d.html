@@ -48,6 +48,10 @@ forge control sortie/ ...                          # planche control.png + contr
 <h3>Scorpion</h3><img src="img/control_scorpion.png" alt="Planche de contrôle du scorpion">
 <h3>Bulma</h3><img src="img/control_bulma.png" alt="Planche de contrôle de Bulma"></section>
 
+<section class="card"><h2>Photos → GLB sans Meshy (forge hull)</h2>
+<p>Huit captures du modèle tous les 45° (face, ¾, profil… dos…) donnent un GLB coloré : <code>python -m forge hull v1.png … v8.png -o modele.glb --vox 2</code>. Puis le rig Mixamo : <code>python -m forge rig modele.glb --skeleton Idle.fbx --noprops --arm-down 62 --clips Idle.fbx Walk.fbx -o rig.glb</code> (<code>--arm-down 0</code> pour une T-pose).</p>
+<p>Conseils : même cadrage et caméra orthographique (ou longue focale), jambes légèrement écartées, bras en T de préférence. Limites : les creux ne sont pas visibles, la couleur est portée par les sommets, les cuisses collées fusionnent.</p></section>
+
 <section class="card"><h2>Pour la reconstruction (Meshy)</h2>
 <pre>Full-body 3D character, [description courte].
 Neutral T-pose, arms straight out to the sides, palms down, legs slightly apart, feet flat, facing the camera.
