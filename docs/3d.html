@@ -79,6 +79,14 @@ python -m forge meshy rig.glb --anim Walk --frames 4 --dirs s,e,n,w --size 128 -
 <pre>python -m forge clips rig.glb --learned animlib/walk.json --name Marche -o rig_anim.glb
 python -m forge clips rig.glb --fbx Run.fbx Kick.fbx -o rig_anim.glb</pre>
 <p>Une animation apprise (<code>forge anim learn</code>, mouvement dans le plan de l'image) est convertie en rotations autour de l'axe latéral du personnage, les bras partant d'une position verticale ; <code>--fps</code> règle la vitesse (10 par défaut), <code>--sign 1</code> inverse le sens si les membres vont à l'envers. Le clip s'ajoute à ceux du GLB et se joue avec <code>forge meshy rig_anim.glb --anim Marche …</code>. Les armes ou objets attachés à une main suivent l'os.</p>
+<h3>5 ter. Planches de sprites 2D sur fond magenta (plateforme, combat, aventure)</h3>
+<p>Sans modifier le GLB : les animations viennent du GLB, de FBX Mixamo ou d'animations apprises.</p>
+<pre>python -m forge anim2d rig.glb --anim Walk Punch --preset platformer -o sprites/
+python -m forge anim2d rig.glb --learned animlib/walk.json --fbx Run.fbx --preset adventure4 --size 64 --frames 8 -o sprites/</pre>
+<ul><li><b>platformer</b> / <b>combat</b> : profil pur, 2 lignes (droite, gauche).</li>
+<li><b>adventure4</b> : bas, gauche, droite, haut. <b>adventure8</b> : 8 directions. Caméra légèrement en plongée (<code>--pitch</code>).</li>
+<li>Une planche <code>NOM_sheet.png</code> par animation (lignes = directions, colonnes = images), fond magenta pur (255,0,255) ; couleurs RGB565 ; palette partagée ; même échelle et mêmes pieds pour toutes les animations ; <code>frames/</code> = images séparées transparentes ; <code>anim2d.json</code> = directions, cellule, images, fps.</li>
+<li>Les directions gauche sont les droites en miroir (<code>forge anim2d</code> ne rend que la moitié des vues).</li></ul>
 <h3>6. Produire les sprites</h3>
 <p>Les images de l'étape 5 (8 directions : <code>s se e ne n nw w sw</code>) passent ensuite dans la chaîne de sprites habituelle (page <a href="modele.html">modele.html</a> ou <code>forge sprites</code>) : recadrage serré, séparation des membres, palette RGB565.</p>
 <h3>Limites</h3>

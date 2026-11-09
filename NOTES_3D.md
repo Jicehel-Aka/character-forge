@@ -313,3 +313,8 @@ Rig : `python -m forge rig modele.glb --skeleton Idle.fbx --noprops --arm-down 6
 ## Animations ajoutées à un GLB rigué (forge clips)
 `forge clips rig.glb --learned animlib/walk.json --name Marche [--fps 10 --sign -1] | --fbx Run.fbx -o rig_anim.glb`
 Animation apprise -> BVH (forge anim export-bvh) -> rotations sur les os `mixamorig*` (axe latéral X, bras ramenés de la T-pose à la verticale, os non animés héritent) + rebond vertical des hanches. Testé : marche apprise sur le modèle reconstruit (jambes OK, bras peu animés). Non testé : objets attachés ; animations apprises autres que la marche.
+
+## Planches 2D sur fond magenta (forge anim2d)
+`forge anim2d rig.glb [--anim NOMS|all] [--fbx F…] [--learned J…] --preset platformer|combat|adventure4|adventure8 [--size 64 --frames 8 --colors 32 --pitch P --pad 0.02] -o dossier`
+Une planche par animation (lignes = directions, colonnes = images) sur fond (255,0,255), cadrage commun (échelle/pieds constants), palette RGB565 partagée, luminosité recalée sur le rendu 3D (--no-match-light pour désactiver), frames/ + anim2d.json. Le moteur de rendu « w » regarde à droite ; gauche = miroir.
+Testé : modèle reconstruit (`forge hull`) avec Medium_Step_Forward, Combo_Punch, marche apprise ; presets platformer et adventure4. Non testés : adventure8, accessoires, FBX externes.
