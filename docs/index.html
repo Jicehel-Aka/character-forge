@@ -108,7 +108,7 @@ table{border-collapse:collapse;width:100%;font-size:13px}td,th{border-bottom:1px
     <p class="mute"><b>Tracé</b> : dessine librement un contour autour d'une zone, relâche : l'intérieur est effacé (ou seul l'intérieur est gardé). Tout s'annule avec ↶.</p>
     <h2>Découper une vue</h2>
     <p class="mute">Image avec plusieurs poses : outil <b>garder une zone</b>, trace un rectangle autour d'une pose ; elle devient une nouvelle vue (l'image d'origine reste intacte).</p>
-    <div class="row"><button id="delview">Supprimer cette vue</button></div>
+    <div class="row"><button id="delview">Supprimer cette vue</button><button id="delall">Tout supprimer</button></div>
     <h2>Zones et parties</h2>
     <div class="row"><label style="margin:0">Nom de la partie</label><input id="partname" value="head" size="10"></div>
     <div id="zones" class="mute"></div>
@@ -187,12 +187,13 @@ function addImage(file){return new Promise(res=>{const u=URL.createObjectURL(fil
   const cut=document.createElement("canvas");cut.width=o.width;cut.height=o.height;cut.getContext("2d").drawImage(o,0,0);
   const hasAlpha=(()=>{const d=o.getContext("2d").getImageData(0,0,o.width,o.height).data;for(let i=3;i<d.length;i+=4*97)if(d[i]<250)return true;return false})();
   imgs.push({name:file.name,orig:o,cut,hasAlpha,view:"unknown",head:0,headTop:null,cx:0,props:[],erase:[],parts:{},attrs:"",sel:-1,spr:null,hist:[],redo:[],bg:null});
-  URL.revokeObjectURL(u);select(imgs.length-1);res()};im.src=u})}
+  URL.revokeObjectURL(u);select(imgs.length-1);res()};
+ im.onerror=()=>{URL.revokeObjectURL(u);status("Impossible de lire « "+file.name+" » (format non pris en charge ou fichier abîmé). Ignorée.");res()};im.src=u})}
 function img(){return imgs[cur]}
-function select(i){cur=i;const m=img();$("#headpx").value=m.head||"";$("#cx").value=m.cx||Math.round(bboxOf(m).x+bboxOf(m).w/2);renderThumbs();renderProps();renderZones();renderGear();renderMulti();redraw();cli()}
+function select(i){cur=i;const m=img();if(!m){$("#headpx").value="";renderThumbs();renderZones();renderMulti();redraw();status("Aucune image. Ouvre des images.");return}$("#headpx").value=m.head||"";$("#cx").value=m.cx||Math.round(bboxOf(m).x+bboxOf(m).w/2);renderThumbs();renderProps();renderZones();renderGear();renderMulti();redraw();cli()}
 function renderThumbs(){const t=$("#thumbs");t.innerHTML="";if(!imgs.length)return;imgs.forEach((m,i)=>{const d=document.createElement("div");d.className="thumb"+(i===cur?" on":"");
  const c=document.createElement("canvas");c.width=88;c.height=66;const x=c.getContext("2d"),r=Math.min(88/m.cut.width,66/m.cut.height);x.drawImage(m.cut,(88-m.cut.width*r)/2,(66-m.cut.height*r)/2,m.cut.width*r,m.cut.height*r);
- d.append(c,m.name);d.onclick=()=>select(i);t.append(d)})}
+ const xb=document.createElement("button");xb.textContent="✕";xb.title="Supprimer cette vue";xb.style.cssText="position:absolute;top:0;right:0;padding:0 5px;line-height:18px;font-size:12px";xb.onclick=ev=>{ev.stopPropagation();delView(i)};d.style.position="relative";d.append(c,m.name,xb);d.onclick=()=>select(i);t.append(d)})}
 function bboxOf(m){const c=m.cut,d=c.getContext("2d").getImageData(0,0,c.width,c.height).data;let x0=c.width,y0=c.height,x1=0,y1=0;
  for(let y=0;y<c.height;y++)for(let x=0;x<c.width;x++)if(d[(y*c.width+x)*4+3]>0){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}
  return x1<x0?{x:0,y:0,w:c.width,h:c.height}:{x:x0,y:y0,w:x1-x0+1,h:y1-y0+1}}
@@ -247,7 +248,9 @@ function eraseColor(m,bg,tol,mode,seed){const W=m.orig.width,H=m.orig.height,d=m
 $("#autocut").onclick=()=>{const m=img();if(!m)return;let bg=m.bg;if(!bg){const W=m.orig.width,H=m.orig.height,d=m.orig.getContext("2d").getImageData(0,0,W,H).data,px=(x,y)=>{const i=(y*W+x)*4;return[d[i],d[i+1],d[i+2]]},cs=[px(0,0),px(W-1,0),px(0,H-1),px(W-1,H-1)];bg=[0,1,2].map(k=>cs.reduce((a,c)=>a+c[k],0)/4)}
  const mode=$("#bgmode").value==="click"?"edge":$("#bgmode").value;snap(m);const n=eraseColor(m,bg,+$("#tol").value,mode);renderThumbs();redraw();status(n+" pixels effacés. Trop ? ↶ Annuler puis baisse la tolérance ; pas assez ? relance (cumulatif).")};
 $("#resetcut").onclick=()=>{const m=img();if(!m)return;snap(m);const x=m.cut.getContext("2d");x.clearRect(0,0,m.cut.width,m.cut.height);x.drawImage(m.orig,0,0);renderThumbs();redraw();status("Détourage restauré (↶ pour revenir).")};
-$("#delview").onclick=()=>{if(imgs.length<2){status("Il faut garder au moins une vue.");return}imgs.splice(cur,1);select(Math.max(0,cur-1))};
+function delView(i){if(i<0||i>=imgs.length)return;imgs.splice(i,1);select(imgs.length?Math.min(i,imgs.length-1):-1)}
+$("#delview").onclick=()=>delView(cur);
+$("#delall").onclick=()=>{imgs.length=0;select(-1)};
 function cropView(m,r){const[x,y,w,h]=r,mk=src=>{const c=document.createElement("canvas");c.width=w;c.height=h;c.getContext("2d").drawImage(src,x,y,w,h,0,0,w,h);return c};
  imgs.splice(cur+1,0,{name:m.name.replace(/(\.[^.]*)?$/,"")+"#"+(imgs.filter(i=>i.name.startsWith(m.name.replace(/(\.[^.]*)?$/,"")+"#")).length+1),orig:mk(m.orig),cut:mk(m.cut),hasAlpha:m.hasAlpha,view:"unknown",head:0,headTop:null,cx:0,props:[],erase:[],parts:{},attrs:"",sel:-1,spr:null,hist:[],redo:[],bg:m.bg});select(cur+1);status("Nouvelle vue découpée ("+w+"×"+h+"). L'image d'origine reste intacte.")}
 
