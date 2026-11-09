@@ -73,6 +73,12 @@ def cmd(a):
                 c = c.crop(crop).resize((a.size, a.size), Image.NEAREST)
                 ids = (np.asarray(c.convert("RGBA"))[..., 0].astype(int) + 15) // 30; ids[np.asarray(c)[..., 3] == 0] = 0
                 arrs[k] = pixdown.separate(arrs[k], ids.astype(np.uint8))
+        # la réduction + contour assombrissent : on recale la luminosité moyenne sur celle du rendu d'origine
+        mb = np.concatenate([np.asarray(v)[np.asarray(v)[..., 3] > 200][:, :3] for v in full.values()]).mean(0)
+        ma = np.concatenate([x[x[..., 3] > 0][:, :3] for x in arrs.values()]).mean(0)
+        gain = np.clip(mb / np.maximum(ma, 1), 0.8, 1.5) if a.match_light else np.ones(3)
+        for k, x in arrs.items():
+            x = x.copy(); x[..., :3] = np.clip(x[..., :3].astype(float) * gain, 0, 255).astype(np.uint8); arrs[k] = x
         allpx = np.concatenate([x[x[..., 3] > 0][:, :3] for x in arrs.values()]).astype(np.uint8)
         pal = Image.fromarray(allpx[None, ...]).quantize(a.colors, Image.MEDIANCUT)
         pp = np.array(pal.getpalette()[:3 * a.colors], dtype=np.uint8).reshape(-1, 3)
