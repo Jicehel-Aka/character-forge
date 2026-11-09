@@ -45,9 +45,9 @@ class View:
     def __init__(s, path, theta):
         s.rgb, s.mask = segment(path); s.theta = theta; s.h, s.w = s.mask.shape
         ys, xs = np.nonzero(s.mask); s.cx0 = xs.mean(); s.bot = ys.max(); s.top = ys.min()
-        s.dx = 0.0; s.dy = 0.0; s.phi = 0.0; s.sc = 1.0; s.dist = ndi.distance_transform_edt(s.mask)
+        s.dx = 0.0; s.dy = 0.0; s.phi = 0.0; s.sc = 1.0; s.dth = 0.0; s.dist = ndi.distance_transform_edt(s.mask)
     def basis(s, sign):
-        t = math.radians(s.theta); c = np.array([sign * math.sin(t), 0, math.cos(t)]); r = np.array([math.cos(t), 0, -sign * math.sin(t)]); return r, c
+        t = math.radians(s.theta + s.dth); c = np.array([sign * math.sin(t), 0, math.cos(t)]); r = np.array([math.cos(t), 0, -sign * math.sin(t)]); return r, c
     def project(s, P, sign):  # P (n,3) en unités px, y vers le haut, y=0 aux pieds -> (col,row)
         r, c = s.basis(sign); ph = math.radians(s.phi); col = (P @ r) * s.sc + s.cx0 + s.dx
         row = (s.bot + s.dy) - s.sc * (P[:, 1] * math.cos(ph) - (P @ c) * math.sin(ph)); return col, row
@@ -56,14 +56,17 @@ def grid(extent_xz, height, vox):
     xs = np.arange(-extent_xz, extent_xz + vox, vox); ys = np.arange(0, height + vox, vox)
     X, Y, Z = np.meshgrid(xs, ys, xs, indexing="ij"); return xs, ys, np.stack([X.ravel(), Y.ravel(), Z.ravel()], 1)
 
-def carve(views, P, sign):
-    inside = np.ones(len(P), bool)
+import os
+TOL = int(os.environ.get('FORGE_HULL_TOL', '1'))  # nb de vues qui peuvent contredire un voxel (tolérance aux erreurs de calage/perspective)
+
+def carve(views, P, sign, tol=0):
+    miss = np.zeros(len(P), np.int8)
     for v in views:
         col, row = v.project(P, sign); ci = np.round(col).astype(int); ri = np.round(row).astype(int)
-        ok = (ci >= 0) & (ci < v.w) & (ri >= 0) & (ri < v.h); occ = np.zeros(len(P), bool); occ[ok] = getattr(v, 'cmask', v.mask)[ri[ok], ci[ok]]; inside &= occ
-    return inside
+        ok = (ci >= 0) & (ci < v.w) & (ri >= 0) & (ri < v.h); occ = np.zeros(len(P), bool); occ[ok] = getattr(v, 'cmask', v.mask)[ri[ok], ci[ok]]; miss += ~occ
+    return miss <= tol
 
-def calibrate(views, sign, extent, height, vox=5, rounds=3, rng=16, scale=True):
+def calibrate(views, sign, extent, height, vox=5, rounds=3, rng=16, scale=True, yaw=False):
     xs, ys, P = grid(extent, height, vox)
     for r in range(rounds):
         for v in (views[1:] if r == 0 else views):
@@ -77,6 +80,20 @@ def calibrate(views, sign, extent, height, vox=5, rounds=3, rng=16, scale=True):
                         if best is None or n > best[0]: best = (n, dx, dy, ph)
             v.dx, v.dy, v.phi = ox + best[1], oy + best[2], op + best[3]
         rng = max(4, rng // 2)
+    if yaw:   # le pas de rotation n'est jamais exactement 45° : on cherche un petit écart de lacet par vue (IoU silhouette)
+        for r in range(2):
+            for v in views:
+                others = [u for u in views if u is not v]; sub = P[carve(others, P, sign)]
+                if len(sub) < 50: continue
+                best = None; o = (v.dth, v.dx)
+                for dth in (o[0] + k for k in (-6, -4, -2, 0, 2, 4, 6)):
+                    for dx in (-6, -3, 0, 3, 6):
+                        v.dth, v.dx = dth, o[1] + dx; col, row = v.project(sub, sign)
+                        ci = np.round(col).astype(int); ri = np.round(row).astype(int); ok = (ci >= 0) & (ci < v.w) & (ri >= 0) & (ri < v.h)
+                        im = np.zeros((v.h, v.w), bool); im[ri[ok], ci[ok]] = True; im = ndi.binary_closing(im, iterations=2)
+                        iou = (im & v.mask).sum() / max(1, (im | v.mask).sum())
+                        if best is None or iou > best[0]: best = (iou, dth, o[1] + dx)
+                v.dth, v.dx = best[1], best[2]
     if scale:   # perspective / cadrage : échelle propre à chaque vue, jugée par l'IoU silhouette projetée / masque
         for r in range(2):
             for v in views:
@@ -105,7 +122,7 @@ def taubin(verts, faces, iters=12, lam=0.5, mu=-0.53):
 
 def surface(views, sg, extent, height, vox, smooth, iters=30):
     from skimage import measure
-    xs, ys, P = grid(extent, height, vox); inside = carve(views, P, sg).reshape(len(xs), len(ys), len(xs)).astype(np.float32)
+    xs, ys, P = grid(extent, height, vox); inside = carve(views, P, sg, tol=TOL).reshape(len(xs), len(ys), len(xs)).astype(np.float32)
     vol = ndi.gaussian_filter(np.pad(inside, 2), smooth)
     verts, faces, normals, _ = measure.marching_cubes(vol, 0.5, spacing=(vox, vox, vox))
     verts = verts - 2 * vox + np.array([xs[0], ys[0], xs[0]]); faces = faces[:, ::-1]
@@ -175,8 +192,8 @@ def build(paths, thetas=None, out="modele.glb", vox=2.5, height_m=1.75, sign=Non
     height = max(v.bot - v.top for v in views) * 1.05; extent = max(v.w for v in views) * 0.62
     best = None
     for sg in ([sign] if sign else [1, -1]):
-        for v in views: v.dx = 0.0; v.dy = 0.0; v.sc = 1.0; v.cmask = v.mask
-        n = calibrate(views, sg, extent, height); calibrate(views, sg, extent, height, vox=3, rounds=1, rng=4, scale=False)
+        for v in views: v.dx = 0.0; v.dy = 0.0; v.sc = 1.0; v.dth = 0.0; v.cmask = v.mask
+        n = calibrate(views, sg, extent, height); calibrate(views, sg, extent, height, vox=3, rounds=1, rng=4, scale=False, yaw=False)
         for v in views: sm = ndi.gaussian_filter(v.mask.astype(np.float32), 2.0) > 0.5; v.cmask = ndi.binary_dilation(sm, iterations=grow) if grow else sm
         V, F, N = surface(views, sg, extent, height, vox, smooth); C, score = colorize(views, V, smooth_normals(V, F, N), sg)
         if photo:
@@ -186,7 +203,7 @@ def build(paths, thetas=None, out="modele.glb", vox=2.5, height_m=1.75, sign=Non
             else:
                 for v, (dx, dy) in zip(views, sv): v.dx, v.dy = dx, dy
         log(f"sens {sg:+d} : volume {n}, incohérence des couleurs {score:.5f}")
-        if best is None or score < best[0]: best = (score, sg, V, F, N, C, [(v.dx, v.dy, v.phi, v.sc) for v in views])
+        if best is None or score < best[0]: best = (score, sg, V, F, N, C, [(v.dx, v.dy, v.dth, v.sc) for v in views])
     score, sg, verts, faces, normals, colr, offs = best; colr = smooth_colors(colr, faces, iters=smooth_col); log(f"sens retenu {sg:+d} ; {len(verts)} sommets, {len(faces)} triangles")
     mn = verts.min(0); mx = verts.max(0); k = height_m / (mx[1] - mn[1]); V = (verts - [(mn[0] + mx[0]) / 2, mn[1], (mn[2] + mx[2]) / 2]) * k
     write_glb(out, V.astype(np.float32), smooth_normals(verts, faces, normals, 3).astype(np.float32), colr.astype(np.float32), faces.astype(np.uint32)); log("écrit " + str(out))
