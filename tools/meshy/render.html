@@ -225,7 +225,9 @@ window.rig = async (o)=>{
   const out=new THREE.Group(); out.name='Armature'; out.scale.setScalar(1e-4); out.add(root); const scene=new THREE.Scene(); scene.add(out);
   const buf=await new Promise((ok,ko)=> new GLTFExporter().parse(scene, ok, ko, {binary:true, animations:clips}));
   let bin=''; const u8=new Uint8Array(buf); for(let i=0;i<u8.length;i+=0x8000) bin+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));
-  return {glb:btoa(bin), body:bidx.length/3, props:rep_, clips:clips.map(c=>c.name), ratio:r, islands:[...role.values()].reduce((a,v)=>(a[v]=(a[v]||0)+1,a),{})};
+  const dbg={}; if(POSED){ sm0.skeleton.bones.forEach(b=>{ if(/(Hand|ForeArm|Arm|Shoulder)$/.test(b.name)&&/mixamorig(Left|Right)/.test(b.name)){ const v=new THREE.Vector3(); b.getWorldPosition(v); sm0.worldToLocal(v); dbg[b.name]=[v.x,v.y,v.z].map(x=>+x.toFixed(1)); } });
+    let mx=[1e9,-1e9],my=[1e9,-1e9]; for(let i=0;i<pos.length;i+=3){ mx[0]=Math.min(mx[0],pos[i]); mx[1]=Math.max(mx[1],pos[i]); my[0]=Math.min(my[0],pos[i+1]); my[1]=Math.max(my[1],pos[i+1]); } dbg.hullX=mx; dbg.hullY=my; }
+  return {dbg, glb:btoa(bin), body:bidx.length/3, props:rep_, clips:clips.map(c=>c.name), ratio:r, islands:[...role.values()].reduce((a,v)=>(a[v]=(a[v]||0)+1,a),{})};
 };
 window.ready = true;
 </script>
