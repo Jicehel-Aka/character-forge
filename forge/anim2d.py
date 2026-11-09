@@ -67,12 +67,14 @@ def cmd(a):
         x0, y0 = min(b[0] for b in boxes), min(b[1] for b in boxes); x1, y1 = max(b[2] for b in boxes), max(b[3] for b in boxes)
         side = max(x1 - x0, y1 - y0) * (1 + 2 * a.pad); cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
         crop = (int(cx - side / 2), int(cy - side / 2), int(cx + side / 2), int(cy + side / 2)); tgt = a.size * a.ss
-        arrs = {k: pixdown.shrink(v.crop(crop).resize((tgt, tgt), Image.LANCZOS), a.size, sharpen=0.35) for k, v in full.items()}
+        arrs = {k: pixdown.shrink(v.crop(crop).resize((tgt, tgt), Image.LANCZOS), a.size, sharpen=0.35, thr=a.thr) for k, v in full.items()}
         if a.separate and fcls:
             for k, c in fcls.items():
                 c = c.crop(crop).resize((a.size, a.size), Image.NEAREST)
                 ids = (np.asarray(c.convert("RGBA"))[..., 0].astype(int) + 15) // 30; ids[np.asarray(c)[..., 3] == 0] = 0
                 arrs[k] = pixdown.separate(arrs[k], ids.astype(np.uint8))
+        if a.min_limb:   # épaisseur minimale des membres + contours lissés (évite le bras réduit à un trait)
+            for k in list(arrs): arrs[k] = pixdown.fatten(arrs[k], a.min_limb)
         # la réduction + contour assombrissent : on recale la luminosité moyenne sur celle du rendu d'origine
         mb = np.concatenate([np.asarray(v)[np.asarray(v)[..., 3] > 200][:, :3] for v in full.values()]).mean(0)
         ma = np.concatenate([x[x[..., 3] > 0][:, :3] for x in arrs.values()]).mean(0)

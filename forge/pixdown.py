@@ -77,3 +77,34 @@ def separate(arr, cm, mindiff=26, strength=0.4):
     rgb = a[..., :3].astype(np.float32); dark = rgb * (1 - strength); dark = np.where(lum[..., None] < 45, rgb + 45 * strength, dark)
     a[..., :3] = np.where(mark[..., None], np.clip(dark, 0, 255), rgb).astype(np.uint8)
     return a
+
+
+def fatten(arr, minw=2, notch=6):
+    """Épaisseur minimale des membres + lissage des contours d'un sprite RGBA (size x size) :
+    1) comble les encoches (pixel vide entouré d'au moins `notch` voisins pleins) ;
+    2) tout pixel qui n'appartient à aucun bloc 2x2 plein (membre réduit à un trait d'1 px) reçoit un voisin du côté vide (alternance gauche/droite, haut/bas
+       pour garder l'axe du membre), de même couleur : un bras ou une jambe ne tombe jamais sous `minw` pixels."""
+    out = arr.copy(); a = out[..., 3] > 0; H, W = a.shape
+    def sh(m, dy, dx):
+        r = np.zeros_like(m); ys = slice(max(dy, 0), H + min(dy, 0)); yd = slice(max(-dy, 0), H + min(-dy, 0))
+        xs = slice(max(dx, 0), W + min(dx, 0)); xd = slice(max(-dx, 0), W + min(-dx, 0)); r[ys, xs] = m[yd, xd]; return r
+    nb = sum(sh(a, dy, dx).astype(int) for dy in (-1, 0, 1) for dx in (-1, 0, 1) if (dy or dx))
+    fill = (~a) & (nb >= notch)
+    if fill.any():
+        rgb = out[..., :3].astype(float) * a[..., None]; cnt = np.maximum(nb, 1)[..., None]
+        acc = sum(sh(rgb, dy, dx) for dy in (-1, 0, 1) for dx in (-1, 0, 1) if (dy or dx)); out[fill, :3] = (acc / cnt)[fill].astype(np.uint8); out[fill, 3] = 255; a = a | fill
+    if minw >= 2:
+        r, l, d, u = (lambda dy, dx: sh(a, dy, dx))(0, -1), sh(a, 0, 1), sh(a, -1, 0), sh(a, 1, 0)   # voisins (décalages : r = pixel à droite ... )
+        t = a & ((r & d & sh(a, -1, -1)) | (l & d & sh(a, -1, 1)) | (r & u & sh(a, 1, -1)) | (l & u & sh(a, 1, 1)))
+        thin = a & ~t
+        ys, xs = np.nonzero(thin)
+        for y, x in zip(ys, xs):
+            horiz_free = (x == 0 or not a[y, x - 1]) and (x == W - 1 or not a[y, x + 1])
+            vert_free = (y == 0 or not a[y - 1, x]) and (y == H - 1 or not a[y + 1, x])
+            if horiz_free:
+                nx = x + 1
+                if 0 <= nx < W and not out[y, nx, 3]: out[y, nx] = out[y, x]
+            if vert_free:
+                ny = y + 1
+                if 0 <= ny < H and not out[ny, x, 3]: out[ny, x] = out[y, x]
+    return out
