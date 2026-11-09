@@ -35,7 +35,7 @@ label{display:block;margin:6px 0 2px;color:var(--mute);font-size:13px}
 ul.l{margin:4px 0 4px 18px;padding:0}
 .thumbs{display:flex;gap:8px;overflow:auto;padding:6px 0}
 .thumb{border:2px solid var(--line);border-radius:8px;padding:2px;cursor:pointer;background:var(--bg);flex:none;text-align:center;font-size:11px;max-width:96px}
-.thumb.on{border-color:var(--acc)}.thumb canvas{width:88px;height:66px;object-fit:contain}
+.thumb.on{border-color:var(--acc)}.thumb .nm{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:88px}.thumb .no{position:absolute;top:0;left:0;background:var(--acc);color:var(--acc-ink);border-radius:6px 0 6px 0;padding:0 6px;font-weight:600;font-size:11px;line-height:16px}.thumb canvas{width:88px;height:66px;object-fit:contain}
 pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;overflow:auto;font-size:12px;white-space:pre-wrap;word-break:break-all}
 .sw{display:inline-block;width:20px;height:20px;border:1px solid var(--line);border-radius:4px}
 table{border-collapse:collapse;width:100%;font-size:13px}td,th{border-bottom:1px solid var(--line);padding:4px;text-align:left;vertical-align:top}
@@ -57,6 +57,7 @@ table{border-collapse:collapse;width:100%;font-size:13px}td,th{border-bottom:1px
 <section>
   <div class="card">
     <div class="thumbs" id="thumbs"><span class="mute">Aucune image. Ouvre des images (idéalement un détourage .png à fond transparent produit par la commande <code>extract</code>).</span></div>
+    <div class="row"><b id="vno">Vue —</b><input id="vname" placeholder="nom de la vue (ex. face, profil, dos)" style="flex:1;min-width:160px"><button id="vprev">◀</button><button id="vnext">▶</button><span class="mute" id="vsize"></span></div>
     <div class="row" id="toolbar">
       <b>Outil :</b>
       <label class="chip"><input type="radio" name="tool" value="none" checked> aucun</label>
@@ -190,10 +191,15 @@ function addImage(file){return new Promise(res=>{const u=URL.createObjectURL(fil
   URL.revokeObjectURL(u);select(imgs.length-1);res()};
  im.onerror=()=>{URL.revokeObjectURL(u);status("Impossible de lire « "+file.name+" » (format non pris en charge ou fichier abîmé). Ignorée.");res()};im.src=u})}
 function img(){return imgs[cur]}
-function select(i){cur=i;const m=img();if(!m){$("#headpx").value="";renderThumbs();renderZones();renderMulti();redraw();status("Aucune image. Ouvre des images.");return}$("#headpx").value=m.head||"";$("#cx").value=m.cx||Math.round(bboxOf(m).x+bboxOf(m).w/2);renderThumbs();renderProps();renderZones();renderGear();renderMulti();redraw();cli()}
+function vinfo(){const m=img();$("#vno").textContent=m?"Vue "+(cur+1)+"/"+imgs.length:"Vue —";$("#vname").value=m?m.name:"";$("#vname").disabled=!m;$("#vsize").textContent=m?m.orig.width+"×"+m.orig.height+" px":""}
+function uniq(n,except){let b=n||"vue",k=b,i=2;while(imgs.some((m,j)=>j!==except&&m.name===k))k=b+" ("+i++ +")";return k}
+$("#vname").oninput=e=>{const m=img();if(!m)return;m.name=e.target.value||"vue";renderThumbs();cli()};
+$("#vname").onchange=e=>{const m=img();if(!m)return;m.name=uniq(e.target.value.trim(),cur);e.target.value=m.name;renderThumbs();renderMulti();cli()};
+$("#vprev").onclick=()=>{if(imgs.length)select((cur-1+imgs.length)%imgs.length)};$("#vnext").onclick=()=>{if(imgs.length)select((cur+1)%imgs.length)};
+function select(i){cur=i;vinfo();const m=img();if(!m){$("#headpx").value="";renderThumbs();renderZones();renderMulti();redraw();status("Aucune image. Ouvre des images.");return}$("#headpx").value=m.head||"";$("#cx").value=m.cx||Math.round(bboxOf(m).x+bboxOf(m).w/2);renderThumbs();renderProps();renderZones();renderGear();renderMulti();redraw();cli()}
 function renderThumbs(){const t=$("#thumbs");t.innerHTML="";if(!imgs.length)return;imgs.forEach((m,i)=>{const d=document.createElement("div");d.className="thumb"+(i===cur?" on":"");
  const c=document.createElement("canvas");c.width=88;c.height=66;const x=c.getContext("2d"),r=Math.min(88/m.cut.width,66/m.cut.height);x.drawImage(m.cut,(88-m.cut.width*r)/2,(66-m.cut.height*r)/2,m.cut.width*r,m.cut.height*r);
- const xb=document.createElement("button");xb.textContent="✕";xb.title="Supprimer cette vue";xb.style.cssText="position:absolute;top:0;right:0;padding:0 5px;line-height:18px;font-size:12px";xb.onclick=ev=>{ev.stopPropagation();delView(i)};d.style.position="relative";d.append(c,m.name,xb);d.onclick=()=>select(i);t.append(d)})}
+ const xb=document.createElement("button");xb.textContent="✕";xb.title="Supprimer cette vue";xb.style.cssText="position:absolute;top:0;right:0;padding:0 5px;line-height:18px;font-size:12px";xb.onclick=ev=>{ev.stopPropagation();delView(i)};d.style.position="relative";const nm=document.createElement("span");nm.className="nm";nm.textContent=m.name;const no=document.createElement("span");no.className="no";no.textContent=i+1;d.title=(i+1)+" · "+m.name;d.append(c,nm,no,xb);d.onclick=()=>select(i);t.append(d)})}
 function bboxOf(m){const c=m.cut,d=c.getContext("2d").getImageData(0,0,c.width,c.height).data;let x0=c.width,y0=c.height,x1=0,y1=0;
  for(let y=0;y<c.height;y++)for(let x=0;x<c.width;x++)if(d[(y*c.width+x)*4+3]>0){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}
  return x1<x0?{x:0,y:0,w:c.width,h:c.height}:{x:x0,y:y0,w:x1-x0+1,h:y1-y0+1}}
