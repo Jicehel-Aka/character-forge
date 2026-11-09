@@ -52,7 +52,7 @@ table{border-collapse:collapse;width:100%;font-size:13px}td,th{border-bottom:1px
     <input type="file" id="projfile" accept=".json,application/json" hidden>
     <button id="saveproj" title="Enregistre images, détourages, marques, zones, armes, tenue dans un seul fichier">💾 Enregistrer le projet</button>
     <button onclick="projfile.click()" title="Rouvre un projet enregistré">📂 Ouvrir un projet…</button>
-    <a href="3d.html">Chaîne 3D &amp; liens</a>
+    <a href="3d.html" target="_blank" rel="noopener">Chaîne 3D &amp; liens ↗</a>
     <button id="theme">Thème</button>
   </div>
 </header>
@@ -82,7 +82,7 @@ table{border-collapse:collapse;width:100%;font-size:13px}td,th{border-bottom:1px
       <span>Pinceau <input type="range" id="brush" min="3" max="60" value="16" style="width:90px"></span>
     </div>
     <div id="stagewrap"><canvas id="stage" width="640" height="480"></canvas></div>
-    <div class="mute" id="status">—</div>
+    <div class="mute" id="status">—</div><div class="mute" id="autoinfo"></div>
   </div>
 </section>
 
@@ -457,14 +457,22 @@ $("#dlparts").onclick=()=>dl("parts.json",JSON.stringify(partsJson(),null,1));
 $("#dlcut").onclick=()=>{const m=img();if(m)m.cut.toBlob(b=>dl(m.name.replace(/\.[^.]+$/,"")+"_cutout.png",b))};
 /* ---------- projet : enregistrer / rouvrir ---------- */
 const toURL=c=>c.toDataURL("image/png"),fromURL=u=>new Promise((res,rej)=>{const i=new Image();i.onload=()=>{const c=document.createElement("canvas");c.width=i.naturalWidth;c.height=i.naturalHeight;c.getContext("2d").drawImage(i,0,0);res(c)};i.onerror=rej;i.src=u});
+function projectObj(){return{v:1,saved:new Date().toISOString(),cur,gear:{checked:checked(),build:$("#build").value,cx:$("#cx").value,colors:CC,draw:$("#drawcl").checked},
+  imgs:imgs.map(m=>({name:m.name,view:m.view,head:m.head,headTop:m.headTop,cx:m.cx,props:m.props,erase:m.erase,parts:m.parts,attrs:m.attrs,hasAlpha:m.hasAlpha,orig:toURL(m.orig),cut:toURL(m.cut),marks:m.marks?toURL(m.marks):null}))}}
 $("#saveproj").onclick=()=>{if(!imgs.length){status("Rien à enregistrer.");return}
- const P={v:1,saved:new Date().toISOString(),cur,gear:{checked:checked(),build:$("#build").value,cx:$("#cx").value,colors:CC,draw:$("#drawcl").checked},
-  imgs:imgs.map(m=>({name:m.name,view:m.view,head:m.head,headTop:m.headTop,cx:m.cx,props:m.props,erase:m.erase,parts:m.parts,attrs:m.attrs,hasAlpha:m.hasAlpha,orig:toURL(m.orig),cut:toURL(m.cut),marks:m.marks?toURL(m.marks):null}))};
- dl("projet_forge.json",JSON.stringify(P),"application/json");status("Projet enregistré ("+imgs.length+" vue(s)). Rouvre-le avec « 📂 Ouvrir un projet ».")};
-$("#projfile").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;try{const P=JSON.parse(await f.text());if(!P.imgs)throw 0;
- imgs.length=0;for(const o of P.imgs){imgs.push({name:o.name,view:o.view||"unknown",head:o.head||0,headTop:o.headTop??null,cx:o.cx||0,props:o.props||[],erase:o.erase||[],parts:o.parts||{},attrs:o.attrs||"",hasAlpha:!!o.hasAlpha,sel:-1,spr:null,hist:[],redo:[],bg:null,orig:await fromURL(o.orig),cut:await fromURL(o.cut),marks:o.marks?await fromURL(o.marks):null})}
+ dl("projet_forge.json",JSON.stringify(projectObj()),"application/json");status("Projet enregistré ("+imgs.length+" vue(s)). Rouvre-le avec « 📂 Ouvrir un projet ».")};
+async function loadProject(P){imgs.length=0;for(const o of P.imgs){imgs.push({name:o.name,view:o.view||"unknown",head:o.head||0,headTop:o.headTop??null,cx:o.cx||0,props:o.props||[],erase:o.erase||[],parts:o.parts||{},attrs:o.attrs||"",hasAlpha:!!o.hasAlpha,sel:-1,spr:null,hist:[],redo:[],bg:null,orig:await fromURL(o.orig),cut:await fromURL(o.cut),marks:o.marks?await fromURL(o.marks):null})}
  const g=P.gear||{};$$("[data-g]").forEach(c=>c.checked=(g.checked||[]).includes(c.dataset.g));if(g.build)$("#build").value=g.build;if(g.cx)$("#cx").value=g.cx;Object.keys(CC).forEach(k=>delete CC[k]);Object.assign(CC,g.colors||{});$("#drawcl").checked=g.draw!==false;
- select(Math.min(P.cur||0,imgs.length-1));if(g.cx)$("#cx").value=g.cx;renderGear();redraw();status("Projet rouvert : "+imgs.length+" vue(s).")}catch(err){status("Fichier projet illisible.")}};
+ select(Math.min(P.cur||0,imgs.length-1));if(g.cx)$("#cx").value=g.cx;renderGear();redraw()}
+/* sauvegarde automatique dans le navigateur (IndexedDB) : reprise après rechargement ou changement de page */
+const IDB=()=>new Promise((res,rej)=>{const r=indexedDB.open("character-forge",1);r.onupgradeneeded=()=>r.result.createObjectStore("kv");r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+const idbSet=async(k,v)=>{const d=await IDB();return new Promise((res,rej)=>{const t=d.transaction("kv","readwrite");t.objectStore("kv").put(v,k);t.oncomplete=res;t.onerror=()=>rej(t.error)})};
+const idbGet=async k=>{const d=await IDB();return new Promise((res,rej)=>{const q=d.transaction("kv").objectStore("kv").get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})};
+let autoT=null;function autosave(){clearTimeout(autoT);autoT=setTimeout(async()=>{try{if(imgs.length){await idbSet("last",JSON.stringify(projectObj()));$("#autoinfo").textContent="sauvegardé auto "+new Date().toLocaleTimeString()}}catch(e){$("#autoinfo").textContent="sauvegarde auto impossible"}},2500)}
+const _redraw=redraw;redraw=function(){_redraw.apply(this,arguments);autosave()};
+(async()=>{try{const t=await idbGet("last");if(!t)return;const P=JSON.parse(t);if(!P.imgs||!P.imgs.length||imgs.length)return;
+ const b=document.createElement("button");b.className="primary";b.textContent="↻ Reprendre le dernier travail ("+P.imgs.length+" vue(s), "+new Date(P.saved).toLocaleString()+")";b.onclick=async()=>{await loadProject(P);b.remove();status("Dernier travail repris.")};$("#thumbs").append(b)}catch(e){}})();
+$("#projfile").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;try{const P=JSON.parse(await f.text());if(!P.imgs)throw 0;await loadProject(P);status("Projet rouvert : "+imgs.length+" vue(s).")}catch(err){status("Fichier projet illisible.")}};
 $("#reloadjson").onchange=async e=>{const fs=[...e.target.files];e.target.value="";let n=0,miss=[];for(const f of fs){let J;try{J=JSON.parse(await f.text())}catch{status("« "+f.name+" » illisible.");continue}
  for(const[name,v]of Object.entries(J)){const m=imgs.find(x=>x.name===name);if(!m){miss.push(name);continue}n++;
   if(v.person?.head)m.head=v.person.head;if(v.erase)m.erase=v.erase;if(v.props)m.props=v.props.map(p=>({layer:"behind",...p}));
@@ -473,7 +481,6 @@ $("#reloadjson").onchange=async e=>{const fs=[...e.target.files];e.target.value=
 $("#reloadcut").onchange=async e=>{const f=e.target.files[0];e.target.value="";const m=img();if(!f||!m)return;const c=await fromURL(URL.createObjectURL(f));
  if(c.width!==m.orig.width||c.height!==m.orig.height){status("Taille différente ("+c.width+"×"+c.height+" au lieu de "+m.orig.width+"×"+m.orig.height+") : ouvre-le plutôt comme nouvelle image (Ouvrir des images).");return}
  snap(m);m.cut.getContext("2d").clearRect(0,0,c.width,c.height);m.cut.getContext("2d").drawImage(c,0,0);renderThumbs();redraw();status("Détourage rechargé (↶ pour annuler).")};
-addEventListener("beforeunload",e=>{if(imgs.length){e.preventDefault();e.returnValue=""}});
 function cli(){const c=$("#cmds");if(!c)return;const m=img(),n=m?m.name:"image.png",g=checked();
  c.textContent=[`# rendu avec armes et zones (props.json / parts.json exportés ci-dessus)`,`python -m forge extract ${n} --segment --props props.json --parts parts.json -o sortie`,
  g.length?`# tenue\npython -m forge gear check ${g.join(" ")}`:"",`# plusieurs photos\npython -m forge consolidate analyze manifest.json --decisions decisions.json`,
