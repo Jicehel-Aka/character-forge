@@ -48,9 +48,39 @@ forge control sortie/ ...                          # planche control.png + contr
 <h3>Scorpion</h3><img src="img/control_scorpion.png" alt="Planche de contrôle du scorpion">
 <h3>Bulma</h3><img src="img/control_bulma.png" alt="Planche de contrôle de Bulma"></section>
 
-<section class="card"><h2>Photos → GLB sans Meshy (forge hull)</h2>
-<p>Huit captures du modèle tous les 45° (face, ¾, profil… dos…) donnent un GLB coloré : <code>python -m forge hull v1.png … v8.png -o modele.glb --vox 2</code>. Puis le rig Mixamo : <code>python -m forge rig modele.glb --skeleton Idle.fbx --noprops --arm-down 62 --clips Idle.fbx Walk.fbx -o rig.glb</code> (<code>--arm-down 0</code> pour une T-pose).</p>
-<p>Conseils : même cadrage et caméra orthographique (ou longue focale), jambes légèrement écartées, bras en T de préférence. Limites : les creux ne sont pas visibles, la couleur est portée par les sommets, les cuisses collées fusionnent.</p></section>
+<section class="card" id="squelette"><h2>Photos → modèle 3D → squelette → sprites (sans Meshy)</h2>
+<p>Procédé complet pour un personnage dont on ne peut pas exporter le modèle mais qu'on peut capturer sous tous les angles.</p>
+<h3>1. Capturer 8 vues</h3>
+<ul><li>Face, ¾, profil, ¾ dos, dos, ¾ dos opposé, profil opposé, ¾ face opposé : une vue tous les 45°, dans cet ordre (rotation toujours dans le même sens).</li>
+<li>Même cadrage et même hauteur de caméra sur les 8 vues ; caméra orthographique ou longue focale (la perspective décale les pieds et les mains).</li>
+<li>Personnage entier, fond uni ou dégradé léger, pas d'ombre portée forte.</li>
+<li>Pose : T-pose idéalement. En pose A (bras le long du corps) c'est accepté, voir l'étape 4. Jambes légèrement écartées, sinon les cuisses fusionnent.</li></ul>
+<h3>2. Reconstruire le GLB</h3>
+<pre>python -m forge hull v1.png … v8.png -o modele.glb --vox 2</pre>
+<p>Détourage du fond, calibration de chaque vue (décalage, échelle), sculpture de voxels (visual hull), maillage lissé, couleurs de sommets prises sur les photos. Le sens de rotation est trouvé automatiquement (<code>--sign 1</code> ou <code>-1</code> pour le forcer et gagner du temps). Contrôle : ouvrir le GLB et tourner autour ; vérifier visage, mains, pieds.</p>
+<h3>3. Placer le squelette</h3>
+<p>Le squelette Mixamo (T-pose) sert de référence : on prend un FBX Mixamo quelconque (ex. <code>Idle.fbx</code>) et les animations voulues.</p>
+<pre>python -m forge rig modele.glb --skeleton Idle.fbx --noprops \
+    --clips Idle.fbx Walk.fbx Punch.fbx -o rig.glb</pre>
+<p>Le modèle est mis à l'échelle sur la hauteur du squelette, chaque sommet reçoit ses poids de peau par proximité avec le maillage de référence, puis le GLB est écrit avec le squelette et les clips.</p>
+<h3>4. Corriger la pose A</h3>
+<p>Si les bras du modèle ne sont pas à l'horizontale, ajouter <code>--arm-down A</code>, A = angle des bras sous l'horizontale (≈ 60 pour une pose A classique ; mesurer sur la vue de face : angle entre l'horizontale et l'axe épaule → main).</p>
+<pre>python -m forge rig modele.glb --skeleton Idle.fbx --noprops --arm-down 62 --clips … -o rig.glb</pre>
+<p>Principe : les bras du squelette de référence sont baissés de A° pour calculer les poids sur le bon endroit du maillage, et les matrices de liaison inverses des os du bras sont celles de cette pose. Le maillage n'est pas déformé, et les animations (pensées pour la T-pose) s'appliquent correctement.</p>
+<h3>5. Vérifier avant d'aller plus loin</h3>
+<pre>python -m forge meshy rig.glb --dirs s,e --size 160 -o verif          # pose de repos
+python -m forge meshy rig.glb --anim Walk --frames 4 --dirs s,e,n,w --size 128 -o verif_anim</pre>
+<ul><li>Bras étirés en lanières ou dirigés vers le haut : angle <code>--arm-down</code> faux (ou oublié).</li>
+<li>Une jambe ou un pied trop court/long, décalé : vues mal cadrées (étape 1).</li>
+<li>Cuisses soudées qui se déforment ensemble : jambes trop serrées sur les captures.</li>
+<li>Tête qui bouge avec les épaules : vérifier que le modèle est entier et centré.</li></ul>
+<h3>6. Produire les sprites</h3>
+<p>Les images de l'étape 5 (8 directions : <code>s se e ne n nw w sw</code>) passent ensuite dans la chaîne de sprites habituelle (page <a href="modele.html">modele.html</a> ou <code>forge sprites</code>) : recadrage serré, séparation des membres, palette RGB565.</p>
+<h3>Limites</h3>
+<ul><li>Un visual hull ne voit pas les creux (entre bras et torse, sous le menton, derrière les genoux).</li>
+<li>La couleur est portée par les sommets, pas par une texture dépliée ; des bandes peuvent apparaître sur les cuisses.</li>
+<li>Les poids de peau viennent d'un corps générique : mains et doigts restent approximatifs ; vêtements amples ou cheveux longs sont rigides.</li>
+<li>Pour la qualité maximale d'un personnage important, Meshy (ou un modèle exporté) reste meilleur ; cette chaîne sert à ne pas en dépendre.</li></ul></section>
 
 <section class="card"><h2>Pour la reconstruction (Meshy)</h2>
 <pre>Full-body 3D character, [description courte].
