@@ -33,27 +33,32 @@ def cmd(a):
     from . import pixdown
     tmp = tempfile.mkdtemp(prefix="forge_anim2d_")
     try:
-        model = _with_extra_clips(a.model, a.fbx, a.learned, a.fps, a.sign, tmp)
         preset = PRESETS[a.preset]; rows = preset["rows"]; pitch = a.pitch if a.pitch is not None else preset["pitch"]
-        s = Session(model)
-        try:
-            names = [c["name"] for c in s.inspect()["clips"]]
-            ext = [Path(c).stem.split("-", 1)[-1] for c in (a.fbx or [])] + [(json.loads(Path(c).read_text()).get("type") or Path(c).stem) for c in (a.learned or [])]
-            if a.anim == ["all"] or (not a.anim and not ext): want = list(names)
-            else: want = list(a.anim or []) + [n for n in ext if n not in (a.anim or [])]
-            miss = [n for n in want if n not in names]
-            if miss: raise SystemExit(f"clips introuvables : {miss} (disponibles : {names})")
-            big = min(1024, max(a.size * a.ss, 768)); render_dirs = sorted({r[1] for r in rows}); H = None; imgs = {}; cls = {}
-            for nm in want:
-                kw = dict(pitch=pitch, margin=a.margin, chunk=a.chunk); 
-                if H: kw["height"] = H
-                im, res = s.render(big, render_dirs, nm, a.frames, **kw)
-                H = H or res["height"]; print(f"[anim2d] {nm}: {len(im)} images")
-                for (d, f), v in im.items():
-                    imgs[(nm, d, f)] = v
-                    if (d, f) in getattr(s, "cls", {}): cls[(nm, d, f)] = s.cls[(d, f)]
-        finally:
-            s.close()
+        if a.from_renders:
+            import pickle; want, imgs, cls = pickle.load(open(a.from_renders, 'rb'))
+        else:
+            model = _with_extra_clips(a.model, a.fbx, a.learned, a.fps, a.sign, tmp)
+            s = Session(model)
+            try:
+                names = [c["name"] for c in s.inspect()["clips"]]
+                ext = [Path(c).stem.split("-", 1)[-1] for c in (a.fbx or [])] + [(json.loads(Path(c).read_text()).get("type") or Path(c).stem) for c in (a.learned or [])]
+                if a.anim == ["all"] or (not a.anim and not ext): want = list(names)
+                else: want = list(a.anim or []) + [n for n in ext if n not in (a.anim or [])]
+                miss = [n for n in want if n not in names]
+                if miss: raise SystemExit(f"clips introuvables : {miss} (disponibles : {names})")
+                big = min(1024, max(a.size * a.ss, 768)); render_dirs = sorted({r[1] for r in rows}); H = None; imgs = {}; cls = {}
+                for nm in want:
+                    kw = dict(pitch=pitch, margin=a.margin, chunk=a.chunk); 
+                    if H: kw["height"] = H
+                    im, res = s.render(big, render_dirs, nm, a.frames, **kw)
+                    H = H or res["height"]; print(f"[anim2d] {nm}: {len(im)} images")
+                    for (d, f), v in im.items():
+                        imgs[(nm, d, f)] = v
+                        if (d, f) in getattr(s, "cls", {}): cls[(nm, d, f)] = s.cls[(d, f)]
+            finally:
+                s.close()
+        if a.keep_renders and not a.from_renders:
+            import pickle; pickle.dump((want, imgs, cls), open(a.keep_renders, 'wb'))
         # lignes (avec miroirs)
         full, fcls = {}, {}
         for nm in want:
@@ -67,7 +72,14 @@ def cmd(a):
         x0, y0 = min(b[0] for b in boxes), min(b[1] for b in boxes); x1, y1 = max(b[2] for b in boxes), max(b[3] for b in boxes)
         side = max(x1 - x0, y1 - y0) * (1 + 2 * a.pad); cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
         crop = (int(cx - side / 2), int(cy - side / 2), int(cx + side / 2), int(cy + side / 2)); tgt = a.size * a.ss
-        arrs = {k: pixdown.shrink(v.crop(crop).resize((tgt, tgt), Image.LANCZOS), a.size, sharpen=0.35, thr=a.thr) for k, v in full.items()}
+        def hi(k, v):
+            im = v.crop(crop).resize((tgt, tgt), Image.LANCZOS)
+            if a.tube and k in fcls:   # épaisseur sprite en gardant la forme (ligne médiane + disques), rayons en pixels de travail
+                c = fcls[k].crop(crop).resize((tgt, tgt), Image.NEAREST); ids = (np.asarray(c.convert("RGBA"))[..., 0].astype(int) + 15) // 30
+                ids[np.asarray(c)[..., 3] == 0] = 0; u = a.ss * a.size / 64.0 * a.tube
+                im = pixdown.tube(im, ids, rarm=1.5 * u, rleg=2.0 * u, rhand=2.1 * u, rfoot=2.4 * u, rankle=1.7 * u, hand_len=7 * a.ss * a.size / 64.0, foot_len=6 * a.ss * a.size / 64.0)
+            return im
+        arrs = {k: pixdown.shrink(hi(k, v), a.size, sharpen=0.35, thr=a.thr) for k, v in full.items()}
         if a.separate and fcls:
             for k, c in fcls.items():
                 c = c.crop(crop).resize((a.size, a.size), Image.NEAREST)

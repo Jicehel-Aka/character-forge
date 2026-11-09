@@ -108,3 +108,47 @@ def fatten(arr, minw=2, notch=6):
                 ny = y + 1
                 if 0 <= ny < H and not out[ny, x, 3]: out[ny, x] = out[y, x]
     return out
+
+
+def tube(img, ids, rarm=1.5, rleg=2.0, rhand=2.1, rfoot=2.4, rankle=1.7, hand_len=7.0, foot_len=6.0):
+    """Épaisseur « sprite » en gardant la forme : pour chaque membre (classes 1-4), on prend la ligne médiane (squelette) de son masque et, là où
+    le demi-diamètre local est inférieur au minimum voulu, on repasse un disque de ce rayon le long de la ligne. Les parties déjà assez épaisses ne
+    bougent pas ; la forme, la courbure et la longueur d'origine sont conservées. Le rayon grandit vers la main (rhand) et vers le pied (rfoot) pour des
+    poings et des chaussures lisibles. Rayons en pixels de `img` (à fournir à l'échelle de travail : taille finale x suréchantillonnage).
+    img : PIL RGBA haute résolution ; ids : tableau des classes (1 bras G, 2 bras D, 3 jambe G, 4 jambe D, 5 tête, 6 reste)."""
+    from scipy import ndimage as ndi
+    from skimage.morphology import skeletonize, disk
+    arr = np.array(img.convert("RGBA")); al = arr[..., 3] > 16; out = arr.copy(); H, W = al.shape
+    torso = ndi.distance_transform_edt(~((ids == 6) & al)); added = np.zeros_like(al)
+    for c in (1, 2, 3, 4):
+        m = (ids == c) & al
+        if m.sum() < 12: continue
+        arm = c in (1, 2); rmin = rarm if arm else rleg
+        sk = skeletonize(m); ys, xs = np.nonzero(sk)
+        if len(ys) < 3: continue
+        dist = ndi.distance_transform_edt(m)
+        nb = ndi.convolve(sk.astype(int), np.ones((3, 3), int), mode="constant") - 1
+        ends = [(y, x) for y, x in zip(ys, xs) if nb[y, x] == 1]
+        rad = np.full(len(ys), float(rmin)); idx = {(y, x): i for i, (y, x) in enumerate(zip(ys, xs))}
+        if ends:
+            tip = max(ends, key=(lambda p: torso[p]) if arm else (lambda p: p[0]))     # main : le bout le plus loin du torse ; pied : le point le plus bas
+            r_tip, L = (rhand, hand_len) if arm else (rfoot, foot_len)
+            geo = {tip: 0}; q = [tip]
+            for p in q:                                                               # parcours en largeur le long du squelette
+                for dy in (-1, 0, 1):
+                    for dx in (-1, 0, 1):
+                        n2 = (p[0] + dy, p[1] + dx)
+                        if n2 in idx and n2 not in geo and geo[p] + 1 <= 2 * L: geo[n2] = geo[p] + (1.414 if dy and dx else 1); q.append(n2)
+            for p, g in geo.items():
+                if g < L: rad[idx[p]] = r_tip + (rmin - r_tip) * (g / L)
+                if not arm and g < 3 * L and g >= L: rad[idx[p]] = max(rmin, rankle) if g < 2 * L else rmin   # cheville : pas plus fine que rankle
+        thin = rad > dist[ys, xs] + 0.01
+        for r in sorted({round(float(v), 1) for v in rad[thin]}):
+            sel = thin & (np.round(rad, 1) == r)
+            pts = np.zeros_like(al); pts[ys[sel], xs[sel]] = True
+            added |= ndi.binary_dilation(pts, structure=disk(max(1, int(round(r)))))
+    new = added & ~al
+    if new.any():
+        _, (iy, ix) = ndi.distance_transform_edt(~al, return_indices=True)
+        out[new, :3] = arr[iy[new], ix[new], :3]; out[new, 3] = 255
+    return Image.fromarray(out, "RGBA")
