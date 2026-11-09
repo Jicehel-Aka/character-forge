@@ -49,6 +49,9 @@ table{border-collapse:collapse;width:100%;font-size:13px}td,th{border-bottom:1px
   <div class="row">
     <input type="file" id="files" accept="image/*" multiple hidden>
     <button class="primary" onclick="files.click()">Ouvrir des images…</button>
+    <input type="file" id="projfile" accept=".json,application/json" hidden>
+    <button id="saveproj" title="Enregistre images, détourages, marques, zones, armes, tenue dans un seul fichier">💾 Enregistrer le projet</button>
+    <button onclick="projfile.click()" title="Rouvre un projet enregistré">📂 Ouvrir un projet…</button>
     <a href="3d.html">Chaîne 3D &amp; liens</a>
     <button id="theme">Thème</button>
   </div>
@@ -135,6 +138,9 @@ table{border-collapse:collapse;width:100%;font-size:13px}td,th{border-bottom:1px
     <div class="row"><label class="chip"><input type="checkbox" id="showfit" checked> afficher les emplacements</label></div>
     <div id="gearlist"></div>
     <div id="gearres"></div>
+    <div class="row"><label class="chip"><input type="checkbox" id="drawcl" checked> dessiner la tenue sur l'image et le sprite</label></div>
+    <div id="clcolors" class="row"></div>
+    <p class="mute">Les vêtements sont tracés en aplats ombrés à partir des repères du corps : la tête doit être mesurée (onglet Armes) et l'axe du corps réglé. Formes schématiques ; couleurs modifiables ci-dessus.</p>
     <p class="mute">Valeurs = estimations (anatomie artistique, 7,5 têtes). La tête doit être mesurée (onglet Armes).</p>
   </div>
 
@@ -163,6 +169,10 @@ table{border-collapse:collapse;width:100%;font-size:13px}td,th{border-bottom:1px
   <div class="pane" id="p-cli">
     <h2>Exports et commandes</h2>
     <div class="row"><button id="dlprops">props.json</button><button id="dlparts">parts.json</button><button id="dlcut">Détourage PNG</button></div>
+    <h2>Recharger</h2>
+    <div class="row"><input type="file" id="reloadjson" accept=".json" multiple hidden><button onclick="reloadjson.click()">Importer props.json / parts.json</button>
+    <input type="file" id="reloadcut" accept="image/png" hidden><button onclick="reloadcut.click()">Recharger un détourage PNG sur cette vue</button></div>
+    <p class="mute">Les JSON sont appliqués aux vues de <b>même nom</b>. Le PNG remplace le détourage de la vue courante (même taille que l'image d'origine). Pour tout retrouver d'un coup, utilise « 💾 Enregistrer le projet » en haut.</p>
     <p class="mute">Lance ensuite sur ton PC (voir le README du dépôt) :</p>
     <pre id="cmds"></pre>
     <p class="mute">GPU gratuit pour la 3D : ouvre <code>notebooks/charactergen_colab.ipynb</code> dans Google Colab (non testé).</p>
@@ -170,6 +180,7 @@ table{border-collapse:collapse;width:100%;font-size:13px}td,th{border-bottom:1px
 </aside>
 </main>
 <script src="gear.js"></script>
+<script src="cloth.js"></script>
 <script>
 "use strict";
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -200,7 +211,7 @@ function select(i){cur=i;vinfo();const m=img();if(!m){$("#headpx").value="";rend
 function renderThumbs(){const t=$("#thumbs");t.innerHTML="";if(!imgs.length)return;imgs.forEach((m,i)=>{const d=document.createElement("div");d.className="thumb"+(i===cur?" on":"");
  const c=document.createElement("canvas");c.width=88;c.height=66;const x=c.getContext("2d"),r=Math.min(88/m.cut.width,66/m.cut.height);x.drawImage(m.cut,(88-m.cut.width*r)/2,(66-m.cut.height*r)/2,m.cut.width*r,m.cut.height*r);
  const xb=document.createElement("button");xb.textContent="✕";xb.title="Supprimer cette vue";xb.style.cssText="position:absolute;top:0;right:0;padding:0 5px;line-height:18px;font-size:12px";xb.onclick=ev=>{ev.stopPropagation();delView(i)};d.style.position="relative";const nm=document.createElement("span");nm.className="nm";nm.textContent=m.name;const no=document.createElement("span");no.className="no";no.textContent=i+1;d.title=(i+1)+" · "+m.name;d.append(c,nm,no,xb);d.onclick=()=>select(i);t.append(d)})}
-function bboxOf(m){const c=m.cut,d=c.getContext("2d").getImageData(0,0,c.width,c.height).data;let x0=c.width,y0=c.height,x1=0,y1=0;
+function bboxOf(m,cv){const c=cv||m.cut,d=c.getContext("2d").getImageData(0,0,c.width,c.height).data;let x0=c.width,y0=c.height,x1=0,y1=0;
  for(let y=0;y<c.height;y++)for(let x=0;x<c.width;x++)if(d[(y*c.width+x)*4+3]>0){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}
  return x1<x0?{x:0,y:0,w:c.width,h:c.height}:{x:x0,y:y0,w:x1-x0+1,h:y1-y0+1}}
 
@@ -211,8 +222,8 @@ function setBg(m,c){m.bg=c;const h="#"+c.map(v=>Math.round(v).toString(16).padSt
 $("#bgcol").oninput=e=>{const m=img();if(m)setBg(m,hex2(e.target.value))};
 $("#bgauto").onclick=()=>{const m=img();if(!m)return;m.bg=null;$("#bgsw").style.background="";$("#bginfo").textContent="auto (4 coins)"};
 /* historique : un cliché de l'alpha + zones avant chaque opération */
-function snap(m){const c=m.cut;m.hist.push({d:c.getContext("2d").getImageData(0,0,c.width,c.height),erase:m.erase.map(r=>r.slice()),parts:JSON.parse(JSON.stringify(m.parts))});if(m.hist.length>25)m.hist.shift();m.redo=[]}
-function restore(m,from,to){const s0=from.pop();if(!s0)return false;const c=m.cut,x=c.getContext("2d");to.push({d:x.getImageData(0,0,c.width,c.height),erase:m.erase.map(r=>r.slice()),parts:JSON.parse(JSON.stringify(m.parts))});x.putImageData(s0.d,0,0);m.erase=s0.erase;m.parts=s0.parts;return true}
+function snap(m){m.stamp=(m.stamp||0)+1;const c=m.cut;m.hist.push({d:c.getContext("2d").getImageData(0,0,c.width,c.height),erase:m.erase.map(r=>r.slice()),parts:JSON.parse(JSON.stringify(m.parts))});if(m.hist.length>25)m.hist.shift();m.redo=[]}
+function restore(m,from,to){const s0=from.pop();if(!s0)return false;m.stamp=(m.stamp||0)+1;const c=m.cut,x=c.getContext("2d");to.push({d:x.getImageData(0,0,c.width,c.height),erase:m.erase.map(r=>r.slice()),parts:JSON.parse(JSON.stringify(m.parts))});x.putImageData(s0.d,0,0);m.erase=s0.erase;m.parts=s0.parts;return true}
 function undo(){const m=img();if(m&&restore(m,m.hist,m.redo)){renderZones();renderThumbs();redraw();cli();status("Annulé.")}else status("Rien à annuler.")}
 function redo(){const m=img();if(m&&restore(m,m.redo,m.hist)){renderZones();renderThumbs();redraw();cli();status("Rétabli.")}}
 $("#undo").onclick=undo;$("#redo").onclick=redo;
@@ -260,6 +271,17 @@ $("#delall").onclick=()=>{imgs.length=0;select(-1)};
 function cropView(m,r){const[x,y,w,h]=r,mk=src=>{const c=document.createElement("canvas");c.width=w;c.height=h;c.getContext("2d").drawImage(src,x,y,w,h,0,0,w,h);return c};
  imgs.splice(cur+1,0,{name:m.name.replace(/(\.[^.]*)?$/,"")+"#"+(imgs.filter(i=>i.name.startsWith(m.name.replace(/(\.[^.]*)?$/,"")+"#")).length+1),orig:mk(m.orig),cut:mk(m.cut),hasAlpha:m.hasAlpha,view:"unknown",head:0,headTop:null,cx:0,props:[],erase:[],parts:{},attrs:"",sel:-1,spr:null,hist:[],redo:[],bg:m.bg});select(cur+1);status("Nouvelle vue découpée ("+w+"×"+h+"). L'image d'origine reste intacte.")}
 
+/* ---------- vêtements dessinés ---------- */
+const CC={};
+function clothKey(m){return JSON.stringify([checked(),CC,m.head,m.headTop,+$("#cx").value||m.cx,$("#build").value,m.stamp||0,$("#drawcl")?.checked])}
+function composed(m){if(!window.CLOTH||!$("#drawcl")||!$("#drawcl").checked||!m.head||!checked().length)return m.cut;
+ const k=clothKey(m);if(m._ck===k&&m._cc)return m._cc;let L=null;try{L=CLOTH.compose(m,checked(),CC,{cx:+$("#cx").value||m.cx,build:$("#build").value})}catch(e){console.error(e)}
+ if(!L){m._ck=k;m._cc=m.cut;return m.cut}
+ const c=document.createElement("canvas");c.width=m.cut.width;c.height=m.cut.height;const x=c.getContext("2d");x.drawImage(L.behind,0,0);x.drawImage(m.cut,0,0);x.drawImage(L.front,0,0);m._ck=k;m._cc=c;return c}
+function clothColors(){const G=window.GEAR,box=$("#clcolors");if(!box||!G)return;box.innerHTML=checked().map(n=>`<label class="chip">${n} <input type="color" data-cc="${n}" value="${CC[n]||CLOTH.defColor(n,G.catalog[n])}"></label>`).join("");
+ box.querySelectorAll("[data-cc]").forEach(i=>i.oninput=()=>{CC[i.dataset.cc]=i.value;redraw()})}
+if($("#drawcl"))$("#drawcl").onchange=()=>{redraw()};
+
 /* ---------- affichage ---------- */
 let scale=1;
 function status(t){$("#status").textContent=t}
@@ -268,7 +290,7 @@ function redraw(){const m=img();if(!m){sctx.clearRect(0,0,stage.width,stage.heig
  stage.width=Math.round(m.cut.width*scale);stage.height=Math.round(m.cut.height*scale);sctx.clearRect(0,0,stage.width,stage.height);
  sctx.save();sctx.scale(scale,scale);
  sctx.imageSmoothingEnabled=true;
- drawProps(sctx,m,"behind");sctx.drawImage(m.cut,0,0);drawProps(sctx,m,"front");if(m.marks){sctx.globalAlpha=.55;sctx.drawImage(m.marks,0,0);sctx.globalAlpha=1}
+ drawProps(sctx,m,"behind");sctx.drawImage(composed(m),0,0);drawProps(sctx,m,"front");if(m.marks){sctx.globalAlpha=.55;sctx.drawImage(m.marks,0,0);sctx.globalAlpha=1}
  sctx.lineWidth=1/scale;
  sctx.strokeStyle="#e5484d";sctx.fillStyle="rgba(229,72,77,.18)";m.erase.forEach(b=>{sctx.fillRect(...b);sctx.strokeRect(...b)});
  sctx.strokeStyle="#3b82f6";sctx.fillStyle="#3b82f6";sctx.font=(12/scale)+"px system-ui";
@@ -312,7 +334,7 @@ stage.addEventListener("pointerdown",e=>{const m=img();if(!m)return;const p=pos(
 stage.addEventListener("pointermove",e=>{const m=img();if(!m||!drag)return;const p=pos(e);if(drag.t==="erase"||drag.t==="restore"){brush(m,p,drag.t)}else if(drag.t==="mark-fg"||drag.t==="mark-bg"){paintMark(m,p,drag.t)}else if(drag.t==="lasso-erase"||drag.t==="lasso-keep"){drag.pts.push(p);redraw();sctx.save();sctx.scale(scale,scale);sctx.strokeStyle=drag.t==="lasso-keep"?"#3ddc84":"#e5484d";sctx.lineWidth=2/scale;sctx.setLineDash([6/scale,4/scale]);sctx.beginPath();drag.pts.forEach((q,i)=>i?sctx.lineTo(q[0],q[1]):sctx.moveTo(q[0],q[1]));sctx.closePath();sctx.stroke();sctx.restore()}else{drag.cur=p;redraw();sctx.save();sctx.scale(scale,scale);sctx.strokeStyle="#fff";sctx.lineWidth=1/scale;const[x,y,w,h]=rect(drag.s,drag.cur);sctx.strokeRect(x,y,w,h);sctx.restore()}});
 stage.addEventListener("pointerup",e=>{const m=img();if(!m||!drag)return;if(drag.t==="lasso-erase"||drag.t==="lasso-keep"){applyLasso(m,drag.pts,drag.t==="lasso-keep");drag=null;renderThumbs();redraw();status("Tracé appliqué. ↶ pour annuler.");return}
 if(drag.t==="crop"){const r=rect(drag.s,drag.cur).map(Math.round);drag=null;if(r[2]>8&&r[3]>8)cropView(m,r);return}
-if(drag.t==="erase-rect"||drag.t==="part-rect"){const r=rect(drag.s,drag.cur).map(Math.round);if(r[2]>3&&r[3]>3){if(drag.t==="erase-rect"){snap(m);m.erase.push(r);m.cut.getContext("2d").clearRect(...r)}else m.parts[$("#partname").value||"part"]=r}renderZones();cli()}drag=null;renderThumbs();redraw()});
+if(drag.t==="erase-rect"||drag.t==="part-rect"){const r=rect(drag.s,drag.cur).map(Math.round);if(r[2]>3&&r[3]>3){if(drag.t==="erase-rect"){snap(m);m.erase.push(r);m.cut.getContext("2d").clearRect(...r)}else m.parts[$("#partname").value||"part"]=r}renderZones();cli()}if(m)m.stamp=(m.stamp||0)+1;drag=null;renderThumbs();redraw()});
 const rect=(a,b)=>[Math.min(a[0],b[0]),Math.min(a[1],b[1]),Math.abs(a[0]-b[0]),Math.abs(a[1]-b[1])];
 function brush(m,p,t){const r=+$("#brush").value/scale,x=m.cut.getContext("2d");x.save();x.beginPath();x.arc(p[0],p[1],r,0,7);if(t==="erase"){x.globalCompositeOperation="destination-out";x.fill()}else{x.clip();x.drawImage(m.orig,0,0)}x.restore();redraw()}
 function renderZones(){const m=img(),z=$("#zones");if(!m){z.innerHTML="";return}z.innerHTML=(m.erase.length?"<b>Zones à effacer</b> : "+m.erase.map((b,i)=>`[${b}] <a href="#" data-e="${i}">✕</a>`).join(" "):"")+
@@ -361,7 +383,7 @@ function validate(outfit){const G=window.GEAR,err=[],warn=[],names=outfit.filter
  if(!names.some(n=>G.catalog[n].covers.some(z=>["hips","thighs"].includes(z))))warn.push("bassin non couvert (pantalon, jupe, robe, short)");
  const mass=names.reduce((a,n)=>a+G.catalog[n].mass_kg,0),prot=names.reduce((a,n)=>a+G.catalog[n].protection,0);if(mass>25)warn.push(`masse ${mass.toFixed(1)} kg : charge lourde`);
  return{err:[...new Set(err)],warn,mass,prot}}
-function renderGear(){if(!window.GEAR||!$("#gearres"))return;const r=validate(checked());
+function renderGear(){if(!window.GEAR||!$("#gearres"))return;clothColors();const r=validate(checked());
  $("#gearres").innerHTML=`<p><b>${checked().length}</b> objet(s) · ${r.mass.toFixed(1)} kg · protection ${r.prot}</p>`+
  (r.err.length?`<ul class="l bad">${r.err.map(e=>`<li>${e}</li>`).join("")}</ul>`:checked().length?'<p class="ok">Tenue cohérente.</p>':"")+(r.warn.length?`<ul class="l warn">${r.warn.map(e=>`<li>${e}</li>`).join("")}</ul>`:"")}
 
@@ -370,8 +392,8 @@ function medianCut(px,n){let boxes=[px];while(boxes.length<n){boxes.sort((a,b)=>
  const rg=[0,1,2].map(k=>{let lo=255,hi=0;b.forEach(p=>{if(p[k]<lo)lo=p[k];if(p[k]>hi)hi=p[k]});return hi-lo}),k=rg.indexOf(Math.max(...rg));b.sort((p,q)=>p[k]-q[k]);const h=b.length>>1;boxes.push(b.slice(0,h),b.slice(h))}
  return boxes.filter(b=>b&&b.length).map(b=>[0,1,2].map(k=>Math.round(b.reduce((a,p)=>a+p[k],0)/b.length)))}
 const to565=(r,g,b)=>((r>>3)<<11)|((g>>2)<<5)|(b>>3);
-$("#mksprite").onclick=()=>{const m=img();if(!m)return;const bb=bboxOf(m),h=+$("#sh").value,w=Math.max(1,Math.round(bb.w*h/bb.h)),b=+$("#sb").value;
- const c=document.createElement("canvas");c.width=w;c.height=h;const x=c.getContext("2d");x.imageSmoothingQuality="high";x.drawImage(m.cut,bb.x,bb.y,bb.w,bb.h,0,0,w,h);
+$("#mksprite").onclick=()=>{const m=img();if(!m)return;const CV=composed(m),bb=bboxOf(m,CV),h=+$("#sh").value,w=Math.max(1,Math.round(bb.w*h/bb.h)),b=+$("#sb").value;
+ const c=document.createElement("canvas");c.width=w;c.height=h;const x=c.getContext("2d");x.imageSmoothingQuality="high";x.drawImage(CV,bb.x,bb.y,bb.w,bb.h,0,0,w,h);
  const d=x.getImageData(0,0,w,h),a=d.data,pix=[];
  for(let i=0;i<a.length;i+=4){a[i+3]=a[i+3]>=128?255:0;if(!a[i+3])continue;let r=a[i],g=a[i+1],bl=a[i+2];
   const lum=.299*r+.587*g+.114*bl,sat=1+.35*b,con=1+.25*b;[r,g,bl]=[r,g,bl].map(v=>{v=lum+(v-lum)*sat;v=(v-128)*con+128;v=255*Math.pow(Math.max(0,Math.min(255,v))/255,1-.12*b);return Math.max(0,Math.min(255,v))});
@@ -433,6 +455,25 @@ function partsJson(){const o={};imgs.forEach(m=>{if(Object.keys(m.parts).length)
 $("#dlprops").onclick=()=>dl("props.json",JSON.stringify(propsJson(),null,1));
 $("#dlparts").onclick=()=>dl("parts.json",JSON.stringify(partsJson(),null,1));
 $("#dlcut").onclick=()=>{const m=img();if(m)m.cut.toBlob(b=>dl(m.name.replace(/\.[^.]+$/,"")+"_cutout.png",b))};
+/* ---------- projet : enregistrer / rouvrir ---------- */
+const toURL=c=>c.toDataURL("image/png"),fromURL=u=>new Promise((res,rej)=>{const i=new Image();i.onload=()=>{const c=document.createElement("canvas");c.width=i.naturalWidth;c.height=i.naturalHeight;c.getContext("2d").drawImage(i,0,0);res(c)};i.onerror=rej;i.src=u});
+$("#saveproj").onclick=()=>{if(!imgs.length){status("Rien à enregistrer.");return}
+ const P={v:1,saved:new Date().toISOString(),cur,gear:{checked:checked(),build:$("#build").value,cx:$("#cx").value,colors:CC,draw:$("#drawcl").checked},
+  imgs:imgs.map(m=>({name:m.name,view:m.view,head:m.head,headTop:m.headTop,cx:m.cx,props:m.props,erase:m.erase,parts:m.parts,attrs:m.attrs,hasAlpha:m.hasAlpha,orig:toURL(m.orig),cut:toURL(m.cut),marks:m.marks?toURL(m.marks):null}))};
+ dl("projet_forge.json",JSON.stringify(P),"application/json");status("Projet enregistré ("+imgs.length+" vue(s)). Rouvre-le avec « 📂 Ouvrir un projet ».")};
+$("#projfile").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;try{const P=JSON.parse(await f.text());if(!P.imgs)throw 0;
+ imgs.length=0;for(const o of P.imgs){imgs.push({name:o.name,view:o.view||"unknown",head:o.head||0,headTop:o.headTop??null,cx:o.cx||0,props:o.props||[],erase:o.erase||[],parts:o.parts||{},attrs:o.attrs||"",hasAlpha:!!o.hasAlpha,sel:-1,spr:null,hist:[],redo:[],bg:null,orig:await fromURL(o.orig),cut:await fromURL(o.cut),marks:o.marks?await fromURL(o.marks):null})}
+ const g=P.gear||{};$$("[data-g]").forEach(c=>c.checked=(g.checked||[]).includes(c.dataset.g));if(g.build)$("#build").value=g.build;if(g.cx)$("#cx").value=g.cx;Object.keys(CC).forEach(k=>delete CC[k]);Object.assign(CC,g.colors||{});$("#drawcl").checked=g.draw!==false;
+ select(Math.min(P.cur||0,imgs.length-1));if(g.cx)$("#cx").value=g.cx;renderGear();redraw();status("Projet rouvert : "+imgs.length+" vue(s).")}catch(err){status("Fichier projet illisible.")}};
+$("#reloadjson").onchange=async e=>{const fs=[...e.target.files];e.target.value="";let n=0,miss=[];for(const f of fs){let J;try{J=JSON.parse(await f.text())}catch{status("« "+f.name+" » illisible.");continue}
+ for(const[name,v]of Object.entries(J)){const m=imgs.find(x=>x.name===name);if(!m){miss.push(name);continue}n++;
+  if(v.person?.head)m.head=v.person.head;if(v.erase)m.erase=v.erase;if(v.props)m.props=v.props.map(p=>({layer:"behind",...p}));
+  if(!v.person&&!v.erase&&!v.props&&!Array.isArray(v)&&typeof v==="object")m.parts=v}}
+ select(cur);status(n+" entrée(s) appliquée(s)."+(miss.length?" Sans vue du même nom : "+miss.join(", ")+" (renomme la vue puis réimporte).":""))};
+$("#reloadcut").onchange=async e=>{const f=e.target.files[0];e.target.value="";const m=img();if(!f||!m)return;const c=await fromURL(URL.createObjectURL(f));
+ if(c.width!==m.orig.width||c.height!==m.orig.height){status("Taille différente ("+c.width+"×"+c.height+" au lieu de "+m.orig.width+"×"+m.orig.height+") : ouvre-le plutôt comme nouvelle image (Ouvrir des images).");return}
+ snap(m);m.cut.getContext("2d").clearRect(0,0,c.width,c.height);m.cut.getContext("2d").drawImage(c,0,0);renderThumbs();redraw();status("Détourage rechargé (↶ pour annuler).")};
+addEventListener("beforeunload",e=>{if(imgs.length){e.preventDefault();e.returnValue=""}});
 function cli(){const c=$("#cmds");if(!c)return;const m=img(),n=m?m.name:"image.png",g=checked();
  c.textContent=[`# rendu avec armes et zones (props.json / parts.json exportés ci-dessus)`,`python -m forge extract ${n} --segment --props props.json --parts parts.json -o sortie`,
  g.length?`# tenue\npython -m forge gear check ${g.join(" ")}`:"",`# plusieurs photos\npython -m forge consolidate analyze manifest.json --decisions decisions.json`,
