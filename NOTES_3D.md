@@ -264,3 +264,9 @@ séparés, sans squelette ni clip -> à ré-animer via un clip Mixamo (retargeti
 hache (-x) et bouclier (+x) séparés, attachés à la main droite / l'avant-bras gauche ; corps skinné par poids kNN copiés du maillage Mixamo
 (mise à l'échelle par hauteur) ; clips Mixamo embarqués (mêmes noms d'os). Rendu : `forge meshy viking_rigged.glb --anim Combo_Punch ...`.
 Limites : poids approximatifs (cape/armure près du torse), pas de doigts (squelette 25 os).
+
+## Scorpion / FBX Character Creator (réparations du rendu meshy)
+- axe vertical détecté depuis les os tête/pied (rigs Z-up), meshes à positions NaN retirés, clips filtrés (position+quaternion seulement :
+  morph targets et échelle donnaient des NaN), attente du décodage des textures embarquées, matériaux sans texture (chemins Windows externes) -> gris clair opaque.
+- Scorpion_fbx.Fbx : textures non fournies dans l'archive (références C:\Users\...\CharacterCreator4Temp\...) -> rendu gris tant qu'on ne les a pas.
+- Orc Warrior : `--texture texture_pbr_v128.png` OK (albédo ; metallic/roughness/normal non utilisés).

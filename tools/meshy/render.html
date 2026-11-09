@@ -11,7 +11,14 @@ import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 async function load(url){
   const ext = url.split('?')[0].split('.').pop().toLowerCase();
   if (ext==='glb'||ext==='gltf'){ const g = await new GLTFLoader().loadAsync(url); return {root:g.scene, clips:g.animations}; }
-  if (ext==='fbx'){ const o = await new FBXLoader().loadAsync(url); return {root:o, clips:o.animations||[]}; }
+  if (ext==='fbx'){ const o = await new FBXLoader().loadAsync(url);
+    // textures embarquées : décodage asynchrone, on attend qu'elles soient prêtes
+    const ims=[]; o.traverse(n=>{ if(n.isMesh) [].concat(n.material).forEach(m=>{ for(const k of ['map','normalMap','emissiveMap','specularMap']) if(m[k]&&m[k].image) ims.push([m[k],m[k].image]); }); });
+    for(let t=0;t<100;t++){ if(ims.every(([tx,im])=>(im.width||im.naturalWidth)>0 || im.complete&&im.naturalWidth>0)) break; await new Promise(r=>setTimeout(r,100)); }
+    ims.forEach(([tx])=>{ tx.needsUpdate=true; });
+    // matériaux sans texture exploitable (chemins Windows externes) : noir -> gris clair pour garder le volume lisible
+    o.traverse(n=>{ if(n.isMesh) [].concat(n.material).forEach(m=>{ const ok=m.map&&m.map.image&&(m.map.image.width>0); if(!ok){ m.map=null; if(m.color&&m.color.getHex()<0x181818) m.color.set(0xb8b0a8); m.transparent=false; m.opacity=1; m.alphaMap=null; m.alphaTest=0; m.side=THREE.DoubleSide; m.needsUpdate=true; } }); });
+    return {root:o, clips:o.animations||[]}; }
   if (ext==='obj'){ const o = await new OBJLoader().loadAsync(url); return {root:o, clips:[]}; }
   throw new Error('format non géré: '+ext);
 }
@@ -29,6 +36,13 @@ window.render = async (o)=>{
   const renderer = new THREE.WebGLRenderer({antialias:true, alpha:true, preserveDrawingBuffer:true});
   renderer.setSize(S,S,false); renderer.setPixelRatio(1); renderer.setClearColor(0x000000,0); renderer.outputColorSpace = THREE.SRGBColorSpace;
   document.body.appendChild(renderer.domElement);
+  // maillages à positions NaN (ex. langue CC) : on les retire, sinon toute boîte englobante devient NaN
+  { const bad=[]; root.traverse(n=>{ if(n.isMesh){ const a=n.geometry.attributes.position.array; for(let i=0;i<a.length;i+=Math.max(3,Math.floor(a.length/60)*3||3)) if(!isFinite(a[i])){ bad.push(n); break; } } }); bad.forEach(n=>n.parent&&n.parent.remove(n)); window._removed=bad.length; }
+  // axe vertical : pieds -> tête sur les os (rigs CC / Blender souvent Z-up)
+  root.updateMatrixWorld(true); { let hd=null, ft=null; root.traverse(n=>{ if(!n.isBone) return; if(!hd&&/head/i.test(n.name)&&!/headtop|end/i.test(n.name)) hd=n; if(!ft&&/(foot|ankle)/i.test(n.name)&&!/toe/i.test(n.name)) ft=n; });
+    if(hd&&ft&&!o.noup){ const a=new THREE.Vector3().setFromMatrixPosition(hd.matrixWorld), b=new THREE.Vector3().setFromMatrixPosition(ft.matrixWorld), d=a.sub(b), ax=Math.abs(d.x)>Math.abs(d.y)&&Math.abs(d.x)>Math.abs(d.z)?'x':Math.abs(d.z)>Math.abs(d.y)?'z':'y';
+      if(ax==='z') root.rotation.x += d.z>0? -Math.PI/2 : Math.PI/2; else if(ax==='x') root.rotation.z += d.x>0? Math.PI/2 : -Math.PI/2; else if(d.y<0) root.rotation.x += Math.PI;
+      window._upaxis=ax; root.updateMatrixWorld(true); } }
   // normalisation d'échelle : étendue des os (fiable pour Mixamo en cm / armature à l'échelle 0.01)
   root.updateMatrixWorld(true); { const bb=new THREE.Box3(); let nb=0; root.traverse(n=>{ if(n.isBone){ bb.expandByPoint(new THREE.Vector3().setFromMatrixPosition(n.matrixWorld)); nb++; } });
     const bs=new THREE.Vector3(); bb.getSize(bs); const ref = nb? Math.max(bs.x,bs.y,bs.z) : 0; window._bones=nb; window._bs=[bs.x,bs.y,bs.z];
@@ -39,7 +53,7 @@ window.render = async (o)=>{
   scene.add(new THREE.HemisphereLight(0xffffff, 0x8890a0, o.ambient ?? 1.1));
   const sun = new THREE.DirectionalLight(0xffffff, o.sun ?? 1.6); sun.position.set(-0.55,1.0,0.45).multiplyScalar(10); scene.add(sun);
   let mixer=null, clip=null;
-  if (o.anim){ clip = clips.find(c=>c.name===o.anim) || clips[0]; if (clip){ mixer=new THREE.AnimationMixer(root); mixer.clipAction(clip).play(); } }
+  if (o.anim){ clip = clips.find(c=>c.name===o.anim) || clips[0]; if (clip){ clip.tracks = clip.tracks.filter(t=>/\.(position|quaternion)$/.test(t.name) && !Array.from(t.values).some(x=>!isFinite(x))); /* retire morph/échelle/NaN */ mixer=new THREE.AnimationMixer(root); mixer.clipAction(clip).play(); } }
   // cadrage : boîte englobante sur toute l'animation (échantillonnée), pieds au sol, centré
   const N = Math.max(1, o.frames||1); const times=[...Array(N).keys()].map(i=> clip? (i/N)*clip.duration : 0);
   let lo=new THREE.Vector3(1e9,1e9,1e9), hi=new THREE.Vector3(-1e9,-1e9,-1e9);
