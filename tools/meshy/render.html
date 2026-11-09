@@ -48,6 +48,9 @@ window.render = async (o)=>{
   root.updateMatrixWorld(true); { const bb=new THREE.Box3(); let nb=0; root.traverse(n=>{ if(n.isBone){ bb.expandByPoint(new THREE.Vector3().setFromMatrixPosition(n.matrixWorld)); nb++; } });
     const bs=new THREE.Vector3(); bb.getSize(bs); const ref = nb? Math.max(bs.x,bs.y,bs.z) : 0; window._bones=nb; window._bs=[bs.x,bs.y,bs.z];
     if(ref>0){ root.scale.multiplyScalar(2.0/ref); } else { const b=new THREE.Box3().setFromObject(root,true), z=new THREE.Vector3(); b.getSize(z); root.scale.multiplyScalar(2.0/Math.max(z.x,z.y,z.z)); } root.updateMatrixWorld(true); }
+  if (o.texmap){ const tl=new THREE.TextureLoader(), cache={};
+    for(const [k,f] of Object.entries(o.texmap)){ cache[k]=await tl.loadAsync(f); cache[k].colorSpace=THREE.SRGBColorSpace; }
+    root.traverse(n=>{ if(n.isMesh) [].concat(n.material).forEach(m=>{ if(/outline/i.test(m.name)){ m.visible=false; return; } const t=cache[m.name]; if(t){ m.map=t; m.color&&m.color.set(0xffffff); m.transparent=false; m.alphaMap=null; if('metalness' in m){m.metalness=0; m.roughness=0.9;} m.needsUpdate=true; } else if(/hair/i.test(m.name)&&!(m.map&&m.map.image)){ m.color&&m.color.set(0x2a1c18); } }); }); }
   if (o.texture){ const tex=await new THREE.TextureLoader().loadAsync(o.texture); tex.colorSpace=THREE.SRGBColorSpace; tex.flipY=(o.flipy??true);
     root.traverse(n=>{ if(n.isMesh){ [].concat(n.material).forEach(m=>{ m.map=tex; m.color&&m.color.set(0xffffff); if("metalness" in m){m.metalness=0; m.roughness=0.9;} m.needsUpdate=true; }); } }); }
   const scene = new THREE.Scene(); const pivot = new THREE.Group(); scene.add(pivot); pivot.add(root);

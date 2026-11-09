@@ -280,3 +280,7 @@ Textures absentes des archives -> rendu gris (sauf Orc).
 FBXLoader charge les images embarquées de façon asynchrone (`texture.image` indéfini au retour) ; on attend maintenant `image.width>0` sur chaque texture
 (et plus seulement sur celles déjà chargées), sinon elles étaient remplacées par le gris de repli. Textures retrouvées : orc, scorpion, sophia, manuel, cocomyos, FBX.fbm (Goku-like).
 Sans texture réelle (références externes) : dwarf, arqueira, dancing girl, NUG.
+
+## --texdir
+`forge meshy modèle.fbx --texdir DOSSIER` associe chaque matériau à l'image diffuse/base color dont le nom contient le nom du matériau ; matériaux « Outline » masqués, cheveux sans texture en brun sombre.
+Dancing Girl : Cloth/Skin/Eyes_Mtl trouvés (Hair sans texture fournie).

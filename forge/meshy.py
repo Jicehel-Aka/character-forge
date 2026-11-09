@@ -45,7 +45,7 @@ class Session:
     def inspect(self): return self.page.evaluate("u => window.inspect(u)", self.name)
 
     def render(self, size, dirs, anim=None, frames=1, yaw_offset=0, **kw):
-        opt = dict(url=self.name, size=size, dirs=[{"name": d, "yaw": DIRS[d] + yaw_offset} for d in dirs], anim=anim, frames=frames, texture=self.texture, **kw)
+        opt = dict(url=self.name, size=size, dirs=[{"name": d, "yaw": DIRS[d] + yaw_offset} for d in dirs], anim=anim, frames=frames, texture=self.texture, texmap=getattr(self, 'texmap', None), **kw)
         res = self.page.evaluate("o => window.render(o)", opt)
         out = {}
         for f in res["frames"]:
@@ -57,8 +57,27 @@ class Session:
         finally: shutil.rmtree(self.tmp, ignore_errors=True)
 
 
+def texmap_from_dir(session, texdir):
+    """Associe chaque matériau du modèle à une image 'diffuse/base color' du dossier (nom du matériau contenu dans le nom du fichier)."""
+    import re
+    norm = lambda t: re.sub(r"[^a-z0-9]", "", t.lower())
+    bad = re.compile(r"normal|opacity|ambient|occlusion|specular|shadow|rough|metal|height|bump|mask", re.I)
+    cands = [p for p in Path(texdir).rglob("*") if p.suffix.lower() in (".png", ".jpg", ".jpeg") and not bad.search(p.name)]
+    out = {}
+    for m in session.inspect()["materials"]:
+        nm = norm(m)
+        if not nm or nm == "outline": continue
+        hit = [p for p in cands if nm in norm(p.name)]
+        hit.sort(key=lambda p: (not re.search(r"diffuse|basecolor|base_color|albedo", p.name, re.I), len(p.name)))
+        if hit:
+            dst = f"tex_{len(out)}{hit[0].suffix.lower()}"; shutil.copy(hit[0], session.tmp / dst); out[m] = dst
+    return out
+
+
 def cmd(a):
     s = Session(a.model, getattr(a, 'texture', None))
+    if getattr(a, 'texdir', None):
+        s.texmap = texmap_from_dir(s, a.texdir); print(f"[meshy] textures associées : {s.texmap}")
     try:
         if a.info:
             i = s.inspect(); print(json.dumps(i, indent=1, ensure_ascii=False)); return 0
