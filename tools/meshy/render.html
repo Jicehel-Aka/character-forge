@@ -169,8 +169,18 @@ window.rig = async (o)=>{
   let vlo=1e9,vhi=-1e9; for(let i=0;i<n;i++) if(part(i)==='body'){ vlo=Math.min(vlo,P.getY(i)); vhi=Math.max(vhi,P.getY(i)); }
   sm0.geometry.computeBoundingBox(); const bb=sm0.geometry.boundingBox, r=(bb.max.y-bb.min.y)/(vhi-vlo);
   const map=(x,y,z)=>[x*r, (y-vlo)*r+bb.min.y, z*r];
+  // pose A : on baisse les bras du squelette de référence (angle sous l'horizontale) ; les poids viennent du maillage posé,
+  // et le modèle est "dé-posé" en T par le champ de déplacement (posé -> repos) du maillage de référence
+  const RT=sm0.geometry.attributes.position; let POSED=null, DISP=null;
+  if(o.armDown){ const a=o.armDown*Math.PI/180; const bn=nm=>{let b; sm0.skeleton.bones.forEach(x=>{ if(x.name===nm) b=x; }); return b;};
+    for(const [nm,sg] of [['mixamorigLeftArm',-1],['mixamorigRightArm',1]]){ const b=bn(nm); if(!b) continue; sm0.updateMatrixWorld(true);
+      const wq=new THREE.Quaternion(); b.getWorldQuaternion(wq); const pq=new THREE.Quaternion(); b.parent.getWorldQuaternion(pq);
+      const dq=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1), sg*a); const nq=dq.multiply(wq); b.quaternion.copy(pq.invert().multiply(nq)); }
+    sm0.updateMatrixWorld(true); sm0.skeleton.update(); POSED=new Float32Array(RT.count*3); DISP=new Float32Array(RT.count*3); const tv=new THREE.Vector3();
+    for(let i=0;i<RT.count;i++){ sm0.applyBoneTransform(i,tv.set(RT.getX(i),RT.getY(i),RT.getZ(i))); POSED[3*i]=tv.x; POSED[3*i+1]=tv.y; POSED[3*i+2]=tv.z; DISP[3*i]=RT.getX(i)-tv.x; DISP[3*i+1]=RT.getY(i)-tv.y; DISP[3*i+2]=RT.getZ(i)-tv.z; } }
+  const RPg=sm0.geometry.attributes.position, RP={count:RPg.count, getX:i=>POSED?POSED[3*i]:RPg.getX(i), getY:i=>POSED?POSED[3*i+1]:RPg.getY(i), getZ:i=>POSED?POSED[3*i+2]:RPg.getZ(i)};
   // grille des sommets de référence
-  const RP=sm0.geometry.attributes.position, RI=sm0.geometry.attributes.skinIndex, RW=sm0.geometry.attributes.skinWeight, C=2.5, grid=new Map(), gk=(a,b,c)=>a+','+b+','+c;
+  const RI=sm0.geometry.attributes.skinIndex, RW=sm0.geometry.attributes.skinWeight, C=2.5, grid=new Map(), gk=(a,b,c)=>a+','+b+','+c;
   for(let i=0;i<RP.count;i++){ const k=gk(Math.floor(RP.getX(i)/C),Math.floor(RP.getY(i)/C),Math.floor(RP.getZ(i)/C)); let l=grid.get(k); if(!l){l=[];grid.set(k,l);} l.push(i); }
   const nb=sm0.skeleton.bones.length, K=o.knn??8;
   function weights(x,y,z){ const cx=Math.floor(x/C),cy=Math.floor(y/C),cz=Math.floor(z/C); let best=[];
@@ -178,11 +188,14 @@ window.rig = async (o)=>{
     best.sort((p,q)=>p[0]-q[0]); best=best.slice(0,K); const acc=new Float32Array(nb);
     for(const [d2,j] of best){ const w=1/(d2+0.5); for(let k=0;k<4;k++) acc[RI.getComponent(j,k)] += w*RW.getComponent(j,k); }
     const top=[...acc.keys()].sort((a,b)=>acc[b]-acc[a]).slice(0,4); let sum=top.reduce((s,b)=>s+acc[b],0)||1; return top.map(b=>[b,acc[b]/sum]); }
+  function disp(x,y,z){ const cx=Math.floor(x/C),cy=Math.floor(y/C),cz=Math.floor(z/C); let best=[];
+    for(let R=1;R<=4 && best.length<K;R++){ best=[]; for(let a=-R;a<=R;a++)for(let b=-R;b<=R;b++)for(let c=-R;c<=R;c++){ const l=grid.get(gk(cx+a,cy+b,cz+c)); if(!l) continue; for(const j of l){ const dx=RP.getX(j)-x,dy=RP.getY(j)-y,dz=RP.getZ(j)-z; best.push([dx*dx+dy*dy+dz*dz,j]); } } }
+    best.sort((p,q)=>p[0]-q[0]); best=best.slice(0,K); let sw_=0,ax=0,ay=0,az=0; for(const [d2,j] of best){ const w=1/(d2+0.5); sw_+=w; ax+=w*DISP[3*j]; ay+=w*DISP[3*j+1]; az+=w*DISP[3*j+2]; } sw_=sw_||1; return [ax/sw_,ay/sw_,az/sw_]; }
   // géométrie du corps
   const remap=new Map(), pos=[], nor=[], uv=[], col=[], si=[], sw=[], bidx=[];
   const take=i=>{ let k=remap.get(i); if(k!==undefined) return k; k=pos.length/3; remap.set(i,k);
-    const [x,y,z]=map(P.getX(i),P.getY(i),P.getZ(i)); pos.push(x,y,z); nor.push(N.getX(i),N.getY(i),N.getZ(i)); if(UV) uv.push(UV.getX(i),1-UV.getY(i)); if(COL) col.push(COL.getX(i),COL.getY(i),COL.getZ(i));
-    const w=weights(x,y,z); for(let q=0;q<4;q++){ si.push(w[q]?w[q][0]:0); sw.push(w[q]?w[q][1]:0); } return k; };
+    let [x,y,z]=map(P.getX(i),P.getY(i),P.getZ(i)); const w=weights(x,y,z); if(DISP){ const d=disp(x,y,z); x+=d[0]; y+=d[1]; z+=d[2]; } pos.push(x,y,z); nor.push(N.getX(i),N.getY(i),N.getZ(i)); if(UV) uv.push(UV.getX(i),1-UV.getY(i)); if(COL) col.push(COL.getX(i),COL.getY(i),COL.getZ(i));
+    for(let q=0;q<4;q++){ si.push(w[q]?w[q][0]:0); sw.push(w[q]?w[q][1]:0); } return k; };
   const props={axe:{pos:[],nor:[],uv:[],idx:[],map:new Map()}, shield:{pos:[],nor:[],uv:[],idx:[],map:new Map()}};
   for(let t=0;t<idx.length;t+=3){ const pr=part(idx[t]);
     if(pr==='body'){ for(let q=0;q<3;q++) bidx.push(take(idx[t+q])); }

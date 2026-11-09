@@ -160,7 +160,7 @@ def main(argv=None):
     s.add_argument("--bank", default=None); s.add_argument("--frames", type=int, default=12); s.add_argument("--size", type=int, default=64); s.add_argument("--dirs", default="s,se,e,ne,n,nw,w,sw"); s.add_argument("-o", "--output", default=None)
 
     s = sub.add_parser("rig", help="FBX statique T-pose + squelette Mixamo -> GLB skinné (accessoires séparés, clips Mixamo)")
-    s.add_argument("model"); s.add_argument("--skeleton", required=True, help="FBX Mixamo skinné de référence (ex. Idle.fbx)"); s.add_argument("--texture", default=None, help="absente : couleurs de sommets du modèle (GLB de `forge hull`)"); s.add_argument("--noprops", action="store_true", help="pas de séparation hache/bouclier (personnage nu / vêtu)")
+    s.add_argument("model"); s.add_argument("--skeleton", required=True, help="FBX Mixamo skinné de référence (ex. Idle.fbx)"); s.add_argument("--texture", default=None, help="absente : couleurs de sommets du modèle (GLB de `forge hull`)"); s.add_argument("--arm-down", type=float, default=0, help="modèle en pose A : angle des bras sous l'horizontale (ex. 60)"); s.add_argument("--noprops", action="store_true", help="pas de séparation hache/bouclier (personnage nu / vêtu)")
     s.add_argument("--clips", nargs="*", help="FBX Mixamo dont on embarque l'animation"); s.add_argument("-o", "--output", default="rigged.glb"); s.add_argument("--knn", type=int, default=8)
     s.add_argument("--axe", default=None, help='JSON {"grip":[x,y,z],"rot":[dx,dy,dz],"pos":[x,y,z]} (repère main)'); s.add_argument("--shield", default=None); s.add_argument("--axe-bone", default=None); s.add_argument("--shield-bone", default=None)
 
