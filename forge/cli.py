@@ -168,6 +168,15 @@ def main(argv=None):
     s.add_argument("model"); s.add_argument("--fbx", nargs="*", help="FBX Mixamo"); s.add_argument("--learned", nargs="*", help="modèles d'animation appris (JSON, ex. animlib/walk.json)")
     s.add_argument("--name", default=None); s.add_argument("--fps", type=float, default=10, help="images/s de l'animation apprise"); s.add_argument("--sign", type=float, default=-1, help="sens de rotation (-1 ou 1)"); s.add_argument("-o", "--output", default="rig_anim.glb")
 
+    s = sub.add_parser("anim2d", help="GLB rigué + animations -> planches de sprites 2D sur fond magenta (plateforme / combat / aventure)")
+    s.add_argument("model"); s.add_argument("--anim", nargs="*", help="clips du GLB (ou all) ; par défaut : les clips externes donnés, sinon tous")
+    s.add_argument("--fbx", nargs="*", help="FBX Mixamo à jouer (sans modifier le GLB)"); s.add_argument("--learned", nargs="*", help="animations apprises (JSON, ex. animlib/walk.json)")
+    s.add_argument("--preset", choices=["platformer", "combat", "adventure4", "adventure8"], default="platformer")
+    s.add_argument("--size", type=int, default=64); s.add_argument("--ss", type=int, default=4); s.add_argument("--frames", type=int, default=8); s.add_argument("--colors", type=int, default=32)
+    s.add_argument("--pitch", type=float, default=None, help="inclinaison caméra (0 = profil pur ; défaut selon le préréglage)"); s.add_argument("--margin", type=float, default=1.25); s.add_argument("--pad", type=float, default=0.02)
+    s.add_argument("--fps", type=float, default=10, help="vitesse des animations apprises"); s.add_argument("--fps-play", dest="fps_play", type=float, default=12, help="fps indiqué dans le JSON"); s.add_argument("--sign", type=float, default=-1)
+    s.add_argument("--no-outline", dest="outline", action="store_false"); s.add_argument("--no-separate", dest="separate", action="store_false"); s.add_argument("-o", "--output", default="sprites2d")
+
     s = sub.add_parser("shots", help="captures d'un visualiseur 3D (8 directions) -> sprites pixel art (détourage, échelle, alignement, réduction)")
     s.add_argument("images", nargs="+"); s.add_argument("--dirs", required=True, help="direction de chaque image, ex. sw,w,nw,n,ne,e,se,s")
     s.add_argument("-o", "--output", default="shots_out"); s.add_argument("--name", default="perso"); s.add_argument("--size", type=int, default=96)
@@ -268,6 +277,9 @@ def main(argv=None):
     elif a.cmd == "clips":
         from . import clips
         raise SystemExit(clips.cmd(a))
+    elif a.cmd == "anim2d":
+        from . import anim2d
+        raise SystemExit(anim2d.cmd(a))
     elif a.cmd == "rig":
         from . import rig
         raise SystemExit(rig.cmd(a))
