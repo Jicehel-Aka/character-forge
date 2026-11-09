@@ -145,6 +145,9 @@ def main(argv=None):
     s.add_argument("--anim", default=None, help="nom d'un clip du fichier"); s.add_argument("--frames", type=int, default=1); s.add_argument("--pitch", type=float, default=38)
     s.add_argument("--margin", type=float, default=1.25); s.add_argument("--colors", type=int, default=40); s.add_argument("--no-outline", dest="outline", action="store_false"); s.add_argument("--texture", default=None, help="atlas PNG appliqué aux UV (FBX sans textures intégrées)"); s.add_argument("--donor", default=None, help="FBX dont on greffe la tête sur le corps du modèle principal"); s.add_argument("--donor-texdir", default=None); s.add_argument("--donor-yaw", type=float, default=0); s.add_argument("--head-frac", type=float, default=0.82, help="seuil de hauteur (fraction) au-dessus duquel un maillage fait partie de la tête"); s.add_argument("--head-names", default=None, help="regex des maillages de la tête de la base"); s.add_argument("--donor-head-names", default=None); s.add_argument("--head-scale", type=float, default=1.0); s.add_argument("--head-drop", type=float, default=0.0, help="décalage vertical de la tête greffée (fraction de la hauteur de tête)"); s.add_argument("--tmax", type=float, default=None, help="n'échantillonner le clip que sur les tmax premières secondes"); s.add_argument("--texdir", default=None, help="dossier de textures : association automatique matériau -> image (diffuse/base color)"); s.add_argument("--yaw-offset", type=float, default=0, help="degrés ajoutés à toutes les directions si le modèle ne regarde pas vers +Z (glTF : +Z = avant)")
 
+    s = sub.add_parser("control", help="planche de contrôle + métriques (membres fins qui disparaissent) d'un ou plusieurs rendus forge meshy")
+    s.add_argument("dirs", nargs="+"); s.add_argument("--rows", type=int, default=6)
+
     s = sub.add_parser("bank", help="banque de personnages (manifeste) : liste, rendu, greffe de tête d'un personnage sur le corps d'un autre")
     s.add_argument("action", choices=["list", "render"]); s.add_argument("name", nargs="?"); s.add_argument("--head", default=None, help="personnage donneur de la tête")
     s.add_argument("--bank", default=None); s.add_argument("--frames", type=int, default=12); s.add_argument("--size", type=int, default=64); s.add_argument("--dirs", default="s,se,e,ne,n,nw,w,sw"); s.add_argument("-o", "--output", default=None)
@@ -242,6 +245,9 @@ def main(argv=None):
     elif a.cmd == "skiln-paint":
         from . import skiln_paint
         raise SystemExit(skiln_paint.cmd(a))
+    elif a.cmd == "control":
+        from . import control
+        raise SystemExit(control.cmd(a))
     elif a.cmd == "bank":
         from . import bank
         raise SystemExit(bank.cmd(a))

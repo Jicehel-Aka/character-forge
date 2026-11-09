@@ -22,8 +22,26 @@ def shrink(im, size, sharpen=1.2, thr=0.45):
     small = Image.fromarray(pm.astype(np.float32), mode="F") if False else None
     k = a.width / size; chans = [np.asarray(Image.fromarray(pm[..., i]).resize((size, size), Image.BOX), np.float32) for i in range(4)]
     A = chans[3] / 255; rgb = np.stack(chans[:3], -1) / np.maximum(A, 1e-3)[..., None]
-    out = np.zeros((size, size, 4), np.uint8); out[..., :3] = np.clip(rgb, 0, 255); out[..., 3] = np.where(A >= thr, 255, 0)
+    M = keep_thin(A, thr)
+    out = np.zeros((size, size, 4), np.uint8); out[..., :3] = np.clip(rgb, 0, 255); out[..., 3] = np.where(M, 255, 0)
     return out
+
+
+def keep_thin(A, thr=0.45, lo=0.12, bridge=0.2):
+    """Seuil de couverture qui ne fait pas disparaître les parties fines (bras, jambes, rubans) : les pixels de couverture faible sont ajoutés
+    seulement s'ils relient deux zones du masque (pont) ou s'ils forment une pièce isolée qui disparaîtrait entièrement."""
+    from scipy import ndimage
+    M = A >= thr; C = (A >= lo) & ~M
+    if not C.any(): return M
+    st = np.ones((3, 3), int)
+    lm, nm = ndimage.label(M, st); lc, nc = ndimage.label(M | C, st)
+    add = np.zeros_like(M)
+    for k in range(1, nc + 1):
+        comp = lc == k; cand = comp & C
+        if not cand.any(): continue
+        nparts = len(np.unique(lm[comp & M])) - (1 if (lm[comp & M] == 0).any() else 0)
+        if nparts >= 2 or (nparts == 0 and A[comp].sum() >= 0.8): add |= cand & (A >= bridge)
+    return M | add
 
 
 def outline(arr, col=(16, 16, 24)):

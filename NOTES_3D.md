@@ -290,3 +290,8 @@ Dancing Girl : Cloth/Skin/Eyes_Mtl trouvés (Hair sans texture fournie).
 du donneur, positions de repos « bakées » puis rattachées à l'os de tête de la base (échelle = rapport cou->tête, `--donor-yaw`, `--head-scale`, `--head-drop`).
 Le corps de la base perd sa tête (maillages majoritairement au-dessus du cou masqués ; Hairs/Face/Teeth/Eyes). La tête greffée est rigide (pas d'expressions).
 Testé : tête de Bulma sur Dancing Girl (animée) et Scorpion.
+
+## Parties fines + contrôle
+`pixdown.keep_thin` : le seuil de couverture (0.45) faisait disparaître les bras/jambes plus fins qu'un demi-pixel ; les pixels de faible couverture sont maintenant ajoutés
+seulement s'ils relient deux zones du masque ou forment une pièce isolée qui disparaîtrait. `forge control DIR...` : planche control.png + control.json
+(perte de silhouette vs rendu haute résolution, morceaux connexes), images fautives encadrées en rouge.
