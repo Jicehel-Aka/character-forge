@@ -164,6 +164,10 @@ def main(argv=None):
     s.add_argument("--clips", nargs="*", help="FBX Mixamo dont on embarque l'animation"); s.add_argument("-o", "--output", default="rigged.glb"); s.add_argument("--knn", type=int, default=8)
     s.add_argument("--axe", default=None, help='JSON {"grip":[x,y,z],"rot":[dx,dy,dz],"pos":[x,y,z]} (repère main)'); s.add_argument("--shield", default=None); s.add_argument("--axe-bone", default=None); s.add_argument("--shield-bone", default=None)
 
+    s = sub.add_parser("clips", help="ajoute des animations (FBX Mixamo, animation apprise) à un GLB déjà rigué")
+    s.add_argument("model"); s.add_argument("--fbx", nargs="*", help="FBX Mixamo"); s.add_argument("--learned", nargs="*", help="modèles d'animation appris (JSON, ex. animlib/walk.json)")
+    s.add_argument("--name", default=None); s.add_argument("--fps", type=float, default=10, help="images/s de l'animation apprise"); s.add_argument("--sign", type=float, default=-1, help="sens de rotation (-1 ou 1)"); s.add_argument("-o", "--output", default="rig_anim.glb")
+
     s = sub.add_parser("shots", help="captures d'un visualiseur 3D (8 directions) -> sprites pixel art (détourage, échelle, alignement, réduction)")
     s.add_argument("images", nargs="+"); s.add_argument("--dirs", required=True, help="direction de chaque image, ex. sw,w,nw,n,ne,e,se,s")
     s.add_argument("-o", "--output", default="shots_out"); s.add_argument("--name", default="perso"); s.add_argument("--size", type=int, default=96)
@@ -261,6 +265,9 @@ def main(argv=None):
     elif a.cmd == "bank":
         from . import bank
         raise SystemExit(bank.cmd(a))
+    elif a.cmd == "clips":
+        from . import clips
+        raise SystemExit(clips.cmd(a))
     elif a.cmd == "rig":
         from . import rig
         raise SystemExit(rig.cmd(a))
