@@ -169,6 +169,9 @@ table{border-collapse:collapse;width:100%;font-size:13px}td,th{border-bottom:1px
   <div class="pane" id="p-cli">
     <h2>Exports et commandes</h2>
     <div class="row"><button id="dlprops">props.json</button><button id="dlparts">parts.json</button><button id="dlcut">Détourage PNG</button></div>
+    <h2>Fiche pour Meshy (étape 3D)</h2>
+    <div class="row"><button id="meshysheet" class="primary">Exporter la fiche Meshy</button><label class="chip"><input type="checkbox" id="msall" checked> toutes les vues</label></div>
+    <p class="mute">Une image carrée 1024×1024 par vue, personnage entier centré sur fond gris uni, avec la tenue dessinée, plus un fichier <code>prompt_meshy.txt</code> prêt à coller. À envoyer ensuite à Meshy (image vers 3D).</p>
     <h2>Recharger</h2>
     <div class="row"><input type="file" id="reloadjson" accept=".json" multiple hidden><button onclick="reloadjson.click()">Importer props.json / parts.json</button>
     <input type="file" id="reloadcut" accept="image/png" hidden><button onclick="reloadcut.click()">Recharger un détourage PNG sur cette vue</button></div>
@@ -251,6 +254,20 @@ $("#segrun").onclick=()=>{const m=img();if(!m)return;status("Calcul…");setTime
 $("#segclear").onclick=()=>{const m=img();if(!m)return;if(m.marks)m.marks.getContext("2d").clearRect(0,0,m.marks.width,m.marks.height);redraw()};
 function applyLasso(m,pts,keep){if(pts.length<3)return;snap(m);const W=m.cut.width,H=m.cut.height,x=m.cut.getContext("2d"),path=()=>{x.beginPath();pts.forEach((q,i)=>i?x.lineTo(q[0],q[1]):x.moveTo(q[0],q[1]));x.closePath()};
  x.save();if(keep){x.globalCompositeOperation="destination-in";path();x.fill()}else{x.globalCompositeOperation="destination-out";path();x.fill()}x.restore()}
+$("#meshysheet").onclick=()=>{const L=$("#msall").checked?imgs:[img()].filter(Boolean);if(!L.length){status("Aucune image.");return}
+ L.forEach((m,i)=>{const cv=composed(m),bb=bboxOf(m,cv),S=1024,pad=.06,k=Math.min(S*(1-2*pad)/bb.w,S*(1-2*pad)/bb.h),c=document.createElement("canvas");c.width=c.height=S;const x=c.getContext("2d");x.fillStyle="#8c8c8c";x.fillRect(0,0,S,S);x.imageSmoothingQuality="high";
+  x.drawImage(cv,bb.x,bb.y,bb.w,bb.h,(S-bb.w*k)/2,(S-bb.h*k)/2,bb.w*k,bb.h*k);setTimeout(()=>c.toBlob(b=>dl(m.name.replace(/[^\w\-]+/g,"_")+"_meshy.png",b)),i*400)});
+ const outfit=checked().join(", ")||"(tenue à préciser)";
+ const txt=`Full-body 3D character, [DESCRIPTION COURTE DU PERSONNAGE], wearing: ${outfit}.
+Neutral T-pose, arms straight out to the sides, palms down, legs slightly apart, feet flat, facing the camera.
+Clean humanoid anatomy, separated limbs (no arm touching the torso, no legs fused together).
+Keep the original comic-book design, colours and outfit details. No flowing cape, no floating parts.
+Weapon/accessory kept as a separate prop. Cel-shaded look, flat colours, no background.
+
+Réglages Meshy : image vers 3D, T-pose, 10 000 à 30 000 polygones, texture activée, sortie GLB ou FBX.
+Prompt négatif : extra limbs, fused fingers, arms attached to body, cape, long flowing hair, background, text, speech bubble, multiple characters
+Vues : ${L.map(m=>m.name+" ("+m.view+")").join(", ")}
+`;setTimeout(()=>dl("prompt_meshy.txt",txt,"text/plain"),L.length*400);status("Fiche Meshy exportée ("+L.length+" image(s) + prompt).")};
 addEventListener("keydown",e=>{if(!(e.ctrlKey||e.metaKey)||/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))return;const k=e.key.toLowerCase();if(k==="z"&&!e.shiftKey){e.preventDefault();undo()}else if(k==="y"||(k==="z"&&e.shiftKey)){e.preventDefault();redo()}});
 /* efface une couleur : cumulatif (ne touche qu'aux pixels proches de la couleur, le reste de la découpe est conservé) */
 function eraseColor(m,bg,tol,mode,seed){const W=m.orig.width,H=m.orig.height,d=m.orig.getContext("2d").getImageData(0,0,W,H).data,cx=m.cut.getContext("2d"),o=cx.getImageData(0,0,W,H),a=o.data;
