@@ -64,6 +64,10 @@ table{border-collapse:collapse;width:100%;font-size:13px}td,th{border-bottom:1px
       <label class="chip"><input type="radio" name="tool" value="restore"> restaurer</label>
       <label class="chip"><input type="radio" name="tool" value="pipette"> pipette (couleur à effacer)</label>
       <label class="chip"><input type="radio" name="tool" value="erase-rect"> zone à effacer</label>
+      <label class="chip"><input type="radio" name="tool" value="lasso-erase"> tracé : effacer l'intérieur</label>
+      <label class="chip"><input type="radio" name="tool" value="lasso-keep"> tracé : garder l'intérieur</label>
+      <label class="chip"><input type="radio" name="tool" value="mark-fg"> colorier à garder</label>
+      <label class="chip"><input type="radio" name="tool" value="mark-bg"> colorier à enlever</label>
       <label class="chip"><input type="radio" name="tool" value="crop"> garder une zone → nouvelle vue</label>
       <label class="chip"><input type="radio" name="tool" value="part-rect"> partie nommée</label>
       <label class="chip"><input type="radio" name="tool" value="head-top"> tête (haut puis menton)</label>
@@ -96,6 +100,12 @@ table{border-collapse:collapse;width:100%;font-size:13px}td,th{border-bottom:1px
     <label>Tolérance : <span id="tolv">40</span></label>
     <input type="range" id="tol" min="5" max="120" value="40">
     <div class="row"><button id="autocut">Effacer cette couleur</button><button id="resetcut">Tout restaurer</button></div>
+    <h2>Détourage intelligent</h2>
+    <p class="mute">Outil <b>colorier à garder</b> : barbouille le personnage (quelques traits dans chaque partie : peau, vêtements, cheveux). Sans trait « à enlever », les bords de l'image servent de fond. Ajoute des traits <b>à enlever</b> là où ça déborde (bulle, décor collé), puis lance. L'algorithme suit les contours noirs du dessin.</p>
+    <label>Sensibilité aux contours : <span id="edgev">6</span></label>
+    <input type="range" id="edgek" min="1" max="20" value="6">
+    <div class="row"><button id="segrun" class="primary">Détourer d'après les marques</button><button id="segclear">Effacer les marques</button></div>
+    <p class="mute"><b>Tracé</b> : dessine librement un contour autour d'une zone, relâche : l'intérieur est effacé (ou seul l'intérieur est gardé). Tout s'annule avec ↶.</p>
     <h2>Découper une vue</h2>
     <p class="mute">Image avec plusieurs poses : outil <b>garder une zone</b>, trace un rectangle autour d'une pose ; elle devient une nouvelle vue (l'image d'origine reste intacte).</p>
     <div class="row"><button id="delview">Supprimer cette vue</button></div>
@@ -199,6 +209,30 @@ function restore(m,from,to){const s0=from.pop();if(!s0)return false;const c=m.cu
 function undo(){const m=img();if(m&&restore(m,m.hist,m.redo)){renderZones();renderThumbs();redraw();cli();status("Annulé.")}else status("Rien à annuler.")}
 function redo(){const m=img();if(m&&restore(m,m.redo,m.hist)){renderZones();renderThumbs();redraw();cli();status("Rétabli.")}}
 $("#undo").onclick=undo;$("#redo").onclick=redo;
+/* ---------- détourage par marques (segmentation géodésique) + tracés ---------- */
+$("#edgek").oninput=e=>$("#edgev").textContent=e.target.value;
+function marksOf(m){if(!m.marks){m.marks=document.createElement("canvas");m.marks.width=m.orig.width;m.marks.height=m.orig.height}return m.marks}
+function paintMark(m,p,t){const x=marksOf(m).getContext("2d"),r=+$("#brush").value/scale/2+1;x.fillStyle=t==="mark-fg"?"rgb(0,200,70)":"rgb(230,40,40)";x.beginPath();x.arc(p[0],p[1],r,0,7);x.fill();redraw()}
+function segment(m){const W=m.orig.width,H=m.orig.height,N=W*H,d=m.orig.getContext("2d").getImageData(0,0,W,H).data,mk=marksOf(m).getContext("2d").getImageData(0,0,W,H).data,lab=new Uint8Array(N);let nf=0,nb=0;
+ for(let k=0;k<N;k++){const i=k*4;if(mk[i+3]>128){if(mk[i+1]>mk[i]){lab[k]=1;nf++}else{lab[k]=2;nb++}}}
+ if(!nf)return null;
+ if(!nb){for(let x=0;x<W;x++){for(const y of[0,H-1]){const k=y*W+x;if(!lab[k]){lab[k]=2;nb++}}}for(let y=0;y<H;y++){for(const x of[0,W-1]){const k=y*W+x;if(!lab[k]){lab[k]=2;nb++}}}}
+ const K=+$("#edgek").value,dist=new Float32Array(N).fill(1e30),out=new Uint8Array(N);
+ /* tas binaire (clé, indice) */
+ let hk=new Float32Array(1<<16),hi=new Int32Array(1<<16),hn=0;
+ const push=(key,id)=>{if(hn>=hk.length){const a=new Float32Array(hk.length*2),b=new Int32Array(hk.length*2);a.set(hk);b.set(hi);hk=a;hi=b}let c=hn++;while(c>0){const q=(c-1)>>1;if(hk[q]<=key)break;hk[c]=hk[q];hi[c]=hi[q];c=q}hk[c]=key;hi[c]=id};
+ const pop=()=>{const id=hi[0],key=hk[0],lk=hk[--hn],li=hi[hn];let c=0;for(;;){let l=2*c+1;if(l>=hn)break;if(l+1<hn&&hk[l+1]<hk[l])l++;if(hk[l]>=lk)break;hk[c]=hk[l];hi[c]=hi[l];c=l}hk[c]=lk;hi[c]=li;return[key,id]};
+ for(let k=0;k<N;k++)if(lab[k]){dist[k]=0;out[k]=lab[k];push(0,k)}
+ const step=(k,q,key)=>{const i=k*4,j=q*4,df=Math.hypot(d[i]-d[j],d[i+1]-d[j+1],d[i+2]-d[j+2]),nk=key+1+K*df*df/60;if(nk<dist[q]){dist[q]=nk;out[q]=out[k];push(nk,q)}};
+ while(hn){const[key,k]=pop();if(key>dist[k])continue;const x=k%W,y=(k/W)|0;if(x>0)step(k,k-1,key);if(x<W-1)step(k,k+1,key);if(y>0)step(k,k-W,key);if(y<H-1)step(k,k+W,key)}
+ return out}
+$("#segrun").onclick=()=>{const m=img();if(!m)return;status("Calcul…");setTimeout(()=>{const o=segment(m);if(!o){status("Colorie d'abord le personnage à garder (outil « colorier à garder »).");return}
+ snap(m);const W=m.orig.width,H=m.orig.height,cx=m.cut.getContext("2d"),od=m.orig.getContext("2d").getImageData(0,0,W,H),n=cx.createImageData(W,H);let kept=0;
+ for(let k=0;k<W*H;k++){const f=o[k]===1;n.data[k*4]=od.data[k*4];n.data[k*4+1]=od.data[k*4+1];n.data[k*4+2]=od.data[k*4+2];n.data[k*4+3]=f?od.data[k*4+3]||255:0;if(f)kept++}
+ cx.putImageData(n,0,0);renderThumbs();redraw();status(kept+" pixels gardés. Corrige : ajoute des traits (à garder / à enlever) puis relance, ou ↶ pour annuler.")},20)};
+$("#segclear").onclick=()=>{const m=img();if(!m)return;if(m.marks)m.marks.getContext("2d").clearRect(0,0,m.marks.width,m.marks.height);redraw()};
+function applyLasso(m,pts,keep){if(pts.length<3)return;snap(m);const W=m.cut.width,H=m.cut.height,x=m.cut.getContext("2d"),path=()=>{x.beginPath();pts.forEach((q,i)=>i?x.lineTo(q[0],q[1]):x.moveTo(q[0],q[1]));x.closePath()};
+ x.save();if(keep){x.globalCompositeOperation="destination-in";path();x.fill()}else{x.globalCompositeOperation="destination-out";path();x.fill()}x.restore()}
 addEventListener("keydown",e=>{if(!(e.ctrlKey||e.metaKey)||/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))return;const k=e.key.toLowerCase();if(k==="z"&&!e.shiftKey){e.preventDefault();undo()}else if(k==="y"||(k==="z"&&e.shiftKey)){e.preventDefault();redo()}});
 /* efface une couleur : cumulatif (ne touche qu'aux pixels proches de la couleur, le reste de la découpe est conservé) */
 function eraseColor(m,bg,tol,mode,seed){const W=m.orig.width,H=m.orig.height,d=m.orig.getContext("2d").getImageData(0,0,W,H).data,cx=m.cut.getContext("2d"),o=cx.getImageData(0,0,W,H),a=o.data;
@@ -225,7 +259,7 @@ function redraw(){const m=img();if(!m){sctx.clearRect(0,0,stage.width,stage.heig
  stage.width=Math.round(m.cut.width*scale);stage.height=Math.round(m.cut.height*scale);sctx.clearRect(0,0,stage.width,stage.height);
  sctx.save();sctx.scale(scale,scale);
  sctx.imageSmoothingEnabled=true;
- drawProps(sctx,m,"behind");sctx.drawImage(m.cut,0,0);drawProps(sctx,m,"front");
+ drawProps(sctx,m,"behind");sctx.drawImage(m.cut,0,0);drawProps(sctx,m,"front");if(m.marks){sctx.globalAlpha=.55;sctx.drawImage(m.marks,0,0);sctx.globalAlpha=1}
  sctx.lineWidth=1/scale;
  sctx.strokeStyle="#e5484d";sctx.fillStyle="rgba(229,72,77,.18)";m.erase.forEach(b=>{sctx.fillRect(...b);sctx.strokeRect(...b)});
  sctx.strokeStyle="#3b82f6";sctx.fillStyle="#3b82f6";sctx.font=(12/scale)+"px system-ui";
@@ -261,11 +295,14 @@ const tool=()=>document.querySelector("input[name=tool]:checked").value;
 stage.addEventListener("pointerdown",e=>{const m=img();if(!m)return;const p=pos(e),t=tool();stage.setPointerCapture(e.pointerId);
  if(t==="erase"||t==="restore"){snap(m);drag={t};brush(m,p,t)}
  else if(t==="pipette"){const W=m.orig.width,i=(Math.min(m.orig.height-1,Math.max(0,Math.round(p[1])))*W+Math.min(W-1,Math.max(0,Math.round(p[0]))))*4,d=m.orig.getContext("2d").getImageData(0,0,W,m.orig.height).data;setBg(m,[d[i],d[i+1],d[i+2]]);snap(m);const n=eraseColor(m,m.bg,+$("#tol").value,$("#bgmode").value,p);renderThumbs();redraw();status(n+" pixels effacés ("+$("#bginfo").textContent+"). ↶ pour annuler, ajuste la tolérance si besoin.")}
+ else if(t==="mark-fg"||t==="mark-bg"){drag={t};paintMark(m,p,t)}
+ else if(t==="lasso-erase"||t==="lasso-keep"){drag={t,pts:[p]}}
  else if(t==="erase-rect"||t==="part-rect"||t==="crop"){drag={t,s:p,cur:p}}
  else if(t==="head-top"){if(m.headStage!==1){m.headTop=p[1];m.headStage=1;status("Haut du crâne posé : clique le menton.")}else{m.head=Math.max(1,Math.round(p[1]-m.headTop));m.headStage=0;$("#headpx").value=m.head;renderProps();cli();status("Hauteur de tête = "+m.head+" px")}redraw()}
  else if(["grip","pull","tail","toward"].includes(t)){const pr=m.props[m.sel];if(!pr){status("Sélectionne ou ajoute d'abord une arme (onglet Armes).");return}pr[t]=[Math.round(p[0]),Math.round(p[1])];renderProps();redraw();cli()}});
-stage.addEventListener("pointermove",e=>{const m=img();if(!m||!drag)return;const p=pos(e);if(drag.t==="erase"||drag.t==="restore"){brush(m,p,drag.t)}else{drag.cur=p;redraw();sctx.save();sctx.scale(scale,scale);sctx.strokeStyle="#fff";sctx.lineWidth=1/scale;const[x,y,w,h]=rect(drag.s,drag.cur);sctx.strokeRect(x,y,w,h);sctx.restore()}});
-stage.addEventListener("pointerup",e=>{const m=img();if(!m||!drag)return;if(drag.t==="crop"){const r=rect(drag.s,drag.cur).map(Math.round);drag=null;if(r[2]>8&&r[3]>8)cropView(m,r);return}
+stage.addEventListener("pointermove",e=>{const m=img();if(!m||!drag)return;const p=pos(e);if(drag.t==="erase"||drag.t==="restore"){brush(m,p,drag.t)}else if(drag.t==="mark-fg"||drag.t==="mark-bg"){paintMark(m,p,drag.t)}else if(drag.t==="lasso-erase"||drag.t==="lasso-keep"){drag.pts.push(p);redraw();sctx.save();sctx.scale(scale,scale);sctx.strokeStyle=drag.t==="lasso-keep"?"#3ddc84":"#e5484d";sctx.lineWidth=2/scale;sctx.setLineDash([6/scale,4/scale]);sctx.beginPath();drag.pts.forEach((q,i)=>i?sctx.lineTo(q[0],q[1]):sctx.moveTo(q[0],q[1]));sctx.closePath();sctx.stroke();sctx.restore()}else{drag.cur=p;redraw();sctx.save();sctx.scale(scale,scale);sctx.strokeStyle="#fff";sctx.lineWidth=1/scale;const[x,y,w,h]=rect(drag.s,drag.cur);sctx.strokeRect(x,y,w,h);sctx.restore()}});
+stage.addEventListener("pointerup",e=>{const m=img();if(!m||!drag)return;if(drag.t==="lasso-erase"||drag.t==="lasso-keep"){applyLasso(m,drag.pts,drag.t==="lasso-keep");drag=null;renderThumbs();redraw();status("Tracé appliqué. ↶ pour annuler.");return}
+if(drag.t==="crop"){const r=rect(drag.s,drag.cur).map(Math.round);drag=null;if(r[2]>8&&r[3]>8)cropView(m,r);return}
 if(drag.t==="erase-rect"||drag.t==="part-rect"){const r=rect(drag.s,drag.cur).map(Math.round);if(r[2]>3&&r[3]>3){if(drag.t==="erase-rect"){snap(m);m.erase.push(r);m.cut.getContext("2d").clearRect(...r)}else m.parts[$("#partname").value||"part"]=r}renderZones();cli()}drag=null;renderThumbs();redraw()});
 const rect=(a,b)=>[Math.min(a[0],b[0]),Math.min(a[1],b[1]),Math.abs(a[0]-b[0]),Math.abs(a[1]-b[1])];
 function brush(m,p,t){const r=+$("#brush").value/scale,x=m.cut.getContext("2d");x.save();x.beginPath();x.arc(p[0],p[1],r,0,7);if(t==="erase"){x.globalCompositeOperation="destination-out";x.fill()}else{x.clip();x.drawImage(m.orig,0,0)}x.restore();redraw()}
