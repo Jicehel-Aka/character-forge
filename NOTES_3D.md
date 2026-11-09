@@ -309,3 +309,7 @@ Limites : pas de creux (visual hull), couleur par sommet, bandes de couleur sur 
 Conseils de capture : caméra orthographique ou longue focale, jambes légèrement écartées, mêmes cadrage/hauteur de caméra sur les 8 vues, T-pose de préférence.
 Rig : `python -m forge rig modele.glb --skeleton Idle.fbx --noprops --arm-down 62 --clips Idle.fbx Walk.fbx -o rig.glb`
 `--arm-down A` : modèle en pose A, bras à A° sous l'horizontale (≈ 60 pour une pose A classique, 0 pour une T-pose). Poids kNN pris sur le maillage de référence aux bras baissés ; les matrices de liaison inverses des os du bras sont celles de la pose A (le maillage n'est pas déformé).
+
+## Animations ajoutées à un GLB rigué (forge clips)
+`forge clips rig.glb --learned animlib/walk.json --name Marche [--fps 10 --sign -1] | --fbx Run.fbx -o rig_anim.glb`
+Animation apprise -> BVH (forge anim export-bvh) -> rotations sur les os `mixamorig*` (axe latéral X, bras ramenés de la T-pose à la verticale, os non animés héritent) + rebond vertical des hanches. Testé : marche apprise sur le modèle reconstruit (jambes OK, bras peu animés). Non testé : objets attachés ; animations apprises autres que la marche.

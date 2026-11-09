@@ -74,6 +74,11 @@ python -m forge meshy rig.glb --anim Walk --frames 4 --dirs s,e,n,w --size 128 -
 <li>Une jambe ou un pied trop court/long, décalé : vues mal cadrées (étape 1).</li>
 <li>Cuisses soudées qui se déforment ensemble : jambes trop serrées sur les captures.</li>
 <li>Tête qui bouge avec les épaules : vérifier que le modèle est entier et centré.</li></ul>
+<h3>5 bis. Ajouter d'autres animations au GLB (Mixamo ou apprises)</h3>
+<p>Le GLB contient tout (maillage, squelette, poids, accessoires attachés aux os) : on n'a pas besoin de refaire le rig pour ajouter des animations.</p>
+<pre>python -m forge clips rig.glb --learned animlib/walk.json --name Marche -o rig_anim.glb
+python -m forge clips rig.glb --fbx Run.fbx Kick.fbx -o rig_anim.glb</pre>
+<p>Une animation apprise (<code>forge anim learn</code>, mouvement dans le plan de l'image) est convertie en rotations autour de l'axe latéral du personnage, les bras partant d'une position verticale ; <code>--fps</code> règle la vitesse (10 par défaut), <code>--sign 1</code> inverse le sens si les membres vont à l'envers. Le clip s'ajoute à ceux du GLB et se joue avec <code>forge meshy rig_anim.glb --anim Marche …</code>. Les armes ou objets attachés à une main suivent l'os.</p>
 <h3>6. Produire les sprites</h3>
 <p>Les images de l'étape 5 (8 directions : <code>s se e ne n nw w sw</code>) passent ensuite dans la chaîne de sprites habituelle (page <a href="modele.html">modele.html</a> ou <code>forge sprites</code>) : recadrage serré, séparation des membres, palette RGB565.</p>
 <h3>Limites</h3>
