@@ -11,6 +11,20 @@ from scipy import ndimage
 ST = np.ones((3, 3), int)
 
 
+def limb_visibility(small, mindiff=20):
+    """Visibilité humaine des bras/jambes : part des pixels de frontière membre/autre classe qui ont assez de contraste de luminance."""
+    cf = Path(small.filename).with_name(Path(small.filename).stem + "_cls.png") if getattr(small, "filename", "") else None
+    if not cf or not cf.exists(): return dict(contraste_membres=None, px_membres=0)
+    cm = np.asarray(Image.open(cf).convert("L")); a = np.asarray(small.convert("RGBA")); al = a[..., 3] > 0
+    lum = a[..., :3].astype(np.float32) @ np.array([.3, .59, .11], np.float32); limb = (cm >= 1) & (cm <= 4) & al
+    n = ok = 0
+    for dy, dx in ((1, 0), (0, 1)):
+        sh = lambda v: np.roll(np.roll(v, dy, 0), dx, 1)
+        e = al & sh(al) & (sh(cm) != cm) & (limb | (((sh(cm) >= 1) & (sh(cm) <= 4))))
+        n += int(e.sum()); ok += int((e & (np.abs(lum - sh(lum)) >= mindiff)).sum())
+    return dict(contraste_membres=round(ok / n, 3) if n >= 6 else None, px_membres=int(limb.sum()))
+
+
 def metrics(big, small):
     sz = small.width; a = np.asarray(big.convert("RGBA"), np.float32)[..., 3] / 255
     A = np.asarray(Image.fromarray((a * 255).astype(np.uint8)).resize((sz, sz), Image.BOX), np.float32) / 255
@@ -18,7 +32,8 @@ def metrics(big, small):
     near = ndimage.binary_dilation(S, ST)  # le liseré de bord (couverture partielle) n'est pas une perte : seules comptent les parties sans voisin dans le sprite
     lost = float((R & ~near).sum()) / max(1, R.sum())
     cs = ndimage.label(S, ST)[1]; cr = ndimage.label(A >= 0.2, ST)[1]
-    return dict(perte=round(lost, 4), morceaux_sprite=int(cs), morceaux_ref=int(cr), aire_ratio=round(float(S.sum()) / max(1, float(R.sum())), 3))
+    vis = limb_visibility(small)
+    return dict(**vis, perte=round(lost, 4), morceaux_sprite=int(cs), morceaux_ref=int(cr), aire_ratio=round(float(S.sum()) / max(1, float(R.sum())), 3))
 
 
 def scan(d):
@@ -41,12 +56,12 @@ def sheet(d, title=None, rows=6, scale=2, seuil=0.015):
     res = {}; bad = 0
     for (dd, fi), (fb, fs) in items.items():
         m = metrics(Image.open(fb), Image.open(fs)); res[f"{dd}_{fi}"] = m
-        if m["perte"] > seuil or m["morceaux_sprite"] > m["morceaux_ref"] + 1: bad += 1
+        if m["perte"] > seuil or m["morceaux_sprite"] > m["morceaux_ref"] + 1 or (m["contraste_membres"] is not None and m["contraste_membres"] < 0.55): bad += 1
     for r, fi in enumerate(pick):
         for c, dd in enumerate(dirs):
             if (dd, fi) not in items: continue
             sm = Image.open(items[(dd, fi)][1]).convert("RGBA").resize((cell, cell), Image.NEAREST); x, y = c * cell, H + r * cell
-            img.paste(sm, (x, y), sm); m = res[f"{dd}_{fi}"]; flag = m["perte"] > seuil or m["morceaux_sprite"] > m["morceaux_ref"] + 1
+            img.paste(sm, (x, y), sm); m = res[f"{dd}_{fi}"]; flag = m["perte"] > seuil or m["morceaux_sprite"] > m["morceaux_ref"] + 1 or (m["contraste_membres"] is not None and m["contraste_membres"] < 0.55)
             dr.text((x + 2, y + 1), f"{dd}{fi} {m['perte']*100:.0f}%", fill=(255, 90, 90) if flag else (140, 150, 170))
             if flag: dr.rectangle([x, y, x + cell - 1, y + cell - 1], outline=(255, 70, 70))
     dr.text((4, 5), f"{title or Path(d).name} : {len(items)} images, {bad} signalées (perte>{seuil*100:.1f}% ou membre coupé)", fill=(230, 230, 240))

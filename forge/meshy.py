@@ -45,11 +45,13 @@ class Session:
     def inspect(self, name=None): return self.page.evaluate("u => window.inspect(u)", name or self.name)
 
     def render(self, size, dirs, anim=None, frames=1, yaw_offset=0, **kw):
-        opt = dict(url=self.name, size=size, dirs=[{"name": d, "yaw": DIRS[d] + yaw_offset} for d in dirs], anim=anim, frames=frames, texture=self.texture, texmap=getattr(self, 'texmap', None), donor=getattr(self, 'donor', None), headFrac=kw.pop('head_frac', 0.82), headScale=kw.pop('head_scale', 1.0), donorYaw=kw.pop('donor_yaw', 0.0), headDrop=kw.pop('head_drop', 0.0), headNames=kw.pop('head_names', None), tmax=kw.pop('tmax', None), **kw)
+        opt = dict(url=self.name, size=size, dirs=[{"name": d, "yaw": DIRS[d] + yaw_offset} for d in dirs], anim=anim, frames=frames, classes=True, texture=self.texture, texmap=getattr(self, 'texmap', None), donor=getattr(self, 'donor', None), headFrac=kw.pop('head_frac', 0.82), headScale=kw.pop('head_scale', 1.0), donorYaw=kw.pop('donor_yaw', 0.0), headDrop=kw.pop('head_drop', 0.0), headNames=kw.pop('head_names', None), tmax=kw.pop('tmax', None), **kw)
         res = self.page.evaluate("o => window.render(o)", opt)
         out = {}
+        self.cls = {}
         for f in res["frames"]:
             out[(f["dir"], f["frame"])] = Image.open(io.BytesIO(base64.b64decode(f["png"].split(",", 1)[1]))).convert("RGBA")
+            if f.get("cls"): self.cls[(f["dir"], f["frame"])] = Image.open(io.BytesIO(base64.b64decode(f["cls"].split(",", 1)[1]))).convert("RGBA")
         return out, res
 
     def close(self):
@@ -90,16 +92,29 @@ def cmd(a):
             i = s.inspect(); print(json.dumps(i, indent=1, ensure_ascii=False)); return 0
         from . import pixdown, skiln_paint as K
         out = Path(a.output); out.mkdir(parents=True, exist_ok=True); dirs = a.dirs.split(",")
-        big = a.size * a.ss
+        big = min(1024, max(a.size * a.ss, 768))
         imgs, res = s.render(big, dirs, a.anim, a.frames, yaw_offset=a.yaw_offset, pitch=a.pitch, margin=a.margin, head_frac=a.head_frac, head_scale=a.head_scale, donor_yaw=a.donor_yaw, head_drop=a.head_drop, head_names=a.head_names, tmax=a.tmax)
         if res.get('compose'): print('[meshy] greffe :', json.dumps(res['compose']))
         print(f"[meshy] clip {res['clip']!r}, hauteur modèle {res['height']:.2f}, {len(imgs)} images en {big} px")
+        # cadrage serré : boîte englobante de toutes les images (même recadrage partout -> échelle et pieds constants), personnage plein cadre
+        boxes = [im.getchannel("A").point(lambda v: 255 if v > 16 else 0).getbbox() for im in imgs.values()]; boxes = [b for b in boxes if b]
+        x0, y0 = min(b[0] for b in boxes), min(b[1] for b in boxes); x1, y1 = max(b[2] for b in boxes), max(b[3] for b in boxes)
+        side = max(x1 - x0, y1 - y0) * (1 + 2 * a.pad); cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+        crop = (int(cx - side / 2), int(cy - side / 2), int(cx + side / 2), int(cy + side / 2)); tgt = a.size * a.ss
+        imgs = {k: v.crop(crop).resize((tgt, tgt), Image.LANCZOS) for k, v in imgs.items()}
+        clsm = {k: v.crop(crop).resize((a.size, a.size), Image.NEAREST) for k, v in getattr(s, "cls", {}).items()}
         arrs = {k: pixdown.shrink(v, a.size, sharpen=0.35) for k, v in imgs.items()}
+        cmaps = {}
+        for k, v in clsm.items():
+            ids = (np.asarray(v.convert("RGBA"))[..., 0].astype(int) + 15) // 30; ids[np.asarray(v)[..., 3] == 0] = 0; cmaps[k] = ids.astype(np.uint8)
+            if a.separate: arrs[k] = pixdown.separate(arrs[k], cmaps[k])
         allpx = np.concatenate([x[x[..., 3] > 0][:, :3] for x in arrs.values()]).astype(np.uint8)
         pal = Image.fromarray(allpx[None, ...]).quantize(a.colors, Image.MEDIANCUT)
         for (d, f), x in arrs.items():
             x = pixdown.outline(x) if a.outline else x
             q = np.asarray(Image.fromarray(x[..., :3]).quantize(palette=pal, dither=Image.NONE).convert("RGB")).copy(); r = np.dstack([q, x[..., 3]]); r[x[..., 3] == 0] = 0
-            Image.fromarray(r, "RGBA").save(out / f"{a.anim or 'pose'}_{d}_{f}.png"); imgs[(d, f)].save(out / f"{a.anim or 'pose'}_{d}_{f}_big.png")
+            nm = f"{a.anim or 'pose'}_{d}_{f}"
+            Image.fromarray(r, "RGBA").save(out / f"{nm}.png"); imgs[(d, f)].save(out / f"{nm}_big.png")
+            if (d, f) in cmaps: Image.fromarray(cmaps[(d, f)], "L").save(out / f"{nm}_cls.png")
         print(f"[meshy] -> {out}"); return 0
     finally: s.close()

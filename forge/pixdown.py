@@ -63,3 +63,17 @@ def run(png, js, size, ncol=32, sharpen=1.2, out=None):
         Path(out).mkdir(parents=True, exist_ok=True)
         for k, v in res.items(): v.save(Path(out) / f"{k}.png")
     return res
+
+
+def separate(arr, cm, mindiff=26, strength=0.4):
+    """Contours internes lisibles : un pixel de bras/jambe (classes 1-4) voisin d'une autre classe avec peu de contraste de luminance est assombri,
+    pour que le membre se détache du torse (blanc sur blanc, peau sur peau)."""
+    a = arr.copy(); al = a[..., 3] > 0; lum = a[..., :3].astype(np.float32) @ np.array([.3, .59, .11], np.float32)
+    limb = (cm >= 1) & (cm <= 4) & al; mark = np.zeros_like(limb)
+    for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+        sh = lambda v: np.roll(np.roll(v, dy, 0), dx, 1)
+        other = al & sh(al) & (sh(cm) != cm); diff = np.abs(lum - sh(lum))
+        mark |= limb & other & (diff < mindiff)
+    rgb = a[..., :3].astype(np.float32); dark = rgb * (1 - strength); dark = np.where(lum[..., None] < 45, rgb + 45 * strength, dark)
+    a[..., :3] = np.where(mark[..., None], np.clip(dark, 0, 255), rgb).astype(np.uint8)
+    return a

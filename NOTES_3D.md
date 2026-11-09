@@ -295,3 +295,9 @@ Testé : tête de Bulma sur Dancing Girl (animée) et Scorpion.
 `pixdown.keep_thin` : le seuil de couverture (0.45) faisait disparaître les bras/jambes plus fins qu'un demi-pixel ; les pixels de faible couverture sont maintenant ajoutés
 seulement s'ils relient deux zones du masque ou forment une pièce isolée qui disparaîtrait. `forge control DIR...` : planche control.png + control.json
 (perte de silhouette vs rendu haute résolution, morceaux connexes), images fautives encadrées en rouge.
+
+## Visibilité humaine des membres (cadrage serré, classes, contraste)
+- `forge meshy` : cadrage serré commun (boîte englobante de toutes les images + `--pad` 0.04), rendu 768-1024 px avant réduction → le personnage remplit la case et les membres fins gagnent des pixels.
+- Passe de classes (bras G/D, jambes G/D, tête, reste) par triangle d'après l'os dominant → `*_cls.png` ; `pixdown.separate` assombrit les pixels de membre voisins d'une autre classe avec peu de contraste (`--no-separate` pour désactiver).
+- `forge control` : ajoute `contraste_membres` (part des frontières membre/autre assez contrastées) et `px_membres`; une image est signalée si perte, membre coupé ou contraste < 0.55.
+- Limites : classes déduites des noms d'os (rigs sans noms standard → tout « reste ») ; les T-pose à bras 1 px (Goku) restent visibles mais signalés ; vêtements sombres sur peau sombre (Sophia) signalés.

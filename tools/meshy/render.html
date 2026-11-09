@@ -86,6 +86,27 @@ function composeHead(base, donor, o){
   for(const p of parts){ p.ng.applyMatrix4(L); const mesh=new THREE.Mesh(p.ng,p.mat); mesh.name='head_'+p.name; mesh.frustumCulled=false; hb.add(mesh); }
   return {...rep, rA, rB, scale:s, neckBase:nB.pos.toArray(), neckDonor:nA.pos.toArray()};
 }
+
+// ---- passe de classes : bras G/D, jambes G/D, tête, reste (par triangle, d'après l'os dominant) -> contours internes + contrôle de visibilité
+function boneClass(name){ const n=(name||'').toLowerCase(); if(n.includes('armature')) return 6;
+  const left=/left|(^|[_.:\-])l([_.\-]|$)|\.l$|_l$/.test(n), right=/right|(^|[_.:\-])r([_.\-]|$)|\.r$|_r$/.test(n), side=right&&!left?1:0;
+  if(/head|neck|jaw|eye|hair|ear|nose|brow|tongue|face|teeth/.test(n)) return 5;
+  if(/hand|finger|thumb|index|middle|ring|pinky|wrist|palm|forearm|elbow|arm|shoulder|clav|bicep|tricep|weapon/.test(n)) return 1+side;
+  if(/leg|thigh|knee|calf|shin|foot|toe|ankle|heel/.test(n)) return 3+side;
+  return 6; }
+function buildClassGeoms(root){
+  const out=[];
+  root.traverse(m=>{ if(!m.isMesh||!m.visible) return; const g=m.geometry; if(!g.attributes.position) return;
+    const mats=[].concat(m.material); let idx=g.index? Array.from(g.index.array) : [...Array(g.attributes.position.count).keys()];
+    if(g.groups.length){ const keep=[]; for(const gr of g.groups){ const mt=mats[gr.materialIndex]; if(mt&&mt.visible===false) continue; for(let t=gr.start;t<gr.start+gr.count;t++) keep.push(idx[t]); } idx=keep; }
+    const g1=new THREE.BufferGeometry(); for(const k of Object.keys(g.attributes)) g1.setAttribute(k,g.attributes[k]); g1.setIndex(idx); const g2=g1.toNonIndexed();
+    const n=g2.attributes.position.count, col=new Float32Array(n*3); let bc=null, si=g2.attributes.skinIndex, sw=g2.attributes.skinWeight;
+    if(m.isSkinnedMesh&&si){ bc=m.skeleton.bones.map(b=>boneClass(b.name)); }
+    let anc=6; if(!bc){ let p=m.parent; while(p){ if(p.isBone){ anc=boneClass(p.name); break; } p=p.parent; } }
+    for(let t=0;t<n;t+=3){ let c; if(bc){ const cnt=new Array(7).fill(0); for(let q=0;q<3;q++){ let bi=0,bw=-1; for(let k=0;k<4;k++){ const w=sw.getComponent(t+q,k); if(w>bw){bw=w;bi=si.getComponent(t+q,k);} } cnt[bc[bi]]+=1; } c=cnt.indexOf(Math.max(...cnt)); } else c=anc;
+      for(let q=0;q<3;q++){ col[(t+q)*3]=c*30/255; } }
+    g2.setAttribute('color',new THREE.BufferAttribute(col,3)); out.push({m,g2,g0:m.geometry,mat0:m.material}); });
+  return out; }
 window.render = async (o)=>{
   const {root,clips}=await load(o.url); const S=o.size;
   const renderer = new THREE.WebGLRenderer({antialias:true, alpha:true, preserveDrawingBuffer:true});
@@ -110,10 +131,15 @@ window.render = async (o)=>{
   const cam = new THREE.OrthographicCamera(-half,half,half,-half,0.01,1000);
   const cen = new THREE.Vector3(0,(o.center ?? 0.5)*h,0), dist=100;
   cam.position.set(0, cen.y + Math.sin(pitch)*dist, Math.cos(pitch)*dist); cam.lookAt(cen);
+  let CG=null, cr=null, cmat=null; if(o.classes){ CG=buildClassGeoms(root); cmat=new THREE.MeshBasicMaterial({vertexColors:true, side:THREE.DoubleSide});
+    cr=new THREE.WebGLRenderer({antialias:false, alpha:true, preserveDrawingBuffer:true}); cr.setSize(S,S,false); cr.setPixelRatio(1); cr.setClearColor(0x000000,0); cr.outputColorSpace=THREE.LinearSRGBColorSpace; cr.toneMapping=THREE.NoToneMapping; document.body.appendChild(cr.domElement); }
   const out=[];
   for (const d of o.dirs){ pivot.rotation.y = -d.yaw*Math.PI/180;
     for (let i=0;i<N;i++){ if(mixer) mixer.setTime(times[i]); root.updateMatrixWorld(true); renderer.render(scene,cam);
-      out.push({dir:d.name, frame:i, png: renderer.domElement.toDataURL('image/png')}); } }
+      const rec={dir:d.name, frame:i, png: renderer.domElement.toDataURL('image/png')};
+      if(CG){ const hid=[]; scene.traverse(n=>{ if(n.isMesh&&!CG.some(c=>c.m===n)&&n.visible){ hid.push(n); n.visible=false; } }); CG.forEach(c=>{ c.m.geometry=c.g2; c.m.material=cmat; });
+        scene.background=null; cr.render(scene,cam); rec.cls=cr.domElement.toDataURL('image/png'); CG.forEach(c=>{ c.m.geometry=c.g0; c.m.material=c.mat0; }); hid.forEach(n=>n.visible=true); }
+      out.push(rec); } }
   return {frames:out, height:h, clip: clip? clip.name : null, compose: window._compose||null};
 };
 window.islands = async (url)=>{ const {root}=await load(url); root.updateMatrixWorld(true); const out=[];
