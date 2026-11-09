@@ -1,0 +1,192 @@
+"""Reconstruction 3D à partir de vues tournantes (visual hull + couleurs projetées) -> GLB texturé (couleurs par sommet).
+
+Principe : N vues d'un personnage sur fond uni, prises à intervalles réguliers autour de l'axe vertical (0°, 45°, 90°, …).
+1. segmentation du fond ; 2. calage fin de chaque vue (décalage x / y) en maximisant le volume de l'enveloppe ;
+3. sculpture d'une grille voxel par les silhouettes ; 4. surface (marching cubes, lissée) ; 5. couleur de chaque sommet
+projetée depuis les vues qui le voient de face ; 6. export GLB.
+Limites : une enveloppe visuelle ne voit pas les concavités (entre les jambes vues de profil, aisselles) -> formes un peu enveloppantes."""
+import json, struct, math
+from pathlib import Path
+import numpy as np
+from PIL import Image
+from scipy import ndimage as ndi
+
+def segment(path, thr=16):
+    """Fond = dégradé lisse (vignette) : ajusté par un polynôme 2D sur les pixels sûrement hors personnage, puis seuil sur l'écart."""
+    im = Image.open(path).convert("RGB"); a = np.asarray(im).astype(np.float32); h, w, _ = a.shape
+    yy, xx = np.mgrid[0:h, 0:w]; u = (xx - w / 2) / (w / 2); v = (yy - h / 2) / (h / 2)
+    basis = np.stack([np.ones_like(u), u, v, u * u, v * v, u * v, u ** 2 * v ** 2], -1).reshape(-1, 7)
+    lum = a.mean(-1); sat = a.max(-1) - a.min(-1)
+    fg = (lum > 62) | (sat > 40)                      # personnage évident : peau, sous-vêtement, cheveux
+    fg = ndi.binary_dilation(fg, iterations=6)
+    for _ in range(4):
+        sel = (~fg).ravel(); sub = np.nonzero(sel)[0][:: max(1, sel.sum() // 40000)]
+        coef = np.stack([np.linalg.lstsq(basis[sub], a[..., k].ravel()[sub], rcond=None)[0] for k in range(3)], 1)
+        bg = (basis @ coef).reshape(h, w, 3); d = np.abs(a - bg).max(-1)
+        fg = ndi.binary_dilation(d > thr, iterations=3)
+    m = d > thr
+    m = ndi.binary_opening(m, iterations=1); m = ndi.binary_closing(m, iterations=2); m = ndi.binary_fill_holes(m)
+    lab, n = ndi.label(m)
+    if n > 1:
+        sizes = ndi.sum(m, lab, range(1, n + 1)); m = lab == (1 + int(np.argmax(sizes)))
+    return a, m
+
+def srgb2lin(c): c = c / 255.0; return np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+
+class View:
+    def __init__(s, path, theta):
+        s.rgb, s.mask = segment(path); s.theta = theta; s.h, s.w = s.mask.shape
+        ys, xs = np.nonzero(s.mask); s.cx0 = xs.mean(); s.bot = ys.max(); s.top = ys.min()
+        s.dx = 0.0; s.dy = 0.0; s.phi = 0.0; s.sc = 1.0; s.dist = ndi.distance_transform_edt(s.mask)
+    def basis(s, sign):
+        t = math.radians(s.theta); c = np.array([sign * math.sin(t), 0, math.cos(t)]); r = np.array([math.cos(t), 0, -sign * math.sin(t)]); return r, c
+    def project(s, P, sign):  # P (n,3) en unités px, y vers le haut, y=0 aux pieds -> (col,row)
+        r, c = s.basis(sign); ph = math.radians(s.phi); col = (P @ r) * s.sc + s.cx0 + s.dx
+        row = (s.bot + s.dy) - s.sc * (P[:, 1] * math.cos(ph) - (P @ c) * math.sin(ph)); return col, row
+
+def grid(extent_xz, height, vox):
+    xs = np.arange(-extent_xz, extent_xz + vox, vox); ys = np.arange(0, height + vox, vox)
+    X, Y, Z = np.meshgrid(xs, ys, xs, indexing="ij"); return xs, ys, np.stack([X.ravel(), Y.ravel(), Z.ravel()], 1)
+
+def carve(views, P, sign):
+    inside = np.ones(len(P), bool)
+    for v in views:
+        col, row = v.project(P, sign); ci = np.round(col).astype(int); ri = np.round(row).astype(int)
+        ok = (ci >= 0) & (ci < v.w) & (ri >= 0) & (ri < v.h); occ = np.zeros(len(P), bool); occ[ok] = getattr(v, 'cmask', v.mask)[ri[ok], ci[ok]]; inside &= occ
+    return inside
+
+def calibrate(views, sign, extent, height, vox=5, rounds=3, rng=16):
+    xs, ys, P = grid(extent, height, vox)
+    for r in range(rounds):
+        for v in (views[1:] if r == 0 else views):
+            others = [u for u in views if u is not v]; sub = P[carve(others, P, sign)]  # voxels admis par les autres vues
+            best = None; ox, oy, op = v.dx, v.dy, v.phi
+            for ph in (0,):
+                for dx in range(-rng, rng + 1, 2):
+                    for dy in range(-rng // 2, rng // 2 + 1, 2):
+                        v.dx, v.dy, v.phi = ox + dx, oy + dy, op + ph; col, row = v.project(sub, sign)
+                        ci = np.round(col).astype(int); ri = np.round(row).astype(int); ok = (ci >= 0) & (ci < v.w) & (ri >= 0) & (ri < v.h); n = int(v.mask[ri[ok], ci[ok]].sum())
+                        if best is None or n > best[0]: best = (n, dx, dy, ph)
+            v.dx, v.dy, v.phi = ox + best[1], oy + best[2], op + best[3]
+        rng = max(4, rng // 2)
+    return int(carve(views, P, sign).sum())
+
+def taubin(verts, faces, iters=12, lam=0.5, mu=-0.53):
+    """Lissage de maillage sans rétrécissement (Taubin) : supprime les marches d'escalier des voxels."""
+    from scipy import sparse
+    n = len(verts); e = np.concatenate([faces[:, [0, 1]], faces[:, [1, 2]], faces[:, [2, 0]]]); e = np.concatenate([e, e[:, ::-1]])
+    A = sparse.coo_matrix((np.ones(len(e)), (e[:, 0], e[:, 1])), shape=(n, n)).tocsr(); A.data[:] = 1; deg = np.maximum(np.asarray(A.sum(1)).ravel()[:, None], 1)
+    for _ in range(iters):
+        for f in (lam, mu): verts = verts + f * ((A @ verts) / deg - verts)
+    return verts
+
+def surface(views, sg, extent, height, vox, smooth, iters=30):
+    from skimage import measure
+    xs, ys, P = grid(extent, height, vox); inside = carve(views, P, sg).reshape(len(xs), len(ys), len(xs)).astype(np.float32)
+    vol = ndi.gaussian_filter(np.pad(inside, 2), smooth)
+    verts, faces, normals, _ = measure.marching_cubes(vol, 0.5, spacing=(vox, vox, vox))
+    verts = verts - 2 * vox + np.array([xs[0], ys[0], xs[0]]); faces = faces[:, ::-1]
+    verts = taubin(verts, faces, iters)
+    tri = verts[faces]; fn = np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0]); nv = np.zeros_like(verts)   # normales recalculées depuis les faces (aire pondérée)
+    for k in range(3): np.add.at(nv, faces[:, k], fn)
+    nv /= np.linalg.norm(nv, axis=1, keepdims=True) + 1e-12
+    if (nv * (verts - verts.mean(0))).sum(1).mean() < 0: nv, faces = -nv, faces[:, ::-1]
+    return verts, faces, nv
+
+def smooth_normals(verts, faces, nv, iters=6):
+    from scipy import sparse
+    n = len(verts); e = np.concatenate([faces[:, [0, 1]], faces[:, [1, 2]], faces[:, [2, 0]]]); e = np.concatenate([e, e[:, ::-1]])
+    A = sparse.coo_matrix((np.ones(len(e)), (e[:, 0], e[:, 1])), shape=(n, n)).tocsr(); A.data[:] = 1
+    for _ in range(iters): nv = nv + A @ nv; nv /= np.linalg.norm(nv, axis=1, keepdims=True) + 1e-12
+    return nv
+
+POW = 8
+
+def colorize(views, verts, normals, sg):
+    """Couleur par sommet = moyenne (linéaire) des vues qui le voient de face. Renvoie aussi un score d'incohérence (variance pondérée)."""
+    acc = np.zeros((len(verts), 3)); acc2 = np.zeros((len(verts), 3)); wsum = np.zeros(len(verts)) + 1e-9
+    for v in views:
+        r, c = v.basis(sg); col, row = v.project(verts, sg); depth = verts @ c
+        zb = np.full((v.h, v.w), -1e9); ci = np.round(col).astype(int); ri = np.round(row).astype(int); ok = (ci >= 1) & (ci < v.w - 1) & (ri >= 1) & (ri < v.h - 1)
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1): np.maximum.at(zb, (ri[ok] + dy, ci[ok] + dx), depth[ok])
+        zb = ndi.maximum_filter(zb, size=7); cc = np.clip(ci, 0, v.w - 1); rc = np.clip(ri, 0, v.h - 1)
+        vis = ok & (depth >= zb[rc, cc] - 5.0); facing = np.clip(normals @ c, 0, 1) ** POW; edge = np.clip(v.dist[rc, cc] / 8.0, 0, 1)
+        w = vis * facing * edge
+        samp = np.stack([ndi.map_coordinates(srgb2lin(v.rgb[..., k]), [row, col], order=1, mode="nearest") for k in range(3)], 1)
+        acc += samp * w[:, None]; acc2 += samp ** 2 * w[:, None]; wsum += w
+    mean = acc / wsum[:, None]; var = (acc2 / wsum[:, None] - mean ** 2).clip(0).sum(1); seen = wsum > 1e-3
+    score = float((var * (wsum > 0.3)).sum() / max(1, (wsum > 0.3).sum()))
+    if (~seen).any():
+        from scipy.spatial import cKDTree
+        t = cKDTree(verts[seen]); _, ix = t.query(verts[~seen]); mean[~seen] = mean[seen][ix]
+    return mean, score
+
+def smooth_colors(colr, faces, iters=3, a=0.5):
+    """Lissage des couleurs le long des arêtes : masque les stries dues aux changements de vue."""
+    from scipy import sparse
+    n = len(colr); e = np.concatenate([faces[:, [0, 1]], faces[:, [1, 2]], faces[:, [2, 0]]]); e = np.concatenate([e, e[:, ::-1]])
+    A = sparse.coo_matrix((np.ones(len(e)), (e[:, 0], e[:, 1])), shape=(n, n)).tocsr(); A.data[:] = 1; deg = np.asarray(A.sum(1)).ravel()[:, None]
+    for _ in range(iters): colr = (1 - a) * colr + a * (A @ colr) / np.maximum(deg, 1)
+    return colr
+
+def refine_photo(views, verts, normals, sg, rounds=2, n=6000, log=print):
+    rs = np.random.default_rng(1); ix = rs.choice(len(verts), min(n, len(verts)), replace=False); Vs, Ns = verts[ix], normals[ix]
+    score = lambda: colorize(views, Vs, Ns, sg)[1]
+    cur = score(); log(f"  cohérence photo initiale {cur:.5f}")
+    steps = [("dx", (-3, -1.5, 1.5, 3)), ("dy", (-3, -1.5, 1.5, 3))]
+    for r in range(rounds):
+        for v in views:
+            for k, ds in steps:
+                base = getattr(v, k); best = (cur, 0)
+                for d in ds:
+                    setattr(v, k, base + d); sc_ = score()
+                    if sc_ < best[0]: best = (sc_, d)
+                setattr(v, k, base + best[1]); cur = best[0]
+        log(f"  tour {r + 1} : {cur:.5f}")
+    return cur
+
+def build(paths, thetas=None, out="modele.glb", vox=2.5, height_m=1.75, sign=None, smooth=1.6, grow=2, photo=True, smooth_col=3, log=print):
+    thetas = thetas or [45 * i for i in range(len(paths))]
+    views = [View(p, t) for p, t in zip(paths, thetas)]
+    height = max(v.bot - v.top for v in views) * 1.05; extent = max(v.w for v in views) * 0.62
+    best = None
+    for sg in ([sign] if sign else [1, -1]):
+        for v in views: v.dx = 0.0; v.dy = 0.0; v.cmask = v.mask
+        n = calibrate(views, sg, extent, height); calibrate(views, sg, extent, height, vox=3, rounds=1, rng=4)
+        for v in views: sm = ndi.gaussian_filter(v.mask.astype(np.float32), 2.0) > 0.5; v.cmask = ndi.binary_dilation(sm, iterations=grow) if grow else sm
+        V, F, N = surface(views, sg, extent, height, vox, smooth); C, score = colorize(views, V, smooth_normals(V, F, N), sg)
+        if photo:
+            sv = [(v.dx, v.dy) for v in views]; refine_photo(views, V, N, sg, log=log); V2, F2, N2 = surface(views, sg, extent, height, vox, smooth); C2, score2 = colorize(views, V2, smooth_normals(V2, F2, N2), sg)
+            log(f"  avant/après affinage photo : {score:.5f} / {score2:.5f}")
+            if score2 < score: V, F, N, C, score = V2, F2, N2, C2, score2
+            else:
+                for v, (dx, dy) in zip(views, sv): v.dx, v.dy = dx, dy
+        log(f"sens {sg:+d} : volume {n}, incohérence des couleurs {score:.5f}")
+        if best is None or score < best[0]: best = (score, sg, V, F, N, C, [(v.dx, v.dy, v.phi, v.sc) for v in views])
+    score, sg, verts, faces, normals, colr, offs = best; colr = smooth_colors(colr, faces, iters=smooth_col); log(f"sens retenu {sg:+d} ; {len(verts)} sommets, {len(faces)} triangles")
+    mn = verts.min(0); mx = verts.max(0); k = height_m / (mx[1] - mn[1]); V = (verts - [(mn[0] + mx[0]) / 2, mn[1], (mn[2] + mx[2]) / 2]) * k
+    write_glb(out, V.astype(np.float32), smooth_normals(verts, faces, normals, 3).astype(np.float32), colr.astype(np.float32), faces.astype(np.uint32)); log("écrit " + str(out))
+    return dict(vertices=len(V), triangles=len(faces), sign=sg, score=score, offsets=offs)
+
+def write_glb(path, V, N, C, F):
+    def pad(b, ch=b"\x00"): return b + ch * (-len(b) % 4)
+    parts = [pad(F.tobytes()), pad(V.tobytes()), pad(N.tobytes()), pad(C.astype(np.float32).tobytes())]
+    offs = np.cumsum([0] + [len(p) for p in parts]); binb = b"".join(parts)
+    js = {"asset": {"version": "2.0", "generator": "character-forge hull"}, "scene": 0, "scenes": [{"nodes": [0]}], "nodes": [{"mesh": 0, "name": "personnage"}],
+          "meshes": [{"primitives": [{"attributes": {"POSITION": 1, "NORMAL": 2, "COLOR_0": 3}, "indices": 0, "material": 0}]}],
+          "materials": [{"name": "couleurs", "pbrMetallicRoughness": {"metallicFactor": 0.0, "roughnessFactor": 0.85}, "doubleSided": True}],
+          "buffers": [{"byteLength": len(binb)}],
+          "bufferViews": [{"buffer": 0, "byteOffset": int(offs[0]), "byteLength": int(F.nbytes), "target": 34963}] + [{"buffer": 0, "byteOffset": int(offs[i]), "byteLength": int(len(parts[i])), "target": 34962} for i in (1, 2, 3)],
+          "accessors": [{"bufferView": 0, "componentType": 5125, "count": int(F.size), "type": "SCALAR"},
+                        {"bufferView": 1, "componentType": 5126, "count": len(V), "type": "VEC3", "min": V.min(0).tolist(), "max": V.max(0).tolist()},
+                        {"bufferView": 2, "componentType": 5126, "count": len(V), "type": "VEC3"},
+                        {"bufferView": 3, "componentType": 5126, "count": len(V), "type": "VEC3"}]}
+    j = pad(json.dumps(js).encode(), b" ")
+    with open(path, "wb") as f:
+        f.write(struct.pack("<4sII", b"glTF", 2, 12 + 8 + len(j) + 8 + len(binb))); f.write(struct.pack("<I4s", len(j), b"JSON")); f.write(j); f.write(struct.pack("<I4s", len(binb), b"BIN\x00")); f.write(binb)
+
+def cmd(a):
+    paths = [str(p) for p in a.images]; th = [float(t) for t in a.angles.split(",")] if a.angles else None
+    r = build(paths, th, out=a.output, vox=a.vox, height_m=a.height, sign=a.sign, photo=not a.no_photo, smooth_col=a.smooth_colors)
+    print(json.dumps(r, indent=1)); return 0

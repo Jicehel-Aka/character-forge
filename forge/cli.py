@@ -145,6 +145,13 @@ def main(argv=None):
     s.add_argument("--anim", default=None, help="nom d'un clip du fichier"); s.add_argument("--frames", type=int, default=1); s.add_argument("--pitch", type=float, default=38)
     s.add_argument("--margin", type=float, default=1.25); s.add_argument("--colors", type=int, default=40); s.add_argument("--no-outline", dest="outline", action="store_false"); s.add_argument("--texture", default=None, help="atlas PNG appliqué aux UV (FBX sans textures intégrées)"); s.add_argument("--pad", type=float, default=0.04, help="marge autour du personnage (fraction), cadrage serré sur toutes les images"); s.add_argument("--no-separate", dest="separate", action="store_false", help="désactive les contours internes bras/jambes"); s.add_argument("--donor", default=None, help="FBX dont on greffe la tête sur le corps du modèle principal"); s.add_argument("--donor-texdir", default=None); s.add_argument("--donor-yaw", type=float, default=0); s.add_argument("--head-frac", type=float, default=0.82, help="seuil de hauteur (fraction) au-dessus duquel un maillage fait partie de la tête"); s.add_argument("--head-names", default=None, help="regex des maillages de la tête de la base"); s.add_argument("--donor-head-names", default=None); s.add_argument("--head-scale", type=float, default=1.0); s.add_argument("--head-drop", type=float, default=0.0, help="décalage vertical de la tête greffée (fraction de la hauteur de tête)"); s.add_argument("--tmax", type=float, default=None, help="n'échantillonner le clip que sur les tmax premières secondes"); s.add_argument("--texdir", default=None, help="dossier de textures : association automatique matériau -> image (diffuse/base color)"); s.add_argument("--yaw-offset", type=float, default=0, help="degrés ajoutés à toutes les directions si le modèle ne regarde pas vers +Z (glTF : +Z = avant)")
 
+    s = sub.add_parser("hull", help="vues tournantes (8 captures à 45°) -> modèle 3D GLB couleur (enveloppe visuelle + projection des couleurs)")
+    s.add_argument("images", nargs="+", help="vues dans l'ordre de rotation : face, 45°, profil, 135°, dos, 225°, profil opposé, 315°")
+    s.add_argument("-o", "--output", default="modele.glb"); s.add_argument("--angles", default=None, help="angles en degrés séparés par des virgules (défaut 0,45,90,...)")
+    s.add_argument("--vox", type=float, default=2.5, help="taille de voxel en pixels (plus petit = plus fin, plus lent)"); s.add_argument("--height", type=float, default=1.75, help="hauteur du modèle (m)")
+    s.add_argument("--sign", type=int, choices=[1, -1], default=None, help="sens de rotation (auto par défaut)"); s.add_argument("--no-photo", action="store_true", help="pas d'affinage du calage par cohérence des couleurs")
+    s.add_argument("--smooth-colors", type=int, default=3)
+
     s = sub.add_parser("control", help="planche de contrôle + métriques (membres fins qui disparaissent) d'un ou plusieurs rendus forge meshy")
     s.add_argument("dirs", nargs="+"); s.add_argument("--rows", type=int, default=6)
 
@@ -153,7 +160,7 @@ def main(argv=None):
     s.add_argument("--bank", default=None); s.add_argument("--frames", type=int, default=12); s.add_argument("--size", type=int, default=64); s.add_argument("--dirs", default="s,se,e,ne,n,nw,w,sw"); s.add_argument("-o", "--output", default=None)
 
     s = sub.add_parser("rig", help="FBX statique T-pose + squelette Mixamo -> GLB skinné (accessoires séparés, clips Mixamo)")
-    s.add_argument("model"); s.add_argument("--skeleton", required=True, help="FBX Mixamo skinné de référence (ex. Idle.fbx)"); s.add_argument("--texture", required=True)
+    s.add_argument("model"); s.add_argument("--skeleton", required=True, help="FBX Mixamo skinné de référence (ex. Idle.fbx)"); s.add_argument("--texture", default=None, help="absente : couleurs de sommets du modèle (GLB de `forge hull`)"); s.add_argument("--noprops", action="store_true", help="pas de séparation hache/bouclier (personnage nu / vêtu)")
     s.add_argument("--clips", nargs="*", help="FBX Mixamo dont on embarque l'animation"); s.add_argument("-o", "--output", default="rigged.glb"); s.add_argument("--knn", type=int, default=8)
     s.add_argument("--axe", default=None, help='JSON {"grip":[x,y,z],"rot":[dx,dy,dz],"pos":[x,y,z]} (repère main)'); s.add_argument("--shield", default=None); s.add_argument("--axe-bone", default=None); s.add_argument("--shield-bone", default=None)
 
@@ -245,6 +252,9 @@ def main(argv=None):
     elif a.cmd == "skiln-paint":
         from . import skiln_paint
         raise SystemExit(skiln_paint.cmd(a))
+    elif a.cmd == "hull":
+        from . import hull
+        raise SystemExit(hull.cmd(a))
     elif a.cmd == "control":
         from . import control
         raise SystemExit(control.cmd(a))

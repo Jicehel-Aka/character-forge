@@ -155,7 +155,7 @@ window.islands = async (url)=>{ const {root}=await load(url); root.updateMatrixW
 window.rig = async (o)=>{
   const V=(await load(o.model)).root, S=(await load(o.skeleton)).root;
   let vm; V.traverse(n=>{ if(n.isMesh&&!vm) vm=n; }); let sm0; S.traverse(n=>{ if(n.isSkinnedMesh&&!sm0) sm0=n; });
-  const G=vm.geometry, P=G.attributes.position, n=P.count, N=G.attributes.normal, UV=G.attributes.uv;
+  const G=vm.geometry, P=G.attributes.position, n=P.count, N=G.attributes.normal, UV=G.attributes.uv, COL=G.attributes.color;
   const idx=G.index? Array.from(G.index.array) : [...Array(n).keys()];
   // îlots (soudure par position)
   const key=new Map(), rep=new Int32Array(n); for(let i=0;i<n;i++){ const k=Math.round(P.getX(i)*1e3)+','+Math.round(P.getY(i)*1e3)+','+Math.round(P.getZ(i)*1e3); if(!key.has(k)) key.set(k,i); rep[i]=key.get(k); }
@@ -163,7 +163,7 @@ window.rig = async (o)=>{
   for(let t=0;t<idx.length;t+=3){ const a=f(rep[idx[t]]); par[f(rep[idx[t+1]])]=a; par[f(rep[idx[t+2]])]=f(a); }
   const isl=new Map(); for(let i=0;i<n;i++){ const r=f(rep[i]); let e=isl.get(r); if(!e){e={lo:[1e9,1e9,1e9],hi:[-1e9,-1e9,-1e9]}; isl.set(r,e);} for(let k=0;k<3;k++){ const v=k==0?P.getX(i):k==1?P.getY(i):P.getZ(i); e.lo[k]=Math.min(e.lo[k],v); e.hi[k]=Math.max(e.hi[k],v);} }
   const role=new Map(); // r -> 'body'|'axe'|'shield'
-  for(const [r,e] of isl){ const cx=(e.lo[0]+e.hi[0])/2; role.set(r, (Math.abs(cx)>(o.propx??28) && e.hi[1]<(o.propy??90))? (cx>0?'shield':'axe') : 'body'); }
+  for(const [r,e] of isl){ const cx=(e.lo[0]+e.hi[0])/2; role.set(r, o.noprops? 'body' : (Math.abs(cx)>(o.propx??28) && e.hi[1]<(o.propy??90))? (cx>0?'shield':'axe') : 'body'); }
   const part=i=>role.get(f(rep[i]));
   // alignement Viking -> espace du squelette de référence (hauteur des îlots du corps)
   let vlo=1e9,vhi=-1e9; for(let i=0;i<n;i++) if(part(i)==='body'){ vlo=Math.min(vlo,P.getY(i)); vhi=Math.max(vhi,P.getY(i)); }
@@ -179,18 +179,17 @@ window.rig = async (o)=>{
     for(const [d2,j] of best){ const w=1/(d2+0.5); for(let k=0;k<4;k++) acc[RI.getComponent(j,k)] += w*RW.getComponent(j,k); }
     const top=[...acc.keys()].sort((a,b)=>acc[b]-acc[a]).slice(0,4); let sum=top.reduce((s,b)=>s+acc[b],0)||1; return top.map(b=>[b,acc[b]/sum]); }
   // géométrie du corps
-  const remap=new Map(), pos=[], nor=[], uv=[], si=[], sw=[], bidx=[];
+  const remap=new Map(), pos=[], nor=[], uv=[], col=[], si=[], sw=[], bidx=[];
   const take=i=>{ let k=remap.get(i); if(k!==undefined) return k; k=pos.length/3; remap.set(i,k);
-    const [x,y,z]=map(P.getX(i),P.getY(i),P.getZ(i)); pos.push(x,y,z); nor.push(N.getX(i),N.getY(i),N.getZ(i)); uv.push(UV.getX(i),1-UV.getY(i));
+    const [x,y,z]=map(P.getX(i),P.getY(i),P.getZ(i)); pos.push(x,y,z); nor.push(N.getX(i),N.getY(i),N.getZ(i)); if(UV) uv.push(UV.getX(i),1-UV.getY(i)); if(COL) col.push(COL.getX(i),COL.getY(i),COL.getZ(i));
     const w=weights(x,y,z); for(let q=0;q<4;q++){ si.push(w[q]?w[q][0]:0); sw.push(w[q]?w[q][1]:0); } return k; };
   const props={axe:{pos:[],nor:[],uv:[],idx:[],map:new Map()}, shield:{pos:[],nor:[],uv:[],idx:[],map:new Map()}};
   for(let t=0;t<idx.length;t+=3){ const pr=part(idx[t]);
     if(pr==='body'){ for(let q=0;q<3;q++) bidx.push(take(idx[t+q])); }
     else { const pp=props[pr]; for(let q=0;q<3;q++){ const i=idx[t+q]; let k=pp.map.get(i); if(k===undefined){ k=pp.pos.length/3; pp.map.set(i,k); const [x,y,z]=map(P.getX(i),P.getY(i),P.getZ(i)); pp.pos.push(x,y,z); pp.nor.push(N.getX(i),N.getY(i),N.getZ(i)); pp.uv.push(UV.getX(i),1-UV.getY(i)); } pp.idx.push(k); } } }
-  const tex=await new THREE.TextureLoader().loadAsync(o.texture); tex.colorSpace=THREE.SRGBColorSpace; tex.flipY=false; tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
-  const mat=new THREE.MeshStandardMaterial({map:tex, roughness:0.9, metalness:0, name:'Viking'});
+  let mat; if(o.texture){ const tex=await new THREE.TextureLoader().loadAsync(o.texture); tex.colorSpace=THREE.SRGBColorSpace; tex.flipY=false; tex.wrapS=tex.wrapT=THREE.RepeatWrapping; mat=new THREE.MeshStandardMaterial({map:tex, roughness:0.9, metalness:0, name:'Viking'}); } else mat=new THREE.MeshStandardMaterial({vertexColors:!!COL, roughness:0.9, metalness:0, name:'Modele'});
   const root=SkeletonUtils.clone(S); let sm; root.traverse(c=>{ if(c.isSkinnedMesh) sm=c; });
-  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(nor,3)); g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(nor,3)); if(UV) g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2)); if(COL) g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));
   g.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(si,4)); g.setAttribute('skinWeight',new THREE.Float32BufferAttribute(sw,4)); g.setIndex(bidx);
   sm.geometry=g; sm.material=mat; sm.name='Viking_body'; sm.frustumCulled=false;
   // accessoires : enfants de la main, placement T-pose conservé (+ décalage/rotation en repère main)
