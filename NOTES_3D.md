@@ -270,3 +270,8 @@ Limites : poids approximatifs (cape/armure près du torse), pas de doigts (squel
   morph targets et échelle donnaient des NaN), attente du décodage des textures embarquées, matériaux sans texture (chemins Windows externes) -> gris clair opaque.
 - Scorpion_fbx.Fbx : textures non fournies dans l'archive (références C:\Users\...\CharacterCreator4Temp\...) -> rendu gris tant qu'on ne les a pas.
 - Orc Warrior : `--texture texture_pbr_v128.png` OK (albédo ; metallic/roughness/normal non utilisés).
+
+## Lot FBX (exemple/batch_fbx.py)
+8 personnages rendus en 8 directions à 64 px (statique ou 6 images du clip) : orc, scorpion, sophia, manuel, dwarf, arqueira, dancing_girl, cocomyos.
+Non chargeables : sta/sata/ada.FBX (FBX 6.1, trop ancien pour three.js et assimp) -> ré-exporter en FBX 2013+ ou GLB.
+Textures absentes des archives -> rendu gris (sauf Orc).
