@@ -173,9 +173,13 @@ window.rig = async (o)=>{
   // et le modèle est "dé-posé" en T par le champ de déplacement (posé -> repos) du maillage de référence
   const RT=sm0.geometry.attributes.position; let POSED=null, DISP=null;
   if(o.armDown){ const a=o.armDown*Math.PI/180; const bn=nm=>{let b; sm0.skeleton.bones.forEach(x=>{ if(x.name===nm) b=x; }); return b;};
-    for(const [nm,sg] of [['mixamorigLeftArm',-1],['mixamorigRightArm',1]]){ const b=bn(nm); if(!b) continue; sm0.updateMatrixWorld(true);
-      const wq=new THREE.Quaternion(); b.getWorldQuaternion(wq); const pq=new THREE.Quaternion(); b.parent.getWorldQuaternion(pq);
-      const dq=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1), sg*a); const nq=dq.multiply(wq); b.quaternion.copy(pq.invert().multiply(nq)); }
+    for(const [nm,child] of [['mixamorigLeftArm','mixamorigLeftForeArm'],['mixamorigRightArm','mixamorigRightForeArm']]){ const b=bn(nm), c=bn(child); if(!b||!c) continue; sm0.updateMatrixWorld(true);
+      const p0=new THREE.Vector3(), p1=new THREE.Vector3(); b.getWorldPosition(p0); c.getWorldPosition(p1); const dW=p1.clone().sub(p0).normalize();
+      // direction cible en repère local du maillage (X latéral du bras, vers le bas d'un angle a), repassée en monde
+      const L0=sm0.worldToLocal(p0.clone()), L1=sm0.worldToLocal(p1.clone()); const sx=Math.sign(L1.x-L0.x)||1;
+      const tW=sm0.localToWorld(L0.clone().add(new THREE.Vector3(sx*Math.cos(a),-Math.sin(a),0))).sub(p0).normalize();
+      const dq=new THREE.Quaternion().setFromUnitVectors(dW,tW); const wq=new THREE.Quaternion(); b.getWorldQuaternion(wq); const pq=new THREE.Quaternion(); b.parent.getWorldQuaternion(pq);
+      b.quaternion.copy(pq.invert().multiply(dq.multiply(wq))); }
     sm0.updateMatrixWorld(true); sm0.skeleton.update(); POSED=new Float32Array(RT.count*3); DISP=new Float32Array(RT.count*3); const tv=new THREE.Vector3();
     for(let i=0;i<RT.count;i++){ sm0.applyBoneTransform(i,tv.set(RT.getX(i),RT.getY(i),RT.getZ(i))); POSED[3*i]=tv.x; POSED[3*i+1]=tv.y; POSED[3*i+2]=tv.z; DISP[3*i]=RT.getX(i)-tv.x; DISP[3*i+1]=RT.getY(i)-tv.y; DISP[3*i+2]=RT.getZ(i)-tv.z; } }
   const RPg=sm0.geometry.attributes.position, RP={count:RPg.count, getX:i=>POSED?POSED[3*i]:RPg.getX(i), getY:i=>POSED?POSED[3*i+1]:RPg.getY(i), getZ:i=>POSED?POSED[3*i+2]:RPg.getZ(i)};
