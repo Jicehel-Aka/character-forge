@@ -57,7 +57,7 @@ def grid(extent_xz, height, vox):
     X, Y, Z = np.meshgrid(xs, ys, xs, indexing="ij"); return xs, ys, np.stack([X.ravel(), Y.ravel(), Z.ravel()], 1)
 
 import os
-TOL = int(os.environ.get('FORGE_HULL_TOL', '1'))  # nb de vues qui peuvent contredire un voxel (tolérance aux erreurs de calage/perspective)
+TOL = int(os.environ.get('FORGE_HULL_TOL', '0'))  # nb de vues qui peuvent contredire un voxel (tolérance aux erreurs de calage/perspective)
 
 ARMTOL = int(os.environ.get('FORGE_HULL_ARMTOL', '3'))  # tolérance plus forte dans la bande des bras en T (bouts de bras coupés par la perspective)
 ZONE = None  # (y0, y1, |x| min) en unités px, posé par build()
@@ -175,11 +175,11 @@ def smooth_colors(colr, faces, iters=3, a=0.5):
     for _ in range(iters): colr = (1 - a) * colr + a * (A @ colr) / np.maximum(deg, 1)
     return colr
 
-def refine_photo(views, verts, normals, sg, rounds=2, n=6000, log=print):
+def refine_photo(views, verts, normals, sg, rounds=3, n=6000, log=print):
     rs = np.random.default_rng(1); ix = rs.choice(len(verts), min(n, len(verts)), replace=False); Vs, Ns = verts[ix], normals[ix]
     score = lambda: colorize(views, Vs, Ns, sg)[1]
     cur = score(); log(f"  cohérence photo initiale {cur:.5f}")
-    steps = [("dx", (-3, -1.5, 1.5, 3)), ("dy", (-3, -1.5, 1.5, 3))]
+    steps = [("dx", (-3, -1.5, 1.5, 3)), ("dy", (-3, -1.5, 1.5, 3)), ("sc", (-0.03, -0.015, 0.015, 0.03))]
     for r in range(rounds):
         for v in views:
             for k, ds in steps:
@@ -207,11 +207,11 @@ def build(paths, thetas=None, out="modele.glb", vox=2.5, height_m=1.75, sign=Non
         for v in views: sm = ndi.gaussian_filter(v.mask.astype(np.float32), 2.0) > 0.5; v.cmask = ndi.binary_dilation(sm, iterations=grow) if grow else sm
         V, F, N = surface(views, sg, extent, height, vox, smooth); C, score = colorize(views, V, smooth_normals(V, F, N), sg)
         if photo:
-            sv = [(v.dx, v.dy) for v in views]; refine_photo(views, V, N, sg, log=log); V2, F2, N2 = surface(views, sg, extent, height, vox, smooth); C2, score2 = colorize(views, V2, smooth_normals(V2, F2, N2), sg)
+            sv = [(v.dx, v.dy, v.sc) for v in views]; refine_photo(views, V, N, sg, log=log); V2, F2, N2 = surface(views, sg, extent, height, vox, smooth); C2, score2 = colorize(views, V2, smooth_normals(V2, F2, N2), sg)
             log(f"  avant/après affinage photo : {score:.5f} / {score2:.5f}")
             if score2 < score: V, F, N, C, score = V2, F2, N2, C2, score2
             else:
-                for v, (dx, dy) in zip(views, sv): v.dx, v.dy = dx, dy
+                for v, (dx, dy, sc) in zip(views, sv): v.dx, v.dy, v.sc = dx, dy, sc
         log(f"sens {sg:+d} : volume {n}, incohérence des couleurs {score:.5f}")
         if best is None or score < best[0]: best = (score, sg, V, F, N, C, [(v.dx, v.dy, v.dth, v.sc) for v in views])
     score, sg, verts, faces, normals, colr, offs = best; colr = smooth_colors(colr, faces, iters=smooth_col); log(f"sens retenu {sg:+d} ; {len(verts)} sommets, {len(faces)} triangles")
