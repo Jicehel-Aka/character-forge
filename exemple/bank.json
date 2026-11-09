@@ -1,0 +1,15 @@
+{
+ "root": "/tmp/ext/z",
+ "characters": {
+  "orc":          {"model": "orc_warrior_characterfbx_1752332868/Orc Warrior Character.fbx", "texture": "orc_warrior_characterfbx_1752332868/texture_pbr_v128.png", "rig": false},
+  "scorpion":     {"model": "scorpion_fbx_1781654930/Scorpion_fbx.Fbx", "clip": "1238936997216_TempMotion", "tmax": 4},
+  "sophia":       {"model": "rp_sophia_animated_003_idling_fbx_1591085831/rp_sophia_animated_003_idling.fbx", "clip": "Take 001", "tmax": 6},
+  "manuel":       {"model": "rp_manuel_animated_001_dancing_fbx_1591085087/rp_manuel_animated_001_dancing.fbx", "clip": "Take 001", "tmax": 5},
+  "dwarf":        {"model": "female_military_field_doctor_1664455853/Dwarf Idle pose.fbx", "clip": "mixamo.com"},
+  "arqueira":     {"model": "arqueirafbx_1601701681/arqueira.fbx", "clip": "Armature.001|Armature|mixamo.com|Layer0"},
+  "dancing_girl": {"model": "dancing_girl_in_kimono_3_1670864435/Dancing Girl 02.fbx", "texdir": "kimono6", "clip": "Character RIG|Dance", "tmax": 5},
+  "bulma":        {"model": "fbx_1705355603/FBX/FBX.Fbx", "texdir": "tex_1705355603"},
+  "goku":         {"model": "fbx_1705246092/FBX/FBX.fbx"},
+  "cocomyos":     {"model": "cocomyos_osteodermus_1793573782/Cocomyos Osteodermus.fbx", "rig": false}
+ }
+}

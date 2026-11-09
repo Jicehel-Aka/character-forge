@@ -42,10 +42,10 @@ class Session:
         self.page = self.br.new_page(); self.page.on("pageerror", lambda e: print("[meshy] erreur page:", e))
         self.page.goto(f"http://127.0.0.1:{self.srv.server_address[1]}/index.html"); self.page.wait_for_function("window.ready === true", timeout=60000)
 
-    def inspect(self): return self.page.evaluate("u => window.inspect(u)", self.name)
+    def inspect(self, name=None): return self.page.evaluate("u => window.inspect(u)", name or self.name)
 
     def render(self, size, dirs, anim=None, frames=1, yaw_offset=0, **kw):
-        opt = dict(url=self.name, size=size, dirs=[{"name": d, "yaw": DIRS[d] + yaw_offset} for d in dirs], anim=anim, frames=frames, texture=self.texture, texmap=getattr(self, 'texmap', None), **kw)
+        opt = dict(url=self.name, size=size, dirs=[{"name": d, "yaw": DIRS[d] + yaw_offset} for d in dirs], anim=anim, frames=frames, texture=self.texture, texmap=getattr(self, 'texmap', None), donor=getattr(self, 'donor', None), headFrac=kw.pop('head_frac', 0.82), headScale=kw.pop('head_scale', 1.0), donorYaw=kw.pop('donor_yaw', 0.0), headDrop=kw.pop('head_drop', 0.0), headNames=kw.pop('head_names', None), tmax=kw.pop('tmax', None), **kw)
         res = self.page.evaluate("o => window.render(o)", opt)
         out = {}
         for f in res["frames"]:
@@ -57,20 +57,20 @@ class Session:
         finally: shutil.rmtree(self.tmp, ignore_errors=True)
 
 
-def texmap_from_dir(session, texdir):
+def texmap_from_dir(session, texdir, prefix="tex", model=None):
     """Associe chaque matériau du modèle à une image 'diffuse/base color' du dossier (nom du matériau contenu dans le nom du fichier)."""
     import re
     norm = lambda t: re.sub(r"[^a-z0-9]", "", t.lower())
     bad = re.compile(r"normal|opacity|ambient|occlusion|specular|shadow|rough|metal|height|bump|mask", re.I)
     cands = [p for p in Path(texdir).rglob("*") if p.suffix.lower() in (".png", ".jpg", ".jpeg") and not bad.search(p.name)]
     out = {}
-    for m in session.inspect()["materials"]:
+    for m in session.inspect(model)["materials"]:
         nm = norm(m)
         if not nm or nm == "outline": continue
         hit = [p for p in cands if nm in norm(p.name)]
         hit.sort(key=lambda p: (not re.search(r"diffuse|basecolor|base_color|albedo", p.name, re.I), len(p.name)))
         if hit:
-            dst = f"tex_{len(out)}{hit[0].suffix.lower()}"; shutil.copy(hit[0], session.tmp / dst); out[m] = dst
+            dst = f"{prefix}_{len(out)}{hit[0].suffix.lower()}"; shutil.copy(hit[0], session.tmp / dst); out[m] = dst
     return out
 
 
@@ -78,13 +78,21 @@ def cmd(a):
     s = Session(a.model, getattr(a, 'texture', None))
     if getattr(a, 'texdir', None):
         s.texmap = texmap_from_dir(s, a.texdir); print(f"[meshy] textures associées : {s.texmap}")
+    s.donor = None
+    if getattr(a, 'donor', None):
+        ext = Path(a.donor).suffix.lower(); shutil.copy(a.donor, s.tmp / ("donor" + ext)); dm = None
+        if getattr(a, 'donor_texdir', None):
+            tmp = Session.__new__(Session); tmp.tmp = s.tmp; tmp.page = s.page
+            dm = texmap_from_dir(tmp, a.donor_texdir, "dtex", "donor" + ext); print(f"[meshy] textures du donneur : {dm}")
+        s.donor = dict(url="donor" + ext, texmap=dm, headNames=getattr(a, 'donor_head_names', None), headFrac=a.head_frac)
     try:
         if a.info:
             i = s.inspect(); print(json.dumps(i, indent=1, ensure_ascii=False)); return 0
         from . import pixdown, skiln_paint as K
         out = Path(a.output); out.mkdir(parents=True, exist_ok=True); dirs = a.dirs.split(",")
         big = a.size * a.ss
-        imgs, res = s.render(big, dirs, a.anim, a.frames, yaw_offset=a.yaw_offset, pitch=a.pitch, margin=a.margin)
+        imgs, res = s.render(big, dirs, a.anim, a.frames, yaw_offset=a.yaw_offset, pitch=a.pitch, margin=a.margin, head_frac=a.head_frac, head_scale=a.head_scale, donor_yaw=a.donor_yaw, head_drop=a.head_drop, head_names=a.head_names, tmax=a.tmax)
+        if res.get('compose'): print('[meshy] greffe :', json.dumps(res['compose']))
         print(f"[meshy] clip {res['clip']!r}, hauteur modèle {res['height']:.2f}, {len(imgs)} images en {big} px")
         arrs = {k: pixdown.shrink(v, a.size, sharpen=0.35) for k, v in imgs.items()}
         allpx = np.concatenate([x[x[..., 3] > 0][:, :3] for x in arrs.values()]).astype(np.uint8)

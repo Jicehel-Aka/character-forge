@@ -32,11 +32,7 @@ function info(root, clips){
   return {bones, triangles:tris, materials:[...mats], textures:tex, clips:clips.map(c=>({name:c.name,duration:c.duration})), size:[s.x,s.y,s.z]};
 }
 window.inspect = async (url)=>{ const {root,clips}=await load(url); return info(root,clips); };
-window.render = async (o)=>{
-  const {root,clips}=await load(o.url); const S=o.size;
-  const renderer = new THREE.WebGLRenderer({antialias:true, alpha:true, preserveDrawingBuffer:true});
-  renderer.setSize(S,S,false); renderer.setPixelRatio(1); renderer.setClearColor(0x000000,0); renderer.outputColorSpace = THREE.SRGBColorSpace;
-  document.body.appendChild(renderer.domElement);
+async function prep(root,o){
   // maillages à positions NaN (ex. langue CC) : on les retire, sinon toute boîte englobante devient NaN
   { const bad=[]; root.traverse(n=>{ if(n.isMesh){ const a=n.geometry.attributes.position.array; for(let i=0;i<a.length;i+=Math.max(3,Math.floor(a.length/60)*3||3)) if(!isFinite(a[i])){ bad.push(n); break; } } }); bad.forEach(n=>n.parent&&n.parent.remove(n)); window._removed=bad.length; }
   // axe vertical : pieds -> tête sur les os (rigs CC / Blender souvent Z-up)
@@ -53,13 +49,57 @@ window.render = async (o)=>{
     root.traverse(n=>{ if(n.isMesh) [].concat(n.material).forEach(m=>{ if(/outline/i.test(m.name)){ m.visible=false; return; } const t=cache[m.name]; if(t){ m.map=t; m.color&&m.color.set(0xffffff); m.transparent=false; m.alphaMap=null; if('metalness' in m){m.metalness=0; m.roughness=0.9;} m.needsUpdate=true; } else if(/hair/i.test(m.name)&&!(m.map&&m.map.image)){ m.color&&m.color.set(0x2a1c18); } }); }); }
   if (o.texture){ const tex=await new THREE.TextureLoader().loadAsync(o.texture); tex.colorSpace=THREE.SRGBColorSpace; tex.flipY=(o.flipy??true);
     root.traverse(n=>{ if(n.isMesh){ [].concat(n.material).forEach(m=>{ m.map=tex; m.color&&m.color.set(0xffffff); if("metalness" in m){m.metalness=0; m.roughness=0.9;} m.needsUpdate=true; }); } }); }
+}
+
+
+function worldPos(m){ const P=m.geometry.attributes.position, n=P.count, pos=new Float32Array(n*3), v=new THREE.Vector3();
+  if(m.isSkinnedMesh) m.skeleton.update(); m.updateMatrixWorld(true);
+  for(let i=0;i<n;i++){ if(m.isSkinnedMesh&&m.getVertexPosition) m.getVertexPosition(i,v); else v.fromBufferAttribute(P,i); v.applyMatrix4(m.matrixWorld); pos[i*3]=v.x; pos[i*3+1]=v.y; pos[i*3+2]=v.z; } return pos; }
+function neckOf(root, o){ // articulation du cou et de la tête (monde) + plan de coupe
+  root.updateMatrixWorld(true); const all=new THREE.Box3().setFromObject(root,true); const H=all.max.y-all.min.y; let nk=null, hd=null;
+  root.traverse(n=>{ if(!n.isBone) return; const y=new THREE.Vector3().setFromMatrixPosition(n.matrixWorld).y;
+    if(/neck/i.test(n.name)&&!/twist|end|top|target|ctrl/i.test(n.name)&&(!nk||y<nk.y)) nk={bone:n,y};
+    if(/head/i.test(n.name)&&!/neck|target|end|top|eye|jaw|hair|war|ctrl/i.test(n.name)&&!hd) hd=n; });
+  const P=b=>new THREE.Vector3().setFromMatrixPosition(b.matrixWorld);
+  const pos=nk? P(nk.bone) : new THREE.Vector3((all.min.x+all.max.x)/2, all.min.y+(o.headFrac??0.82)*H, (all.min.z+all.max.z)/2);
+  const hp=hd? P(hd) : pos.clone().add(new THREE.Vector3(0,0.08*H,0));
+  return {pos, head:hp, len:Math.max(1e-4, hp.distanceTo(pos)), cut:pos.y-(o.cutDrop??0)*H, top:all.max.y, H}; }
+function triSplit(m, pos, cut, cx, cz, rad){ // indices des triangles entièrement au-dessus / le reste
+  const inR=(P,i)=> rad? Math.hypot(P[i*3]-cx,P[i*3+2]-cz)<rad : true; const g=m.geometry, idx=g.index? g.index.array : [...Array(g.attributes.position.count).keys()], up=[], down=[];
+  for(let t=0;t<idx.length;t+=3){ const a=idx[t],b=idx[t+1],c=idx[t+2]; ((pos[a*3+1]>cut&&pos[b*3+1]>cut&&pos[c*3+1]>cut&&inR(pos,a)&&inR(pos,b)&&inR(pos,c))? up:down).push(a,b,c); } return {up,down}; }
+function composeHead(base, donor, o){
+  const nB=neckOf(base,o), nA=neckOf(donor,o.donor||{}); let hb=null; base.traverse(n=>{ if(n.isBone&&!hb&&/head/i.test(n.name)&&!/top|end|eye|jaw|hair/i.test(n.name)) hb=n; }); if(!hb) throw new Error('os de tête introuvable sur la base');
+  const rB=nB.len*(o.headRadius??1.6), rA=nA.len*(o.headRadius??1.6); const rep={base:[],donor:[]};
+  // base : on retire la tête (triangles au-dessus du plan du cou)
+  base.traverse(m=>{ if(!m.isMesh||!m.visible) return; const pos=worldPos(m), {up,down}=triSplit(m,pos,nB.cut,nB.pos.x,nB.pos.z,rB); if(!up.length) return;
+    if(!down.length || up.length>0.4*(up.length+down.length)){ m.visible=false; rep.base.push(m.name); } else { const g=m.geometry, idx=g.index? g.index.array : null, groups=g.groups.length? g.groups.map(x=>({...x})) : [{start:0,count:(idx?idx.length:g.attributes.position.count),materialIndex:0}];
+      const src=idx||[...Array(g.attributes.position.count).keys()], out=[], ng=[]; for(const gr of groups){ const st=out.length; for(let t=gr.start;t<gr.start+gr.count;t+=3){ const a=src[t],b=src[t+1],c=src[t+2]; if(!(pos[a*3+1]>nB.cut&&pos[b*3+1]>nB.cut&&pos[c*3+1]>nB.cut&&Math.hypot(pos[a*3]-nB.pos.x,pos[a*3+2]-nB.pos.z)<rB&&Math.hypot(pos[b*3]-nB.pos.x,pos[b*3+2]-nB.pos.z)<rB&&Math.hypot(pos[c*3]-nB.pos.x,pos[c*3+2]-nB.pos.z)<rB)) out.push(a,b,c); } if(out.length>st) ng.push({start:st,count:out.length-st,materialIndex:gr.materialIndex}); }
+      g.setIndex(out); g.clearGroups(); ng.forEach(x=>g.addGroup(x.start,x.count,x.materialIndex)); rep.base.push(m.name+'~'); } });
+  // donneur : tête = triangles au-dessus du plan de son cou
+  const parts=[], box=new THREE.Box3(); donor.traverse(m=>{ if(!m.isMesh||!m.visible) return; const pos=worldPos(m), {up}=triSplit(m,pos,nA.cut,nA.pos.x,nA.pos.z,rA); if(!up.length) return;
+    const ng=new THREE.BufferGeometry(); ng.setAttribute('position',new THREE.BufferAttribute(pos,3)); if(m.geometry.attributes.uv) ng.setAttribute('uv',m.geometry.attributes.uv.clone()); ng.setIndex(up);
+    const mat=Array.isArray(m.material)? m.material[0] : m.material; ng.computeVertexNormals(); parts.push({ng,mat,name:m.name}); rep.donor.push(m.name+':'+(up.length/3)+'/'+(m.geometry.index?m.geometry.index.count/3:0)); box.union(new THREE.Box3().setFromBufferAttribute(ng.attributes.position)); });
+  if(!parts.length) throw new Error('tête du donneur introuvable');
+  const hB=nB.len, s=(nB.len/nA.len)*(o.headScale??1), yaw=(o.donorYaw??0)*Math.PI/180;
+  const M=new THREE.Matrix4().makeTranslation(nB.pos.x,nB.pos.y+(o.headDrop??0)*hB,nB.pos.z).multiply(new THREE.Matrix4().makeScale(s,s,s)).multiply(new THREE.Matrix4().makeRotationY(yaw)).multiply(new THREE.Matrix4().makeTranslation(-nA.pos.x,-nA.pos.y,-nA.pos.z));
+  const L=new THREE.Matrix4().multiplyMatrices(new THREE.Matrix4().copy(hb.matrixWorld).invert(),M);
+  for(const p of parts){ p.ng.applyMatrix4(L); const mesh=new THREE.Mesh(p.ng,p.mat); mesh.name='head_'+p.name; mesh.frustumCulled=false; hb.add(mesh); }
+  return {...rep, rA, rB, scale:s, neckBase:nB.pos.toArray(), neckDonor:nA.pos.toArray()};
+}
+window.render = async (o)=>{
+  const {root,clips}=await load(o.url); const S=o.size;
+  const renderer = new THREE.WebGLRenderer({antialias:true, alpha:true, preserveDrawingBuffer:true});
+  renderer.setSize(S,S,false); renderer.setPixelRatio(1); renderer.setClearColor(0x000000,0); renderer.outputColorSpace = THREE.SRGBColorSpace;
+  document.body.appendChild(renderer.domElement);
+  await prep(root,o);
+  if (o.donor){ const D=await load(o.donor.url); await prep(D.root,o.donor); window._compose=composeHead(root,D.root,o); }
   const scene = new THREE.Scene(); const pivot = new THREE.Group(); scene.add(pivot); pivot.add(root);
   scene.add(new THREE.HemisphereLight(0xffffff, 0x8890a0, o.ambient ?? 1.1));
   const sun = new THREE.DirectionalLight(0xffffff, o.sun ?? 1.6); sun.position.set(-0.55,1.0,0.45).multiplyScalar(10); scene.add(sun);
   let mixer=null, clip=null;
   if (o.anim){ clip = clips.find(c=>c.name===o.anim) || clips[0]; if (clip){ clip.tracks = clip.tracks.filter(t=>/\.(position|quaternion)$/.test(t.name) && !Array.from(t.values).some(x=>!isFinite(x))); /* retire morph/échelle/NaN */ mixer=new THREE.AnimationMixer(root); mixer.clipAction(clip).play(); } }
   // cadrage : boîte englobante sur toute l'animation (échantillonnée), pieds au sol, centré
-  const N = Math.max(1, o.frames||1); const times=[...Array(N).keys()].map(i=> clip? (i/N)*clip.duration : 0);
+  const N = Math.max(1, o.frames||1); const times=[...Array(N).keys()].map(i=> clip? (i/N)*Math.min(clip.duration, o.tmax||1e9) : 0);
   let lo=new THREE.Vector3(1e9,1e9,1e9), hi=new THREE.Vector3(-1e9,-1e9,-1e9);
   for (const t of (clip? times.concat([0]) : [0])){ if(mixer){mixer.setTime(t);} root.updateMatrixWorld(true);
     const b=new THREE.Box3().setFromObject(root,true); lo.min(b.min); hi.max(b.max); }
@@ -74,7 +114,7 @@ window.render = async (o)=>{
   for (const d of o.dirs){ pivot.rotation.y = -d.yaw*Math.PI/180;
     for (let i=0;i<N;i++){ if(mixer) mixer.setTime(times[i]); root.updateMatrixWorld(true); renderer.render(scene,cam);
       out.push({dir:d.name, frame:i, png: renderer.domElement.toDataURL('image/png')}); } }
-  return {frames:out, height:h, clip: clip? clip.name : null};
+  return {frames:out, height:h, clip: clip? clip.name : null, compose: window._compose||null};
 };
 window.islands = async (url)=>{ const {root}=await load(url); root.updateMatrixWorld(true); const out=[];
   root.traverse(o=>{ if(!o.isMesh) return; const g=o.geometry, P=g.attributes.position, n=P.count, idx=g.index? g.index.array : [...Array(n).keys()];

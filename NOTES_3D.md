@@ -284,3 +284,9 @@ Sans texture réelle (références externes) : dwarf, arqueira, dancing girl, NU
 ## --texdir
 `forge meshy modèle.fbx --texdir DOSSIER` associe chaque matériau à l'image diffuse/base color dont le nom contient le nom du matériau ; matériaux « Outline » masqués, cheveux sans texture en brun sombre.
 Dancing Girl : Cloth/Skin/Eyes_Mtl trouvés (Hair sans texture fournie).
+
+## Banque + greffe de tête (forge bank)
+`forge bank list` / `forge bank render NOM [--head AUTRE]` (manifeste exemple/bank.json). Greffe = triangles au-dessus du plan du cou (rayon limité pour exclure les bras en T-pose)
+du donneur, positions de repos « bakées » puis rattachées à l'os de tête de la base (échelle = rapport cou->tête, `--donor-yaw`, `--head-scale`, `--head-drop`).
+Le corps de la base perd sa tête (maillages majoritairement au-dessus du cou masqués ; Hairs/Face/Teeth/Eyes). La tête greffée est rigide (pas d'expressions).
+Testé : tête de Bulma sur Dancing Girl (animée) et Scorpion.
