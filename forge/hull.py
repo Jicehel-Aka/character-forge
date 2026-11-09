@@ -63,12 +63,13 @@ ARMTOL = int(os.environ.get('FORGE_HULL_ARMTOL', '3'))  # tolérance plus forte 
 ZONE = None  # (y0, y1, |x| min) en unités px, posé par build()
 
 def carve(views, P, sign, tol=0):
-    miss = np.zeros(len(P), np.int8)
+    miss = np.zeros(len(P), np.int8); miss_ax = np.zeros(len(P), np.int8)
     for v in views:
         col, row = v.project(P, sign); ci = np.round(col).astype(int); ri = np.round(row).astype(int)
         ok = (ci >= 0) & (ci < v.w) & (ri >= 0) & (ri < v.h); occ = np.zeros(len(P), bool); occ[ok] = getattr(v, 'cmask', v.mask)[ri[ok], ci[ok]]; miss += ~occ
+        if abs(((v.theta + 45) % 90) - 45) < 1: miss_ax += ~occ   # vues de face/profil/dos : fiables pour l'épaisseur et la longueur des bras
     if ZONE is not None and ARMTOL > tol:
-        z = (P[:, 1] >= ZONE[0]) & (P[:, 1] <= ZONE[1]) & (np.abs(P[:, 0]) >= ZONE[2]); return np.where(z, miss <= ARMTOL, miss <= tol)
+        z = (P[:, 1] >= ZONE[0]) & (P[:, 1] <= ZONE[1]) & (np.abs(P[:, 0]) >= ZONE[2]); return np.where(z, (miss_ax <= 0) & (miss <= ARMTOL) & (np.abs(P[:, 2]) <= 0.5 * 1.15 * ZONE[3][np.clip(np.round(ZONE[4] + P[:, 0]).astype(int), 0, len(ZONE[3]) - 1)] + 2), miss <= tol)
     return miss <= tol
 
 def calibrate(views, sign, extent, height, vox=5, rounds=3, rng=16, scale=True, yaw=False):
@@ -145,7 +146,7 @@ def smooth_normals(verts, faces, nv, iters=6):
     for _ in range(iters): nv = nv + A @ nv; nv /= np.linalg.norm(nv, axis=1, keepdims=True) + 1e-12
     return nv
 
-POW = 8
+POW = float(os.environ.get('FORGE_HULL_POW', '8'))
 
 def colorize(views, verts, normals, sg):
     """Couleur par sommet = moyenne (linéaire) des vues qui le voient de face. Renvoie aussi un score d'incohérence (variance pondérée)."""
@@ -198,7 +199,11 @@ def build(paths, thetas=None, out="modele.glb", vox=2.5, height_m=1.75, sign=Non
     global ZONE; ZONE = None
     try:   # bande des bras : rangées où la silhouette de face est la plus large (pose en T)
         v0 = views[0]; ws = np.array([ (np.ptp(np.nonzero(r)[0]) if r.any() else 0) for r in v0.mask ]); rows = np.nonzero(ws > 0.9 * ws.max())[0]
-        if ws.max() > 0.75 * (v0.bot - v0.top): rc = v0.bot - float(np.median(rows)); ZONE = (rc - 0.045 * height, rc + 0.045 * height, 0.22 * ws.max())
+        if ws.max() > 0.75 * (v0.bot - v0.top):
+            rc_row = float(np.median(rows)); rc = v0.bot - rc_row; band = (int(max(0, rc_row - 0.09 * height)), int(min(v0.h, rc_row + 0.09 * height)))
+            th = np.array([ (np.ptp(np.nonzero(v0.mask[band[0]:band[1], cc])[0]) if v0.mask[band[0]:band[1], cc].any() else 0) for cc in range(v0.w) ], float)
+            th = ndi.uniform_filter1d(th, 9)   # épaisseur verticale du bras en chaque colonne : le bras est ~rond, donc même profondeur
+            ZONE = (rc - 0.045 * height, rc + 0.045 * height, 0.22 * ws.max(), th, v0.cx0)
     except Exception: ZONE = None
     best = None
     for sg in ([sign] if sign else [1, -1]):
