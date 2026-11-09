@@ -275,3 +275,8 @@ Limites : poids approximatifs (cape/armure près du torse), pas de doigts (squel
 8 personnages rendus en 8 directions à 64 px (statique ou 6 images du clip) : orc, scorpion, sophia, manuel, dwarf, arqueira, dancing_girl, cocomyos.
 Non chargeables : sta/sata/ada.FBX (FBX 6.1, trop ancien pour three.js et assimp) -> ré-exporter en FBX 2013+ ou GLB.
 Textures absentes des archives -> rendu gris (sauf Orc).
+
+## Correction : textures FBX embarquées
+FBXLoader charge les images embarquées de façon asynchrone (`texture.image` indéfini au retour) ; on attend maintenant `image.width>0` sur chaque texture
+(et plus seulement sur celles déjà chargées), sinon elles étaient remplacées par le gris de repli. Textures retrouvées : orc, scorpion, sophia, manuel, cocomyos, FBX.fbm (Goku-like).
+Sans texture réelle (références externes) : dwarf, arqueira, dancing girl, NUG.

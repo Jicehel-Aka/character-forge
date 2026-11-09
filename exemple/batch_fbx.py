@@ -8,6 +8,10 @@ items=[ # (nom, fbx, clip|None, texture|None, extra)
  ("dwarf","/tmp/ext/z/female_military_field_doctor_1664455853/Dwarf Idle pose.fbx","mixamo.com",None,[]),
  ("arqueira","/tmp/ext/z/arqueirafbx_1601701681/arqueira.fbx","Armature.001|Armature|mixamo.com|Layer0",None,[]),
  ("dancing_girl","/tmp/ext/z/dancing_girl_in_kimono_3_1670864435/Dancing Girl 02.fbx","Character RIG|Dance",None,[]),
+ ("fbx_1705246092","/tmp/ext/z/fbx_1705246092/FBX/FBX.fbx",None,None,[]),
+ ("fbx_1750258005","/tmp/ext/z/fbx_1750258005/FBX.fbx",None,None,[]),
+ ("fbx_1750264599","/tmp/ext/z/fbx_1750264599/FBX.fbx",None,None,[]),
+ ("fbx_1750267025","/tmp/ext/z/fbx_1750267025/Fbx.fbx",None,None,[]),
  ("cocomyos","/tmp/ext/z/cocomyos_osteodermus_1793573782/Cocomyos Osteodermus.fbx",None,None,[]),
 ]
 only=sys.argv[1:] 

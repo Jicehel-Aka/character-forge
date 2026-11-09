@@ -13,9 +13,10 @@ async function load(url){
   if (ext==='glb'||ext==='gltf'){ const g = await new GLTFLoader().loadAsync(url); return {root:g.scene, clips:g.animations}; }
   if (ext==='fbx'){ const o = await new FBXLoader().loadAsync(url);
     // textures embarquées : décodage asynchrone, on attend qu'elles soient prêtes
-    const ims=[]; o.traverse(n=>{ if(n.isMesh) [].concat(n.material).forEach(m=>{ for(const k of ['map','normalMap','emissiveMap','specularMap']) if(m[k]&&m[k].image) ims.push([m[k],m[k].image]); }); });
-    for(let t=0;t<100;t++){ if(ims.every(([tx,im])=>(im.width||im.naturalWidth)>0 || im.complete&&im.naturalWidth>0)) break; await new Promise(r=>setTimeout(r,100)); }
-    ims.forEach(([tx])=>{ tx.needsUpdate=true; });
+    const ims=[]; o.traverse(n=>{ if(n.isMesh) [].concat(n.material).forEach(m=>{ for(const k of ['map','normalMap','emissiveMap','specularMap']) if(m[k]) ims.push(m[k]); }); });
+    const ready=tx=>{ const im=tx.image; return !!im && ((im.width||im.naturalWidth||0)>0); };
+    for(let t=0;t<300;t++){ if(ims.every(ready)) break; await new Promise(r=>setTimeout(r,100)); }
+    ims.forEach(tx=>{ tx.needsUpdate=true; });
     // matériaux sans texture exploitable (chemins Windows externes) : noir -> gris clair pour garder le volume lisible
     o.traverse(n=>{ if(n.isMesh) [].concat(n.material).forEach(m=>{ const ok=m.map&&m.map.image&&(m.map.image.width>0); if(!ok){ m.map=null; if(m.color&&m.color.getHex()<0x181818) m.color.set(0xb8b0a8); m.transparent=false; m.opacity=1; m.alphaMap=null; m.alphaTest=0; m.side=THREE.DoubleSide; m.needsUpdate=true; } }); });
     return {root:o, clips:o.animations||[]}; }
