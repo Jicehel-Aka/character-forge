@@ -17,7 +17,7 @@ def bands(alpha):
             while y < H and rows[y]: y += 1
             out.append((y0, y))
         else: y += 1
-    return out
+    return [b for b in out if b[1] - b[0] >= 15]   # ignore les traits parasites de 1-2 px entre les lignes
 
 
 def main():
