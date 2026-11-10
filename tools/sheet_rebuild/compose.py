@@ -2,6 +2,12 @@ from PIL import Image
 import numpy as np,pickle,os
 from scipy import ndimage as ndi
 D=pickle.load(open('match.pkl','rb'));S=D['S'];O=D['O'];s_o=D['s_o'];assign=D['assign']
+R_=pickle.load(open('refs/refs.pkl','rb'))
+_wh=np.median([r['mask'].shape[0] for r in R_[5:10]])
+for r in R_:
+    r['f']=104/_wh*1.0
+S=list(S)+R_
+NR0=len(S)-len(R_)
 CW,CH=160,152
 import json as _j
 for rr,sq in _j.load(open('seq.json')).items():
@@ -17,7 +23,7 @@ def sprite(s,corr=1.0):
     pink=(r[...,0]>170)&(r[...,2]>140)&(r[...,1]<110)
     a&=~pink
     return np.array(rgb),a
-Kc=pickle.load(open('kp_cand.pkl','rb'))
+Kc=list(pickle.load(open('kp_cand.pkl','rb')))+[None]*len(R_)
 def torso(j):
     k=Kc[j]
     if k is None or min(k[5,2],k[6,2],k[11,2],k[12,2])<0.4: return None
@@ -27,17 +33,17 @@ print('torse ref',TREF)
 def _up(j):
     f=FCd[j];h,w=S[j]['mask'].shape
     return f is not None and f[0]>0.33 and max(f[5],f[7])<0.17 and w/h<0.95
-FCd=D['FC']
+FCd=list(D['FC'])+[None]*len(R_)
 grp={}
 for src in 'AB':
-    ids=sorted([j for j in range(len(S)) if S[j]['src']==src],key=lambda j:S[j]['y']+S[j]['mask'].shape[0])
+    ids=sorted([j for j in range(NR0) if S[j]['src']==src],key=lambda j:S[j]['y']+S[j]['mask'].shape[0])
     g_=0;prev=None
     for j in ids:
         b=S[j]['y']+S[j]['mask'].shape[0]
         if prev is not None and b-prev>35: g_+=1
         grp[j]=(src,g_);prev=b
 gh={}
-for j in range(len(S)):
+for j in range(NR0):
     if _up(j): gh.setdefault(grp[j],[]).append(S[j]['mask'].shape[0]*S[j]['f'])
 GC={k:float(np.clip(104/np.median(v),0.85,1.25)) for k,v in gh.items() if len(v)>=2}
 def wa(s):
@@ -53,7 +59,7 @@ used={}
 for (r,c),j in assign.items():
     s=S[j];o=O[r,c]
     import os;MODE=os.environ.get('MODE','row')
-    corr={'row':rowcorr[r],'none':1.0,'spr':float(np.clip(g[j]**0.7,0.9,1.1)),'grp':GC.get(grp[j],1.0),'torso':float(np.clip(TREF/_t[j],0.85,1.2)) if _t[j] else 1.0}[MODE]
+    corr={'row':rowcorr[r],'none':1.0,'spr':float(np.clip(g[j]**0.7,0.9,1.1)),'grp':GC.get(grp.get(j),1.0),'torso':float(np.clip(TREF/_t[j],0.85,1.2)) if _t[j] else 1.0}[MODE]
     rgb,a=sprite(s,corr)
     h,w=a.shape
     # original anchor: bottom and centroid-x of orig mask, scaled

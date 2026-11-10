@@ -4,3 +4,8 @@ Les noms sont à éditer dans `names.json`. Des surcharges manuelles (`OV` dans 
 
 ## Méthode retenue (v3)
 Les mouvements sont définis par des règles, pas par la ressemblance de silhouette : `seq.json` donne, pour chaque animation, les 6 images choisies dans le catalogue de poses (accroupi, fente, coup de pied, tir, couché…). `tests_mvt.py` vérifie les règles (accroupi, coup de pied, balayage, jambes qui alternent, couché/relevé, éventail qui bouge). `kp.py` / `match3.py` : extraction de pose (YOLOv8-pose) et appariement automatique, utile pour les lignes d'attente.
+
+## Poses de référence 3D (v4)
+`refs/` contient 10 rendus 3D de la combattante fournis par l'utilisateur (couchée ×2, recul ×2, à genoux, marche ×5).
+`seg.py` puis `build_refs.py` les détourent et les retournent face à droite (`refs/refs.pkl`, indices 182–191 dans S).
+Ils alimentent Marche (ligne 3), Chute (19), KO (20) et Relevé (21) via `seq.json`.

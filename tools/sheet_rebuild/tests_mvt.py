@@ -34,8 +34,8 @@ checks=[
  (15,'rotation : silhouette change fortement (IoU moyen < 0,9)',lambda d:d['iou'].mean()<0.9),
  (16,'position basse stable : pieds écartés sur ≥ 4 images',lambda d:(d['low']>0.65).sum()>=4),
  (18,'au moins 3 images accroupies',lambda d:(d['h']<0.88*Href).sum()>=3),
- (19,'chute : descend progressivement (la dernière image plus basse que la première de ≥ 15 %) et aucune image couchée anatomiquement fausse',lambda d:d['h'][-1]<0.85*d['h'][0] and (d['asp']>1.6).sum()==0),
- (20,'couché sur toutes les images (≥ 5)',lambda d:(d['asp']>1.6).sum()>=5),
+ (19,'chute : recul debout → à genoux → au sol (hauteur ↓ ≥ 40 %, ≥ 2 images couchées en fin)',lambda d:d['h'][-1]<0.6*d['h'][0] and (d['asp'][-2:]>1.6).all()),
+ (20,'tombe puis reste au sol (≥ 4 images couchées)',lambda d:(d['asp']>1.6).sum()>=4),
  (21,'part du sol et se relève (1re image couchée, dernière debout)',lambda d:d['asp'][0]>1.6 and d['asp'][-1]<1.0),
 ]
 ok=0;fails=[]
