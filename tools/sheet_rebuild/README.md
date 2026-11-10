@@ -9,3 +9,7 @@ Les mouvements sont définis par des règles, pas par la ressemblance de silhoue
 `refs/` contient 10 rendus 3D de la combattante fournis par l'utilisateur (couchée ×2, recul ×2, à genoux, marche ×5).
 `seg.py` puis `build_refs.py` les détourent et les retournent face à droite (`refs/refs.pkl`, indices 182–191 dans S).
 Ils alimentent Marche (ligne 3), Chute (19), KO (20) et Relevé (21) via `seq.json`.
+
+## Sprites 2D de remplacement (v5)
+`refs2d/` : deux planches 2D fournies (marche 6 images ; chute/KO/relevé) ; `ext.py` + `build_new.py` extraient 24 sprites (indices 192–215 dans S).
+`seq.json` : ligne 3 = 192–197, ligne 19 = 198–203, ligne 20 = 204–209, ligne 21 = 210–215. Les poses 3D de `refs/` ne sont plus utilisées.
