@@ -14,3 +14,4 @@ Ils alimentent Marche (ligne 3), Chute (19), KO (20) et Relevé (21) via `seq.js
 `refs2d/` : deux planches 2D fournies (marche 6 images ; chute/KO/relevé) ; `ext.py` + `build_new.py` extraient 24 sprites (indices 192–215 dans S).
 `seq.json` : ligne 3 = 192–197, ligne 19 = 198–203, ligne 20 = 204–209, ligne 21 = 210–215. Les poses 3D de `refs/` ne sont plus utilisées.
 `refs2d/harm.py` harmonise les 6 sprites de marche avec le combattant : hauteur 102 px, largeur ×1,10, transfert de couleurs (histogramme par canal) vers la palette des autres lignes (28 couleurs), contour sombre de 1 px.
+`refs2d/enlarge.py` (avant `harm.py`) agrandit la tête des sprites de marche (×1,30, ancrée au cou, coupe à y=116 px de la source) pour égaler la taille de tête des autres lignes.

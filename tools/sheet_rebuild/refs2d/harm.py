@@ -23,7 +23,7 @@ def match_channels(src,ref):
         qs=np.searchsorted(sv,src[:,ch])/len(sv)
         out[:,ch]=np.interp(qs,np.linspace(0,1,len(rv)),rv)
     return out
-N=pickle.load(open('news.pkl','rb'))
+N=pickle.load(open('news_e.pkl','rb'))
 H=102;WID=1.10
 res=[]
 for s in N[:6]:
