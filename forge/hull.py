@@ -192,7 +192,7 @@ def refine_photo(views, verts, normals, sg, rounds=3, n=6000, log=print):
         log(f"  tour {r + 1} : {cur:.5f}")
     return cur
 
-def build(paths, thetas=None, out="modele.glb", vox=2.5, height_m=1.75, sign=None, smooth=1.6, grow=2, photo=True, smooth_col=3, log=print):
+def build(paths, thetas=None, out="modele.glb", vox=2.5, height_m=1.75, sign=None, smooth=1.6, grow=2, photo=True, smooth_col=3, uv=0, log=print):
     thetas = thetas or [45 * i for i in range(len(paths))]
     views = [View(p, t) for p, t in zip(paths, thetas)]
     height = max(v.bot - v.top for v in views) * 1.05; extent = max(v.w for v in views) * 0.62
@@ -220,28 +220,46 @@ def build(paths, thetas=None, out="modele.glb", vox=2.5, height_m=1.75, sign=Non
         log(f"sens {sg:+d} : volume {n}, incohérence des couleurs {score:.5f}")
         if best is None or score < best[0]: best = (score, sg, V, F, N, C, [(v.dx, v.dy, v.dth, v.sc) for v in views])
     score, sg, verts, faces, normals, colr, offs = best; colr = smooth_colors(colr, faces, iters=smooth_col); log(f"sens retenu {sg:+d} ; {len(verts)} sommets, {len(faces)} triangles")
+    if os.environ.get("FORGE_HULL_DUMP"):   # mise au point des couleurs : géométrie (px), faces, vues calées
+        np.savez(os.environ["FORGE_HULL_DUMP"], verts=verts, faces=faces, normals=normals, sign=sg, offs=np.array(offs), thetas=np.array(thetas), paths=np.array([str(p) for p in paths]))
     mn = verts.min(0); mx = verts.max(0); k = height_m / (mx[1] - mn[1]); V = (verts - [(mn[0] + mx[0]) / 2, mn[1], (mn[2] + mx[2]) / 2]) * k
-    write_glb(out, V.astype(np.float32), smooth_normals(verts, faces, normals, 3).astype(np.float32), colr.astype(np.float32), faces.astype(np.uint32)); log("écrit " + str(out))
+    Ns = smooth_normals(verts, faces, normals, 3)
+    if uv:   # texture UV cuite depuis les photos (voir hulluv.py) : sommets dupliqués aux coutures, plus de COLOR_0
+        from . import hulluv
+        for v, (dx, dy, dth, sc) in zip(views, offs): v.dx, v.dy, v.dth, v.sc = dx, dy, dth, sc   # état de calage du meilleur sens
+        vm, idx, uvc, size = hulluv.unwrap(verts, faces, resolution=uv, log=log)
+        img = hulluv.bake(views, sg, verts[vm], idx, Ns[vm], uvc, size, colr[vm], POW, log=log)
+        write_glb(out, V[vm].astype(np.float32), Ns[vm].astype(np.float32), None, idx.astype(np.uint32), uv=uvc.astype(np.float32), png=hulluv.png_bytes(img)); log("écrit " + str(out) + f" (texture {size[0]}x{size[1]})")
+        return dict(vertices=len(vm), triangles=len(idx), sign=sg, score=score, offsets=offs, texture=list(size))
+    write_glb(out, V.astype(np.float32), Ns.astype(np.float32), colr.astype(np.float32), faces.astype(np.uint32)); log("écrit " + str(out))
     return dict(vertices=len(V), triangles=len(faces), sign=sg, score=score, offsets=offs)
 
-def write_glb(path, V, N, C, F):
+def write_glb(path, V, N, C, F, uv=None, png=None):
+    """GLB : couleurs par sommet (COLOR_0) ou, si uv+png fournis, texture de couleur de base (PNG embarqué)."""
     def pad(b, ch=b"\x00"): return b + ch * (-len(b) % 4)
-    parts = [pad(F.tobytes()), pad(V.tobytes()), pad(N.tobytes()), pad(C.astype(np.float32).tobytes())]
+    textured = uv is not None and png is not None
+    parts = [pad(F.tobytes()), pad(V.tobytes()), pad(N.tobytes()), pad((uv if textured else C).astype(np.float32).tobytes())]
+    if textured: parts.append(pad(png))
     offs = np.cumsum([0] + [len(p) for p in parts]); binb = b"".join(parts)
+    attrs = {"POSITION": 1, "NORMAL": 2, ("TEXCOORD_0" if textured else "COLOR_0"): 3}
+    mat = {"name": "couleurs", "pbrMetallicRoughness": {"metallicFactor": 0.0, "roughnessFactor": 0.85}, "doubleSided": True}
+    if textured: mat["pbrMetallicRoughness"]["baseColorTexture"] = {"index": 0}
+    bvs = [{"buffer": 0, "byteOffset": int(offs[0]), "byteLength": int(F.nbytes), "target": 34963}] + [{"buffer": 0, "byteOffset": int(offs[i]), "byteLength": int(len(parts[i])), "target": 34962} for i in (1, 2, 3)]
     js = {"asset": {"version": "2.0", "generator": "character-forge hull"}, "scene": 0, "scenes": [{"nodes": [0]}], "nodes": [{"mesh": 0, "name": "personnage"}],
-          "meshes": [{"primitives": [{"attributes": {"POSITION": 1, "NORMAL": 2, "COLOR_0": 3}, "indices": 0, "material": 0}]}],
-          "materials": [{"name": "couleurs", "pbrMetallicRoughness": {"metallicFactor": 0.0, "roughnessFactor": 0.85}, "doubleSided": True}],
-          "buffers": [{"byteLength": len(binb)}],
-          "bufferViews": [{"buffer": 0, "byteOffset": int(offs[0]), "byteLength": int(F.nbytes), "target": 34963}] + [{"buffer": 0, "byteOffset": int(offs[i]), "byteLength": int(len(parts[i])), "target": 34962} for i in (1, 2, 3)],
+          "meshes": [{"primitives": [{"attributes": attrs, "indices": 0, "material": 0}]}], "materials": [mat],
+          "buffers": [{"byteLength": len(binb)}], "bufferViews": bvs,
           "accessors": [{"bufferView": 0, "componentType": 5125, "count": int(F.size), "type": "SCALAR"},
                         {"bufferView": 1, "componentType": 5126, "count": len(V), "type": "VEC3", "min": V.min(0).tolist(), "max": V.max(0).tolist()},
                         {"bufferView": 2, "componentType": 5126, "count": len(V), "type": "VEC3"},
-                        {"bufferView": 3, "componentType": 5126, "count": len(V), "type": "VEC3"}]}
+                        {"bufferView": 3, "componentType": 5126, "count": len(V), "type": "VEC2" if textured else "VEC3"}]}
+    if textured:
+        bvs.append({"buffer": 0, "byteOffset": int(offs[4]), "byteLength": len(png)})
+        js["images"] = [{"bufferView": 4, "mimeType": "image/png"}]; js["samplers"] = [{"magFilter": 9729, "minFilter": 9987, "wrapS": 33071, "wrapT": 33071}]; js["textures"] = [{"source": 0, "sampler": 0}]
     j = pad(json.dumps(js).encode(), b" ")
     with open(path, "wb") as f:
         f.write(struct.pack("<4sII", b"glTF", 2, 12 + 8 + len(j) + 8 + len(binb))); f.write(struct.pack("<I4s", len(j), b"JSON")); f.write(j); f.write(struct.pack("<I4s", len(binb), b"BIN\x00")); f.write(binb)
 
 def cmd(a):
     paths = [str(p) for p in a.images]; th = [float(t) for t in a.angles.split(",")] if a.angles else None
-    r = build(paths, th, out=a.output, vox=a.vox, height_m=a.height, sign=a.sign, photo=not a.no_photo, smooth_col=a.smooth_colors)
+    r = build(paths, th, out=a.output, vox=a.vox, height_m=a.height, sign=a.sign, photo=not a.no_photo, smooth_col=a.smooth_colors, uv=getattr(a, 'uv', 0))
     print(json.dumps(r, indent=1)); return 0

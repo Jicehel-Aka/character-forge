@@ -167,7 +167,7 @@ window.islands = async (url)=>{ const {root}=await load(url); root.updateMatrixW
 window.rig = async (o)=>{
   const V=(await load(o.model)).root, S=(await load(o.skeleton)).root;
   let vm; V.traverse(n=>{ if(n.isMesh&&!vm) vm=n; }); let sm0; S.traverse(n=>{ if(n.isSkinnedMesh&&!sm0) sm0=n; });
-  const G=vm.geometry, P=G.attributes.position, n=P.count, N=G.attributes.normal, UV=G.attributes.uv, COL=G.attributes.color;
+  const EMB=(!o.texture && vm.material && vm.material.map)? vm.material.map : null; const G=vm.geometry, P=G.attributes.position, n=P.count, N=G.attributes.normal, UV=G.attributes.uv, COL=G.attributes.color;
   const idx=G.index? Array.from(G.index.array) : [...Array(n).keys()];
   // îlots (soudure par position)
   const key=new Map(), rep=new Int32Array(n); for(let i=0;i<n;i++){ const k=Math.round(P.getX(i)*1e3)+','+Math.round(P.getY(i)*1e3)+','+Math.round(P.getZ(i)*1e3); if(!key.has(k)) key.set(k,i); rep[i]=key.get(k); }
@@ -218,16 +218,77 @@ window.rig = async (o)=>{
   function disp(x,y,z){ const cx=Math.floor(x/C),cy=Math.floor(y/C),cz=Math.floor(z/C); let best=[];
     for(let R=1;R<=4 && best.length<K;R++){ best=[]; for(let a=-R;a<=R;a++)for(let b=-R;b<=R;b++)for(let c=-R;c<=R;c++){ const l=grid.get(gk(cx+a,cy+b,cz+c)); if(!l) continue; for(const j of l){ const dx=RP.getX(j)-x,dy=RP.getY(j)-y,dz=RP.getZ(j)-z; best.push([dx*dx+dy*dy+dz*dz,j]); } } }
     best.sort((p,q)=>p[0]-q[0]); best=best.slice(0,K); let sw_=0,ax=0,ay=0,az=0; for(const [d2,j] of best){ const w=1/(d2+0.5); sw_+=w; ax+=w*DISP[3*j]; ay+=w*DISP[3*j+1]; az+=w*DISP[3*j+2]; } sw_=sw_||1; return [ax/sw_,ay/sw_,az/sw_]; }
+
+  // ---- poids de peau par distance aux os d'un squelette AJUSTÉ au personnage (o.skin='bones', défaut ; 'knn' = ancien comportement)
+  // 1) les articulations du squelette Mixamo sont recalées sur le maillage (axes des jambes/bras, profondeur du tronc, longueur des bras, pieds) ;
+  // 2) poids initiaux = exp(-(d²-dmin²)/(0.8 dmin+1)²) avec d = distance au segment d'os ; 3) lissage sur le graphe du maillage ; 4) 4 influences max.
+  const SK=(o.skin||'bones')==='bones' && !o.armDown; const SKINFO={};
+  const NM=['Hips','Spine','Spine1','Spine2','Neck','Head','HeadTop_End','LeftShoulder','LeftArm','LeftForeArm','LeftHand','RightShoulder','RightArm','RightForeArm','RightHand','LeftUpLeg','LeftLeg','LeftFoot','LeftToeBase','LeftToe_End','RightUpLeg','RightLeg','RightFoot','RightToeBase','RightToe_End'];
+  let SEG=null, BIDX=null, DPOS=new Map();
+  if(SK){
+    const Bn=new Map(); sm0.skeleton.bones.forEach((b,i)=>Bn.set(b.name,{b,i}));
+    const bp=nm=>{ const b=S.getObjectByName('mixamorig'+nm); if(!b) return null; const v=new THREE.Vector3(); b.getWorldPosition(v); return sm0.worldToLocal(v); };
+    const R={}; for(const nm of NM){ R[nm]=bp(nm); } const J={}; for(const nm of NM) if(R[nm]) J[nm]=R[nm].clone(); const miss=NM.filter(nm=>!R[nm]); if(miss.length) throw new Error('os absents du squelette: '+miss.join(',')+' ; présents: '+[...Bn.keys()].join(','));
+    const BX=[],BY=[],BZ=[]; for(let i=0;i<n;i++) if(part(i)==='body'){ const m=map(P.getX(i),P.getY(i),P.getZ(i)); BX.push(m[0]); BY.push(m[1]); BZ.push(m[2]); }
+    const med=a=>{ if(a.length<12) return null; a=a.slice().sort((p,q)=>p-q); return a[a.length>>1]; }, pct=(a,q)=>{ if(a.length<12) return null; a=a.slice().sort((p,q)=>p-q); return a[Math.min(a.length-1,Math.floor(q*a.length))]; };
+    const pick=(f)=>{ const x=[],y=[],z=[]; for(let i=0;i<BX.length;i++) if(f(BX[i],BY[i],BZ[i])){ x.push(BX[i]); y.push(BY[i]); z.push(BZ[i]); } return {x,y,z}; };
+    const slab=(yc,hw,f)=>pick((x,y,z)=>Math.abs(y-yc)<hw && (!f||f(x,z)));
+    // tronc / tête : profondeur (z) du centre du maillage à chaque hauteur (hors bras)
+    for(const nm of ['Hips','Spine','Spine1','Spine2','Neck','Head']){ const sl=slab(R[nm].y,4,(x)=>Math.abs(x)<14); const z=med(sl.z); if(z!==null) J[nm].z=z; }
+    J.HeadTop_End.y=BY.reduce((a,v)=>v>a?v:a,-1e9); J.HeadTop_End.z=J.Head.z; J.HeadTop_End.x=J.Head.x;
+    // jambes
+    for(const sd of ['Left','Right']){ const s=sd==='Left'?1:-1, side=(x)=>s*x>0.5;
+      const knee=slab(R[sd+'Leg'].y,4,side), ank=slab(R[sd+'Foot'].y,3,side), hip=slab(R[sd+'UpLeg'].y,4);
+      const xk=med(knee.x), zk=med(knee.z), xa=med(ank.x), za=med(ank.z), zh=med(hip.z);
+      if(xk!==null){ J[sd+'Leg'].x=xk; J[sd+'Leg'].z=zk; J[sd+'UpLeg'].x=xk*(R[sd+'UpLeg'].x/R[sd+'Leg'].x); } if(zh!==null) J[sd+'UpLeg'].z=zh;
+      if(xa!==null){ J[sd+'Foot'].x=xa; J[sd+'Foot'].z=za; J[sd+'ToeBase'].x=xa; J[sd+'Toe_End'].x=xa; }
+      const fr=pick((x,y,z)=>side(x)&&y<R[sd+'ToeBase'].y+4); const zf=pct(fr.z,0.98);
+      if(zf!==null && xa!==null){ J[sd+'ToeBase'].z=za+0.55*(zf-za); J[sd+'Toe_End'].z=zf-0.5; } }
+    // bras : longueur (bout des doigts du maillage), hauteur et profondeur de l'axe
+    const ax=[]; for(let i=0;i<BX.length;i++) ax.push(Math.abs(BX[i])); const tipX=pct(ax,0.999)||Math.abs(R.LeftHand.x);
+    const ar=pick((x,y)=>Math.abs(x)>0.55*tipX && Math.abs(y-R.LeftArm.y)<14); const yarm=med(ar.y), zarm=med(ar.z);
+    for(const sd of ['Left','Right']){ const s=sd==='Left'?1:-1, xa=R[sd+'Arm'].x, hand=R[sd+'Hand'], fa=R[sd+'ForeArm']; const endx=hand.x+(hand.x-fa.x)*0.45;
+      const k=Math.min(1.6,Math.max(0.6,(tipX-Math.abs(xa))/Math.max(1e-3,Math.abs(endx-xa))));
+      for(const b of ['ForeArm','Hand']) J[sd+b].x=xa+(R[sd+b].x-xa)*k;
+      if(yarm!==null){ for(const b of ['Arm','ForeArm','Hand']) J[sd+b].y=yarm; J[sd+'Shoulder'].y=yarm+(R[sd+'Shoulder'].y-R[sd+'Arm'].y); }
+      if(zarm!==null){ for(const b of ['Arm','ForeArm','Hand']) J[sd+b].z=zarm; J[sd+'Shoulder'].z=(zarm+J.Spine2.z)/2; }
+      J[sd+'HandEnd']=new THREE.Vector3(s*tipX, J[sd+'Hand'].y, J[sd+'Hand'].z); SKINFO['k'+sd]=+k.toFixed(3); }
+    SKINFO.tipX=+tipX.toFixed(1); SKINFO.yarm=yarm; SKINFO.zarm=zarm;
+    // application : on déplace les os (positions locales recalculées, rotations de repos conservées), puis les inverses de liaison
+    const order=[]; const walk=b=>{ order.push(b); b.children.forEach(c=>{ if(c.isBone||/^mixamorig/.test(c.name)) walk(c); }); }; let root0=sm0.skeleton.bones.find(b=>!b.parent||!b.parent.isBone); walk(root0);
+    S.updateMatrixWorld(true);
+    for(const b of order){ const nm=b.name.replace('mixamorig',''); const j=J[nm]; if(!j||!R[nm]) continue; const old=b.position.clone();
+      b.parent.updateWorldMatrix(true,false); const w=sm0.localToWorld(j.clone()); b.parent.worldToLocal(w); b.position.copy(w); b.updateMatrixWorld(true);
+      DPOS.set(b.name, w.clone().sub(old)); }
+    S.updateMatrixWorld(true); INVA=new Map(); sm0.skeleton.bones.forEach(b=>INVA.set(b.name,b.matrixWorld.clone().invert()));
+    const mv={}; for(const nm of NM) if(R[nm]) mv[nm]=+J[nm].distanceTo(R[nm]).toFixed(1); SKINFO.moved=mv;
+    const jp=nm=>{ const v=new THREE.Vector3(); S.getObjectByName('mixamorig'+nm).getWorldPosition(v); return sm0.worldToLocal(v); }; const JJ={}; for(const nm of NM) JJ[nm]=jp(nm);
+    for(const sd of ['Left','Right']) JJ[sd+'HandEnd']=J[sd+'HandEnd'];
+    const mid=(a,b)=>a.clone().add(b).multiplyScalar(0.5); const E=[]; const add=(bone,a,b)=>E.push({bi:Bn.get('mixamorig'+bone).i,a,b});
+    add('Hips',JJ.Hips,JJ.Spine); add('Hips',JJ.Hips,mid(JJ.LeftUpLeg,JJ.RightUpLeg)); add('Spine',JJ.Spine,JJ.Spine1); add('Spine1',JJ.Spine1,JJ.Spine2); add('Spine2',JJ.Spine2,JJ.Neck); add('Neck',JJ.Neck,JJ.Head); add('Head',JJ.Head,JJ.HeadTop_End);
+    for(const sd of ['Left','Right']){ add(sd+'Shoulder',JJ[sd+'Shoulder'],JJ[sd+'Arm']); add(sd+'Arm',JJ[sd+'Arm'],JJ[sd+'ForeArm']); add(sd+'ForeArm',JJ[sd+'ForeArm'],JJ[sd+'Hand']); add(sd+'Hand',JJ[sd+'Hand'],JJ[sd+'HandEnd']);
+      add(sd+'UpLeg',JJ[sd+'UpLeg'],JJ[sd+'Leg']); add(sd+'Leg',JJ[sd+'Leg'],JJ[sd+'Foot']); add(sd+'Foot',JJ[sd+'Foot'],JJ[sd+'ToeBase']); add(sd+'ToeBase',JJ[sd+'ToeBase'],JJ[sd+'Toe_End']); }
+    SEG=E; }
+  else if(o.rebind && !o.armDown){ S.updateMatrixWorld(true); INVA=new Map(); sm0.skeleton.bones.forEach(b=>INVA.set(b.name,b.matrixWorld.clone().invert())); }   // diagnostic : kNN + inverses de liaison recalculées sur l'état des nœuds
   // géométrie du corps
   const remap=new Map(), pos=[], nor=[], uv=[], col=[], si=[], sw=[], bidx=[];
   const take=i=>{ let k=remap.get(i); if(k!==undefined) return k; k=pos.length/3; remap.set(i,k);
-    let [x,y,z]=map(P.getX(i),P.getY(i),P.getZ(i)); const w=weights(x,y,z); if(0){ const d=disp(x,y,z); x+=d[0]; y+=d[1]; z+=d[2]; } pos.push(x,y,z); nor.push(N.getX(i),N.getY(i),N.getZ(i)); if(UV) uv.push(UV.getX(i),1-UV.getY(i)); if(COL) col.push(COL.getX(i),COL.getY(i),COL.getZ(i));
+    let [x,y,z]=map(P.getX(i),P.getY(i),P.getZ(i)); const w=SK? [] : weights(x,y,z); if(0){ const d=disp(x,y,z); x+=d[0]; y+=d[1]; z+=d[2]; } pos.push(x,y,z); nor.push(N.getX(i),N.getY(i),N.getZ(i)); if(UV) uv.push(UV.getX(i),EMB?UV.getY(i):1-UV.getY(i)); if(COL) col.push(COL.getX(i),COL.getY(i),COL.getZ(i));
     for(let q=0;q<4;q++){ si.push(w[q]?w[q][0]:0); sw.push(w[q]?w[q][1]:0); } return k; };
   const props={axe:{pos:[],nor:[],uv:[],idx:[],map:new Map()}, shield:{pos:[],nor:[],uv:[],idx:[],map:new Map()}};
   for(let t=0;t<idx.length;t+=3){ const pr=part(idx[t]);
     if(pr==='body'){ for(let q=0;q<3;q++) bidx.push(take(idx[t+q])); }
     else { const pp=props[pr]; for(let q=0;q<3;q++){ const i=idx[t+q]; let k=pp.map.get(i); if(k===undefined){ k=pp.pos.length/3; pp.map.set(i,k); const [x,y,z]=map(P.getX(i),P.getY(i),P.getZ(i)); pp.pos.push(x,y,z); pp.nor.push(N.getX(i),N.getY(i),N.getZ(i)); pp.uv.push(UV.getX(i),1-UV.getY(i)); } pp.idx.push(k); } } }
-  let mat; if(o.texture){ const tex=await new THREE.TextureLoader().loadAsync(o.texture); tex.colorSpace=THREE.SRGBColorSpace; tex.flipY=false; tex.wrapS=tex.wrapT=THREE.RepeatWrapping; mat=new THREE.MeshStandardMaterial({map:tex, roughness:0.9, metalness:0, name:'Viking'}); } else mat=new THREE.MeshStandardMaterial({vertexColors:!!COL, roughness:0.9, metalness:0, name:'Modele'});
+  if(SK){ const nv=pos.length/3, nbn=nb, tmp=new Float32Array(nbn), soft=o.skinSoft??1; let W=new Float32Array(nv*nbn); const sd2=(p,a,b)=>{ const abx=b.x-a.x,aby=b.y-a.y,abz=b.z-a.z; let t=((p[0]-a.x)*abx+(p[1]-a.y)*aby+(p[2]-a.z)*abz)/(abx*abx+aby*aby+abz*abz+1e-9); t=Math.max(0,Math.min(1,t)); const dx=a.x+abx*t-p[0],dy=a.y+aby*t-p[1],dz=a.z+abz*t-p[2]; return Math.sqrt(dx*dx+dy*dy+dz*dz); };
+    for(let v=0;v<nv;v++){ const p=[pos[3*v],pos[3*v+1],pos[3*v+2]]; tmp.fill(1e9); let dm=1e9; for(const e of SEG){ const d=sd2(p,e.a,e.b); if(d<tmp[e.bi]) tmp[e.bi]=d; if(d<dm) dm=d; }
+      const sc=(0.8*dm+1.0)*soft; let sum=0; for(let k=0;k<nbn;k++){ if(tmp[k]<1e8){ const w=Math.exp(-(tmp[k]*tmp[k]-dm*dm)/(sc*sc)); W[v*nbn+k]=w; sum+=w; } } for(let k=0;k<nbn;k++) W[v*nbn+k]/=sum; }
+    // lissage sur le graphe du maillage
+    const deg=new Int32Array(nv), nbr=[]; for(let v=0;v<nv;v++) nbr.push(new Set()); for(let t=0;t<bidx.length;t+=3){ const a=bidx[t],b=bidx[t+1],c=bidx[t+2]; nbr[a].add(b); nbr[a].add(c); nbr[b].add(a); nbr[b].add(c); nbr[c].add(a); nbr[c].add(b); }
+    const NB=nbr.map(s_=>Int32Array.from(s_)); let W2=new Float32Array(W.length); const it=o.skinSmooth??4, al=0.6;
+    for(let r=0;r<it;r++){ for(let v=0;v<nv;v++){ const q=NB[v]; for(let k=0;k<nbn;k++){ let a=0; for(let j=0;j<q.length;j++) a+=W[q[j]*nbn+k]; W2[v*nbn+k]=q.length? (1-al)*W[v*nbn+k]+al*a/q.length : W[v*nbn+k]; } } const t_=W; W=W2; W2=t_; }
+    for(let v=0;v<nv;v++){ const idx_=[...Array(nbn).keys()].sort((a,b)=>W[v*nbn+b]-W[v*nbn+a]).slice(0,4); let sum=0; for(const k of idx_) sum+=W[v*nbn+k]; sum=sum||1; for(let q=0;q<4;q++){ si[4*v+q]=idx_[q]; sw[4*v+q]=W[v*nbn+idx_[q]]/sum; } } }
+  let mat; if(o.texture){ const tex=await new THREE.TextureLoader().loadAsync(o.texture); tex.colorSpace=THREE.SRGBColorSpace; tex.flipY=false; tex.wrapS=tex.wrapT=THREE.RepeatWrapping; mat=new THREE.MeshStandardMaterial({map:tex, roughness:0.9, metalness:0, name:'Viking'}); } else if(EMB) mat=new THREE.MeshStandardMaterial({map:EMB, roughness:0.9, metalness:0, name:'Modele'});   // texture UV embarquée du GLB (forge hull --uv)
+  else mat=new THREE.MeshStandardMaterial({vertexColors:!!COL, roughness:0.9, metalness:0, name:'Modele'});
   const root=SkeletonUtils.clone(S); let sm; root.traverse(c=>{ if(c.isSkinnedMesh) sm=c; });
   const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(nor,3)); if(UV) g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2)); if(COL) g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));
   g.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(si,4)); g.setAttribute('skinWeight',new THREE.Float32BufferAttribute(sw,4)); g.setIndex(bidx);
@@ -245,13 +306,13 @@ window.rig = async (o)=>{
     const m=new THREE.Mesh(pg,mat); m.name=name; bones[bi].add(m); return pp.idx.length/3; };
   const rep_={}; rep_.axe=attach('Axe',o.axeBone||'mixamorigRightHand',props.axe,o.axe||{grip:[-63.5,48,-29]}); rep_.shield=attach('Shield',o.shieldBone||'mixamorigLeftForeArm',props.shield,o.shield||{grip:[62,50,-25],rot:[0,90,0]});
   // clips
-  const clips=[]; for(const c of (o.clips||[])){ const A=(await load(c.url)).clips[0]; if(A){ A.name=c.name; clips.push(A); } }
+  const clips=[]; for(const c of (o.clips||[])){ const A=(await load(c.url)).clips[0]; if(A){ A.name=c.name; A.tracks.forEach(tr=>{ const m=/^(.*)\.position$/.exec(tr.name); const d=m&&DPOS.get(m[1]); if(d&&(Math.abs(d.x)+Math.abs(d.y)+Math.abs(d.z))>1e-6){ for(let q=0;q<tr.values.length;q+=3){ tr.values[q]+=d.x; tr.values[q+1]+=d.y; tr.values[q+2]+=d.z; } } }); clips.push(A); } }
   const out=new THREE.Group(); out.name='Armature'; out.scale.setScalar(1e-4); out.add(root); const scene=new THREE.Scene(); scene.add(out);
   const buf=await new Promise((ok,ko)=> new GLTFExporter().parse(scene, ok, ko, {binary:true, animations:clips}));
   let bin=''; const u8=new Uint8Array(buf); for(let i=0;i<u8.length;i+=0x8000) bin+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));
   const dbg={}; if(POSED){ sm0.skeleton.bones.forEach(b=>{ if(/(Hand|ForeArm|Arm|Shoulder)$/.test(b.name)&&/mixamorig(Left|Right)/.test(b.name)){ const v=new THREE.Vector3(); b.getWorldPosition(v); sm0.worldToLocal(v); dbg[b.name]=[v.x,v.y,v.z].map(x=>+x.toFixed(1)); } });
     let mx=[1e9,-1e9],my=[1e9,-1e9]; for(let i=0;i<pos.length;i+=3){ mx[0]=Math.min(mx[0],pos[i]); mx[1]=Math.max(mx[1],pos[i]); my[0]=Math.min(my[0],pos[i+1]); my[1]=Math.max(my[1],pos[i+1]); } dbg.hullX=mx; dbg.hullY=my; }
-  return {dbg, glb:btoa(bin), body:bidx.length/3, props:rep_, clips:clips.map(c=>c.name), ratio:r, islands:[...role.values()].reduce((a,v)=>(a[v]=(a[v]||0)+1,a),{})};
+  return {dbg, skin:SKINFO, glb:btoa(bin), body:bidx.length/3, props:rep_, clips:clips.map(c=>c.name), ratio:r, islands:[...role.values()].reduce((a,v)=>(a[v]=(a[v]||0)+1,a),{})};
 };
 
 // Ajoute des clips (FBX Mixamo ou BVH issu d'une animation apprise) à un GLB déjà rigué (maillage, poids, accessoires conservés).

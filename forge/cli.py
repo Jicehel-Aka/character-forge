@@ -150,6 +150,7 @@ def main(argv=None):
     s.add_argument("-o", "--output", default="modele.glb"); s.add_argument("--angles", default=None, help="angles en degrés séparés par des virgules (défaut 0,45,90,...)")
     s.add_argument("--vox", type=float, default=2.5, help="taille de voxel en pixels (plus petit = plus fin, plus lent)"); s.add_argument("--height", type=float, default=1.75, help="hauteur du modèle (m)")
     s.add_argument("--sign", type=int, choices=[1, -1], default=None, help="sens de rotation (auto par défaut)"); s.add_argument("--no-photo", action="store_true", help="pas d'affinage du calage par cohérence des couleurs")
+    s.add_argument("--uv", type=int, default=0, metavar="N", help="texture UV cuite depuis les photos (atlas ~N px, ex. 2048 ; nécessite xatlas) au lieu des couleurs par sommet")
     s.add_argument("--smooth-colors", type=int, default=3)
 
     s = sub.add_parser("control", help="planche de contrôle + métriques (membres fins qui disparaissent) d'un ou plusieurs rendus forge meshy")
@@ -162,6 +163,10 @@ def main(argv=None):
     s = sub.add_parser("rig", help="FBX statique T-pose + squelette Mixamo -> GLB skinné (accessoires séparés, clips Mixamo)")
     s.add_argument("model"); s.add_argument("--fit", action="store_true", help="cale les hauteurs (entrejambe, bras) du modèle sur le squelette : personnages chibi / proportions différentes"); s.add_argument("--skeleton", required=True, help="FBX Mixamo skinné de référence (ex. Idle.fbx)"); s.add_argument("--texture", default=None, help="absente : couleurs de sommets du modèle (GLB de `forge hull`)"); s.add_argument("--arm-down", type=float, default=0, help="modèle en pose A : angle des bras sous l'horizontale (ex. 60)"); s.add_argument("--noprops", action="store_true", help="pas de séparation hache/bouclier (personnage nu / vêtu)")
     s.add_argument("--clips", nargs="*", help="FBX Mixamo dont on embarque l'animation"); s.add_argument("-o", "--output", default="rigged.glb"); s.add_argument("--knn", type=int, default=8)
+    s.add_argument("--skin", choices=["bones", "knn"], default="bones", help="poids de peau : distance aux os du squelette ajusté au personnage (défaut) ou copie kNN depuis le corps Mixamo (ancien)")
+    s.add_argument("--rebind", action="store_true", help="(diagnostic, avec --skin knn) recalcule les inverses de liaison sur le squelette tel quel")
+    s.add_argument("--skin-smooth", type=int, default=4, help="itérations de lissage des poids sur le maillage")
+    s.add_argument("--skin-soft", type=float, default=1.0, help="douceur des transitions entre os (1 = défaut)")
     s.add_argument("--axe", default=None, help='JSON {"grip":[x,y,z],"rot":[dx,dy,dz],"pos":[x,y,z]} (repère main)'); s.add_argument("--shield", default=None); s.add_argument("--axe-bone", default=None); s.add_argument("--shield-bone", default=None)
 
     s = sub.add_parser("clips", help="ajoute des animations (FBX Mixamo, animation apprise) à un GLB déjà rigué")
