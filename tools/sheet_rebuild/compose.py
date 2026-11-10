@@ -6,7 +6,7 @@ R_=pickle.load(open('/tmp/ext/ref/refs.pkl','rb'))
 _wh=np.median([r['mask'].shape[0] for r in R_[5:10]])
 for r in R_:
     r['f']=104/_wh*1.0
-N_=pickle.load(open('refs2d/news.pkl','rb'))
+N_=pickle.load(open('refs2d/news_h.pkl','rb'))
 S=list(S)+R_+N_
 NR0=len(S)-len(R_)-len(N_)
 CW,CH=160,152
