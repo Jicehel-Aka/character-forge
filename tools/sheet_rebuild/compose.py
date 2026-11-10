@@ -3,10 +3,9 @@ import numpy as np,pickle,os
 from scipy import ndimage as ndi
 D=pickle.load(open('match.pkl','rb'));S=D['S'];O=D['O'];s_o=D['s_o'];assign=D['assign']
 CW,CH=160,152
-OV={(7,2):142,(7,3):44,(7,4):55,(7,5):141,
-    (8,0):45,(8,1):46,(8,2):42,(8,3):106,(8,4):44,(8,5):46,
-    (13,3):37,(13,4):55,(13,5):44}
-for k,v in OV.items(): assign[k]=v
+import json as _j
+for rr,sq in _j.load(open('seq.json')).items():
+    for c,j in enumerate(sq): assign[(int(rr)-1,c)]=j
 sheet=Image.new('RGB',(6*CW,23*CH),(255,0,255))
 def sprite(s,corr=1.0):
     f=s['f']*corr;h,w=s['mask'].shape;nh,nw=round(h*f),round(w*f)
@@ -18,6 +17,29 @@ def sprite(s,corr=1.0):
     pink=(r[...,0]>170)&(r[...,2]>140)&(r[...,1]<110)
     a&=~pink
     return np.array(rgb),a
+Kc=pickle.load(open('kp_cand.pkl','rb'))
+def torso(j):
+    k=Kc[j]
+    if k is None or min(k[5,2],k[6,2],k[11,2],k[12,2])<0.4: return None
+    return float(np.linalg.norm((k[5,:2]+k[6,:2])/2-(k[11,:2]+k[12,:2])/2)*S[j]['f'])
+_t=[torso(j) for j in range(len(S))];TREF=np.median([t for t in _t if t])
+print('torse ref',TREF)
+def _up(j):
+    f=FCd[j];h,w=S[j]['mask'].shape
+    return f is not None and f[0]>0.33 and max(f[5],f[7])<0.17 and w/h<0.95
+FCd=D['FC']
+grp={}
+for src in 'AB':
+    ids=sorted([j for j in range(len(S)) if S[j]['src']==src],key=lambda j:S[j]['y']+S[j]['mask'].shape[0])
+    g_=0;prev=None
+    for j in ids:
+        b=S[j]['y']+S[j]['mask'].shape[0]
+        if prev is not None and b-prev>35: g_+=1
+        grp[j]=(src,g_);prev=b
+gh={}
+for j in range(len(S)):
+    if _up(j): gh.setdefault(grp[j],[]).append(S[j]['mask'].shape[0]*S[j]['f'])
+GC={k:float(np.clip(104/np.median(v),0.85,1.25)) for k,v in gh.items() if len(v)>=2}
 def wa(s):
     r=s['rgb'].astype(int);m=s['mask']&(r.min(2)>195);return max(m.sum()*s['f']**2,1)
 ref=np.median([wa(x) for x in S])
@@ -31,7 +53,7 @@ used={}
 for (r,c),j in assign.items():
     s=S[j];o=O[r,c]
     import os;MODE=os.environ.get('MODE','row')
-    corr={'row':rowcorr[r],'none':1.0,'spr':float(np.clip(g[j]**0.7,0.9,1.1))}[MODE]
+    corr={'row':rowcorr[r],'none':1.0,'spr':float(np.clip(g[j]**0.7,0.9,1.1)),'grp':GC.get(grp[j],1.0),'torso':float(np.clip(TREF/_t[j],0.85,1.2)) if _t[j] else 1.0}[MODE]
     rgb,a=sprite(s,corr)
     h,w=a.shape
     # original anchor: bottom and centroid-x of orig mask, scaled

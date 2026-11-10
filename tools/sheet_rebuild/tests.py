@@ -22,8 +22,8 @@ for r in range(23):
     res['fond magenta pur']=all(((c==[255,0,255]).all(2)|(abs(c-[255,0,255]).sum(2)>150)).all() for c in cells)
     res['sprite non coupé']=all(s['t']>0 and s['l']>0 and s['r']<CW-1 and s['b']<CH-1 for s in S)
     sc=lambda x:np.sqrt(x['a'])
-    ds=[abs(sc(S[i+1])/sc(S[i])-1) for i in range(5)];do=[abs(sc(O[i+1])/sc(O[i])-1) for i in range(5)]
-    res['échelle stable']=max(ds)<=max(do)+0.08
+    ds=[abs(np.log(sc(S[i+1])/sc(S[i]))) for i in range(5)];do=[abs(np.log(sc(O[i+1])/sc(O[i]))) for i in range(5)]
+    res['échelle stable']=all(abs(a-b)<0.35 for a,b in zip(ds,do))
     db=[abs(S[i+1]['b']-S[i]['b']) for i in range(5)];dbo=[abs(O[i+1]['b']-O[i]['b'])*1.577 for i in range(5)]
     res['sol stable']=max(db)<=max(dbo)+10
     dx=[abs(S[i+1]['cx']-S[i]['cx']) for i in range(5)];dxo=[abs(O[i+1]['cx']-O[i]['cx'])*1.325 for i in range(5)]
