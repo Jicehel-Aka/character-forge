@@ -64,3 +64,14 @@ sombres (cheveux) préservés. Le facteur de tête est un réglage à l'œil, un
 - **Tester après chaque changement** : règles de mouvement + tests génériques + regarder la planche et le GIF nommé.
 - Livrer en **planches de 6 lignes** (`forge sheetops split`) pour que le travail reste lisible ; version annotée + version brute.
 - Quand l'utilisateur fournit une meilleure source, **remplacer** la ligne entière, ne pas la mélanger avec d'anciens sprites.
+
+## 8. Appliquer à un autre personnage (essai sur la danseuse, clip « Dance » en 64 px)
+- **Ce qui se transfère** : harmonisation taille/contour/palette réduite, contrôles de cadre/échelle/pieds (`forge qa`), règles
+  génériques (marche, course, chute, KO, relevé : mêmes mouvements pour tout personnage de profil).
+- **Ce qui ne se transfère pas** : le catalogue de mouvements est celui d'un combattant. Une danse n'a pas de type dans `animrules`
+  (appliquée telle quelle, elle « échoue » à idle et à la stabilité de hauteur de marche, ce qui n'a pas de sens) : il faut lui écrire
+  ses propres règles (danse = hauteur qui varie, rotation du buste, bras qui bougent ; révérence ; tour sur soi).
+- **Piège** : `harmonize --ref` transfère les COULEURS de la référence ; la danseuse prend alors la peau et la tenue vertes de la
+  combattante. Pour un autre personnage, `--keep-colors` (ses propres couleurs, palette réduite, contour, hauteur).
+- Le vrai défaut de la danseuse est en amont : rendu 3D à 64 px, tenue violet sombre quasi noire (texture des cheveux absente),
+  membres fins, tête-masse sombre. Les règles de mouvement ne le corrigent pas ; il faut une meilleure texture/pose source.

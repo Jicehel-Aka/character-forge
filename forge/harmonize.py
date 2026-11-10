@@ -11,6 +11,10 @@ fine et une tête plus petite que la combattante des autres lignes. Quatre corre
 Ordre fixe : tête -> taille -> couleurs -> contour. Le point 2 dépend de la pose : --head-cut se règle à l'œil sur
 une frame (une valeur par source de sprites) ; sur 6 frames d'un même rendu, la même valeur suffit.
 
+ATTENTION : la référence donne ses COULEURS. Pour un autre personnage (autre tenue), ne pas lui transférer la palette
+d'un personnage différent (la danseuse deviendrait verte) : utiliser --keep-colors (palette réduite de ses propres
+couleurs + contour + taille), ou une référence du MÊME personnage.
+
   python -m forge harmonize DOSSIER_SPRITES --ref DOSSIER_OU_PLANCHE_REF -o sortie --height 102 --width 1.10 \
       --head-scale 1.30 --head-cut 0.30 --colors 28
 Limite : transfert de couleurs = style, pas de la repeinte ; il n'invente aucun détail."""
@@ -90,8 +94,10 @@ def harmonize(rgba, ref_px, pal, height=None, width=1.0, head_scale=1.0, head_cu
 
 
 def cmd(a):
-    src = sorted(Path(a.folder).glob("*.png")); refs = Path(a.ref)
+    src = sorted(Path(a.folder).glob("*.png")); refs = Path(a.ref) if a.ref else Path(a.folder)
     rp = [refs] if refs.is_file() else sorted(refs.glob("*.png"))
+    if a.keep_colors:                      # autre personnage : on garde SES couleurs (palette réduite + contour), pas celles de la référence
+        rp = src
     px = ref_pixels(rp); pal = palette(px, a.colors)
     Path(a.output).mkdir(parents=True, exist_ok=True)
     for p in src:

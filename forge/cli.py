@@ -92,7 +92,8 @@ def main(argv=None):
 
     s = sub.add_parser("harmonize", help="uniformise le rendu de sprites avec une référence : taille, tête, palette, contour")
     s.add_argument("folder")
-    s.add_argument("--ref", required=True, help="dossier ou image (planche) de référence")
+    s.add_argument("--ref", help="dossier ou image (planche) de référence ; inutile avec --keep-colors")
+    s.add_argument("--keep-colors", action="store_true", help="garde les couleurs propres des sprites (autre personnage) : palette réduite + contour + taille")
     s.add_argument("-o", "--output", required=True)
     s.add_argument("--height", type=int, help="hauteur cible en px")
     s.add_argument("--width", type=float, default=1.0, help="facteur de largeur (carrure)")
