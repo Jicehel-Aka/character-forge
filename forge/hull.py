@@ -146,7 +146,7 @@ def smooth_normals(verts, faces, nv, iters=6):
     for _ in range(iters): nv = nv + A @ nv; nv /= np.linalg.norm(nv, axis=1, keepdims=True) + 1e-12
     return nv
 
-POW = float(os.environ.get('FORGE_HULL_POW', '8'))
+POW = float(os.environ.get('FORGE_HULL_POW', '24'))
 
 def colorize(views, verts, normals, sg):
     """Couleur par sommet = moyenne (linéaire) des vues qui le voient de face. Renvoie aussi un score d'incohérence (variance pondérée)."""
