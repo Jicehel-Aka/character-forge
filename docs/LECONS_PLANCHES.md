@@ -75,3 +75,12 @@ sombres (cheveux) préservés. Le facteur de tête est un réglage à l'œil, un
   combattante. Pour un autre personnage, `--keep-colors` (ses propres couleurs, palette réduite, contour, hauteur).
 - Le vrai défaut de la danseuse est en amont : rendu 3D à 64 px, tenue violet sombre quasi noire (texture des cheveux absente),
   membres fins, tête-masse sombre. Les règles de mouvement ne le corrigent pas ; il faut une meilleure texture/pose source.
+
+## 9. Planche complète pour un personnage 3D multi-maillages (essai danseuse)
+`forge rig` (maillage statique + squelette Mixamo -> GLB skinné) n'accepte qu'UN maillage à UNE texture (écrit pour le Viking).
+La danseuse a plusieurs maillages (corps, tenue, cheveux, yeux) avec une texture par matériau, sans texture embarquée :
+l'export GLB plante (`processTexture ... mimeType`). Pour l'habiller de clips Mixamo (Idle, Lead_Jab, Combo_Punch, Body_Jab_Cross,
+Medium_Step_Forward, Receiving_A_Big_Uppercut) il faut d'abord : fusionner les maillages, cuire les textures (atlas ou couleurs par
+sommet), vérifier que sa pose de repos est une T-pose. Sans cela, seul son clip d'origine (« Dance ») est utilisable.
+Même réussi, 6 clips Mixamo ne couvrent pas les ~23 animations d'une planche de combattante (marche, course, saut, accroupi, chute,
+KO, relevé, provocation... manquent) : une planche complète = une bibliothèque de clips + les règles `forge animrules` par type.
