@@ -127,8 +127,21 @@ def reintegrate(edited, meta_path, out, snap=True):
     return res
 
 
+def split_rows(sheet, cell_h, per_part, out, key_bg=True):
+    """Coupe une planche trop haute en bandes de `per_part` lignes de hauteur `cell_h` (travail par morceaux)."""
+    im = Image.open(sheet).convert("RGB"); n = im.height // cell_h; out = Path(out); out.mkdir(parents=True, exist_ok=True)
+    files = []
+    for i, r0 in enumerate(range(0, n, per_part), 1):
+        r1 = min(r0 + per_part, n); f = out / f"part{i}_lignes_{r0 + 1}-{r1}.png"
+        im.crop((0, r0 * cell_h, im.width, r1 * cell_h)).save(f); files.append(f)
+    return files
+
+
 def cmd(a):
-    if a.action == "slice":
+    if a.action == "split":
+        fs = split_rows(a.sheet, a.cell_h, a.per_part, a.output)
+        print(f"[split] {len(fs)} planches -> {a.output}")
+    elif a.action == "slice":
         m = slice_sheet(a.sheet, a.output, limit=a.limit)
         print(f"[slice] {m['rows']} lignes x {m['cols']} colonnes, {len(m['cells'])} cellules -> {a.output}")
     elif a.action == "flatten":

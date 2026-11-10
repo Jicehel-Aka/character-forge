@@ -68,6 +68,15 @@ Un seul appel enchaîne consolidation -> références -> GPU -> 3D -> turntable.
 été vérifié, donc sans cette commande l'étape s'arrête proprement après avoir préparé les entrées.
 Depuis un programme (C#, Python...) : lancer le processus, lire stdout ligne par ligne, afficher les questions.
 
+## Reconstituer une planche : règles, harmonisation, découpe
+Leçons complètes : `docs/LECONS_PLANCHES.md`. Trois commandes en sortent :
+- `python -m forge animrules list | check PLANCHE --cell 160x152 --kinds tools/sheet_rebuild/kinds.json` (ou `--frames DOSSIER --kind walk`) :
+  vérifie que chaque ligne FAIT son mouvement (marche = jambes qui alternent, accroupi = frames basses, chute = recul → genoux → sol…),
+  avec une consigne de correction par règle échouée.
+- `python -m forge harmonize DOSSIER --ref REF -o out --height 102 --width 1.10 --head-scale 1.30 --head-cut 0.30 --colors 28` :
+  met des sprites d'une autre source au rendu du personnage de référence (taille, tête, palette, contour 1 px).
+- `python -m forge sheetops split PLANCHE -o dossier --cell-h 152 --per-part 6` : coupe une planche trop haute en bandes de lignes.
+
 ## Contrôle qualité des frames (`qa`)
 `python -m forge qa DOSSIER_FRAMES [--max-colors 24]` : cadre coupé, poussières, alpha semi-transparent, nombre de
 couleurs, taille et ligne des pieds d'une frame à l'autre ; chaque problème donne une consigne de correction.

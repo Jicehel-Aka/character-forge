@@ -69,8 +69,8 @@ def main(argv=None):
     s.add_argument("--identity", action="store_true", help="ajoute le contrôle de dérive d'identité (couleurs)")
     s.add_argument("--json")
 
-    s = sub.add_parser("sheetops", help="planche de sprites : slice | flatten | reintegrate")
-    s.add_argument("action", choices=["slice", "flatten", "reintegrate"])
+    s = sub.add_parser("sheetops", help="planche de sprites : slice | flatten | reintegrate | split")
+    s.add_argument("action", choices=["slice", "flatten", "reintegrate", "split"])
     s.add_argument("sheet", help="planche (slice/flatten) ou image retravaillée (reintegrate)")
     s.add_argument("-o", "--output", required=True)
     s.add_argument("-f", "--factor", type=int, default=4)
@@ -78,6 +78,27 @@ def main(argv=None):
     s.add_argument("--colors", type=int, default=64, help="flatten : palette maximale si la source en a plus (bruit)")
     s.add_argument("--no-snap", action="store_true", help="ne pas recoller sur la palette d'origine")
     s.add_argument("--limit", type=int, default=0, help="slice : n'écrire que N cellules")
+    s.add_argument("--cell-h", type=int, default=152, help="split : hauteur d'une ligne (cellule) en px")
+    s.add_argument("--per-part", type=int, default=6, help="split : nombre de lignes par planche")
+
+    s = sub.add_parser("animrules", help="règles d'animation par type (marche, accroupi, chute...) : list | check")
+    s.add_argument("action", choices=["list", "check"])
+    s.add_argument("sheet", nargs="?", help="planche (check)")
+    s.add_argument("--cell", default="160x152", help="taille d'une cellule LxH")
+    s.add_argument("--kinds", help="JSON {ligne: type} (voir tools/sheet_rebuild/kinds.json)")
+    s.add_argument("--frames", help="dossier de frames d'UNE animation (avec --kind)")
+    s.add_argument("--kind")
+    s.add_argument("--href", type=float, help="hauteur d'une garde debout en px (défaut : médiane des lignes idle)")
+
+    s = sub.add_parser("harmonize", help="uniformise le rendu de sprites avec une référence : taille, tête, palette, contour")
+    s.add_argument("folder")
+    s.add_argument("--ref", required=True, help="dossier ou image (planche) de référence")
+    s.add_argument("-o", "--output", required=True)
+    s.add_argument("--height", type=int, help="hauteur cible en px")
+    s.add_argument("--width", type=float, default=1.0, help="facteur de largeur (carrure)")
+    s.add_argument("--head-scale", type=float, default=1.0)
+    s.add_argument("--head-cut", type=float, default=0.30, help="fraction de la hauteur où couper sous le menton")
+    s.add_argument("--colors", type=int, default=28)
 
     s = sub.add_parser("anim", help="mode apprentissage : check | learn | generate (voir forge/anim.py)")
     s.add_argument("action", choices=["check", "learn", "generate", "import-bvh", "import-coco", "export-bvh"])
@@ -260,6 +281,12 @@ def main(argv=None):
         raise SystemExit(job.run(a.manifest, a.output, a.decisions, a.cmd3d, a.json, a.model))
     elif a.cmd == "qa":
         raise SystemExit(qa.cmd(a))
+    elif a.cmd == "animrules":
+        from . import animrules
+        raise SystemExit(animrules.cmd(a))
+    elif a.cmd == "harmonize":
+        from . import harmonize
+        raise SystemExit(harmonize.cmd(a))
     elif a.cmd == "sheetops":
         raise SystemExit(flat.cmd(a))
     elif a.cmd == "anim":
