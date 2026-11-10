@@ -83,6 +83,7 @@ JSON avec une étiquette par `animation_direction`, `.raw`/`.h` RGB565 par anima
 **Enregistrer dans un dossier…** (Chrome/Edge : écrit directement dans le dossier du projet), planche PNG (case « fond magenta »), atlas JSON,
 GIF de la direction affichée, images `.zip`. **Générer toutes les animations** rend chaque clip du modèle avec les mêmes réglages et les
 range dans la bibliothèque, exportée d'un seul bloc. Le `LISEZ-MOI` donne les commandes pour enchaîner `forge qa`, `animrules`, `harmonize`, `atlas`.
+**Palette commune** (cochée par défaut avec « Générer toutes les animations », ou bouton **Unifier la palette**) : une seule palette RGB565 pour toute la bibliothèque, donc les mêmes couleurs d'une animation à l'autre.
 
 ### Ajouter squelette et animations venus d'autres fichiers (`docs/modele.html`)
 Carte **Squelette et animations d'autres fichiers**, sous la vue 3D :

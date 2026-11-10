@@ -69,6 +69,7 @@ code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding
     <div class="row"><button id="xatlas">Atlas JSON (Aseprite)</button><button id="xgif">GIF animé</button><button id="xframes">Images (.zip)</button></div>
     <div class="row"><button id="dlraw">.raw RGB565</button><button id="dlh">En-tête C (.h)</button><button id="dljson">Métadonnées</button></div>
     <div class="row"><button id="xall" title="rend chaque animation du modèle avec les réglages actuels, puis exporte-les ensemble">Générer toutes les animations</button><button id="xclear">Vider</button></div>
+    <div class="row"><label class="chip" style="margin:0" title="une seule palette pour toutes les animations générées d'un coup"><input type="checkbox" id="xcommon" checked> palette commune</label><button id="xpal" title="recalcule une palette unique pour toute la bibliothèque">Unifier la palette</button></div>
     <p class="mute" id="xmsg" style="margin:6px 0 0"></p>
   </div>
   <div class="card"><h2>À savoir</h2>
@@ -294,7 +295,13 @@ $('#xgif').onclick=()=>{if(!result)return;const R=result,d=$('#adir').value||R.d
 $('#dlpng').onclick=async()=>{if(!library.size)return;const c=sheetCanvasAll($('#xmag').checked);dl(base()+($('#xmag').checked?'_planche_magenta.png':'_planche.png'),await blobOf(c));msg(`Planche PNG : ${rowsOf().length} lignes (${library.size} animation(s) × ${result.dirs.length} direction(s)).`)};
 $('#xall').onclick=async()=>{if(!clips.length){msg('Ce modèle n\'a pas d\'animation : seule la pose est rendue.');return}const keep=$('#clip').value;$('#xall').disabled=true;
   try{for(let i=0;i<clips.length;i++){$('#clip').value=String(i);$('#prog').textContent=`Animation ${i+1}/${clips.length} : ${clips[i].name}`;await generate();store()}}catch(e){$('#prog').textContent='Erreur : '+e.message}
-  $('#clip').value=keep;$('#xall').disabled=false;msg(`${library.size} animation(s) dans la bibliothèque : exporte le paquet ZIP.`)};
+  $('#clip').value=keep;$('#xall').disabled=false;if($('#xcommon').checked)unifyPalette();msg(`${library.size} animation(s) dans la bibliothèque${$('#xcommon').checked?', palette commune de '+(result.pal.length)+' couleurs':''} : exporte le paquet ZIP.`)};
+/* palette commune à toute la bibliothèque : mêmes couleurs d'une animation à l'autre (une seule table RGB565 sur la console) */
+function unifyPalette(){if(!library.size)return;const Rs=[...library.values()],px=[];for(const R of Rs)for(const fr of R.frames)for(let j=0;j<R.T*R.T;j++)if(fr.mask[j])px.push([fr.C[j*3]|0,fr.C[j*3+1]|0,fr.C[j*3+2]|0]);
+  const pal=medianCut(px,+$('#colors').value).map(p=>from565(to565(...p)));
+  for(const R of Rs){for(const fr of R.frames){for(let j=0;j<R.T*R.T;j++){if(!fr.mask[j])continue;let best=0,bd=1e9;for(let q=0;q<pal.length;q++){const p=pal[q],dd=(p[0]-fr.C[j*3])**2+(p[1]-fr.C[j*3+1])**2+(p[2]-fr.C[j*3+2])**2;if(dd<bd){bd=dd;best=q}}fr.rgba[j*4]=pal[best][0];fr.rgba[j*4+1]=pal[best][1];fr.rgba[j*4+2]=pal[best][2]}}R.pal=pal}
+  if(result){showResult();refreshExport()}return pal}
+$('#xpal').onclick=()=>{if(!library.size)return;const p=unifyPalette();msg(`Palette commune : ${p.length} couleurs pour ${library.size} animation(s).`)};
 $('#xclear').onclick=()=>{library.clear();refreshExport();msg('Bibliothèque vidée.')};
 function refreshExport(){const n=library.size;$('#xlib').textContent=n?`Bibliothèque : ${[...library.keys()].join(', ')}`:'Bibliothèque vide : génère une animation (ou toutes).';for(const id of ['xzip','xdir','xframes','xatlas','xgif','dlpng','dlraw','dlh','dljson','xclear'])$('#'+id).disabled=!n}
 const _go=$('#go').onclick;$('#go').onclick=()=>generate().then(()=>{store();$('#sheet').scrollIntoView({block:'nearest',behavior:'smooth'});msg('Résultat prêt : exporte avec le panneau « Exporter » (paquet ZIP recommandé).')}).catch(e=>{$('#prog').textContent='Erreur : '+e.message;console.error(e)});
@@ -433,7 +440,7 @@ $('#banim').onclick=()=>$('#fanim').click();$('#bskel').onclick=()=>$('#fskel').
 $('#fanim').onchange=async e=>{const fl=[...e.target.files];e.target.value='';if(fl.length)await addAnims(fl)};
 $('#fskel').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(f)try{await addSkeleton(f)}catch(er){rmsg('Échec : '+er.message,1)}};
 
-window._test={generate,get result(){return result},setup,loadFile,addAnims,addSkeleton,get clips(){return clips},get M(){return M}};
+window._test={generate,get result(){return result},setup,loadFile,addAnims,addSkeleton,get clips(){return clips},get M(){return M},get library(){return library}};
 </script>
 </body>
 </html>
