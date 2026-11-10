@@ -37,7 +37,6 @@ code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding
   <div class="card"><h2>Résultat</h2>
     <div class="row"><label style="margin:0">Direction</label><select id="adir"></select><canvas id="anim" width="64" height="64"></canvas><span class="mute" id="ainfo"></span></div>
     <canvas id="sheet" width="64" height="64"></canvas>
-    <div class="row"><button id="dlpng">Planche PNG</button><button id="dlraw">.raw RGB565</button><button id="dlh">En-tête C (.h)</button><button id="dljson">Métadonnées JSON</button></div>
     <div class="mute" id="sinfo"></div>
   </div>
 </section>
@@ -56,6 +55,15 @@ code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding
     <div class="row"><label style="margin:0">Durée max. (s)</label><input type="number" id="tmax" value="0" min="0" step="0.1" title="0 = clip entier"></div>
     <div class="row"><button class="primary" id="go">Générer les sprites</button></div>
     <p class="mute" id="prog"></p>
+  </div>
+  <div class="card" id="xcard" style="position:sticky;top:12px"><h2>Exporter</h2>
+    <p class="mute" id="xlib" style="margin:0 0 6px"></p>
+    <div class="row"><button class="primary" id="xzip" title="planches, atlas, RGB565, images, GIF, mode d'emploi">Paquet complet (.zip)</button><button id="xdir" title="Chrome / Edge : écrit directement dans le dossier de ton projet">Enregistrer dans un dossier…</button></div>
+    <div class="row"><button id="dlpng">Planche PNG</button><label class="chip" style="margin:0"><input type="checkbox" id="xmag"> fond magenta</label></div>
+    <div class="row"><button id="xatlas">Atlas JSON (Aseprite)</button><button id="xgif">GIF animé</button><button id="xframes">Images (.zip)</button></div>
+    <div class="row"><button id="dlraw">.raw RGB565</button><button id="dlh">En-tête C (.h)</button><button id="dljson">Métadonnées</button></div>
+    <div class="row"><button id="xall" title="rend chaque animation du modèle avec les réglages actuels, puis exporte-les ensemble">Générer toutes les animations</button><button id="xclear">Vider</button></div>
+    <p class="mute" id="xmsg" style="margin:6px 0 0"></p>
   </div>
   <div class="card"><h2>À savoir</h2>
     <ul class="mute" style="margin:0 0 0 18px;padding:0">
@@ -195,13 +203,99 @@ let animT=null;function animate(){clearInterval(animT);if(!result)return;const R
 $('#adir').onchange=animate;
 const dl=(name,data,type)=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:type||'application/octet-stream'}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)};
 const base=()=>($('#info').textContent.split(' · ')[0]||'modele').replace(/\.[^.]+$/,'').replace(/[^\w\-]+/g,'_');
-$('#dlpng').onclick=()=>{if(result)$('#sheet').toBlob(b=>dl(base()+'_planche.png',b))};
 function words(){const R=result,w=new Uint16Array(R.frames.length*R.T*R.T);let o=0;const order=[];R.dirs.forEach(d=>R.frames.filter(f=>f.d===d).forEach(f=>order.push(f)));
   for(const fr of order)for(let j=0;j<R.T*R.T;j++)w[o++]=fr.mask[j]?to565(fr.rgba[j*4],fr.rgba[j*4+1],fr.rgba[j*4+2]):0xF81F;return w}
-$('#dlraw').onclick=()=>{if(result)dl(base()+'.raw',words().buffer)};
 $('#dlh').onclick=()=>{if(!result)return;const R=result,w=words(),n=base().toUpperCase();let t=`// ${n} : ${R.dirs.length} directions (${R.dirs.join(',')}) x ${R.N} images, ${R.T}x${R.T} RGB565, transparence 0xF81F\n// ordre : direction, puis image\n#pragma once\n#include <stdint.h>\n#define ${n}_W ${R.T}\n#define ${n}_H ${R.T}\n#define ${n}_FRAMES ${R.N}\n#define ${n}_DIRS ${R.dirs.length}\nstatic const uint16_t ${base()}[] = {\n`;
   for(let i=0;i<w.length;i+=12)t+='  '+[...w.slice(i,i+12)].map(v=>'0x'+v.toString(16).toUpperCase().padStart(4,'0')).join(', ')+',\n';dl(base()+'.h',t+'};\n','text/plain')};
 $('#dljson').onclick=()=>{if(!result)return;const R=result;dl(base()+'.json',JSON.stringify({model:R.model,clip:R.clip,size:R.T,frames:R.N,directions:R.dirs,palette:R.pal.map(p=>'#'+p.map(v=>v.toString(16).padStart(2,'0')).join('')),transparent:'0xF81F',format:'RGB565 little-endian, ordre direction puis image'},null,1),'application/json')};
+
+/* ======================= EXPORT : bibliothèque d'animations, paquet ZIP, atlas, GIF, dossier ======================= */
+const library=new Map();   // nom de clip -> résultat (toutes les animations générées avec les mêmes réglages)
+const safe=s=>String(s||'pose').replace(/^.*[|:]/,'').replace(/[^\w\-]+/g,'_').replace(/^_+|_+$/g,'')||'pose';
+function store(){const R=result;if(!R)return;const any=[...library.values()][0];if(any&&(any.T!==R.T||any.dirs.join()!==R.dirs.join()))library.clear();library.set(safe(R.clip),R);refreshExport()}
+function rowsOf(){const rows=[];library.forEach((R,name)=>R.dirs.forEach(d=>rows.push({name,d,R,fs:R.frames.filter(f=>f.d===d).sort((a,b)=>a.f-b.f)})));return rows}
+function frameCanvas(fr,T,mag){const c=document.createElement('canvas');c.width=c.height=T;const x=c.getContext('2d');if(mag){x.fillStyle='#ff00ff';x.fillRect(0,0,T,T)}
+  const t=document.createElement('canvas');t.width=t.height=T;t.getContext('2d').putImageData(new ImageData(fr.rgba,T,T),0,0);x.drawImage(t,0,0);
+  if(mag){const im=x.getImageData(0,0,T,T),d=im.data;for(let j=0;j<T*T;j++)if(!fr.mask[j]){d[j*4]=255;d[j*4+1]=0;d[j*4+2]=255;d[j*4+3]=255}x.putImageData(im,0,0)}return c}
+function sheetCanvasAll(mag){const rows=rowsOf();if(!rows.length)return null;const T=rows[0].R.T,W=Math.max(...rows.map(r=>r.fs.length))*T,c=document.createElement('canvas');c.width=W;c.height=rows.length*T;const x=c.getContext('2d');
+  if(mag){x.fillStyle='#ff00ff';x.fillRect(0,0,c.width,c.height)}rows.forEach((r,ri)=>r.fs.forEach((fr,i)=>x.drawImage(frameCanvas(fr,T,mag),i*T,ri*T)));return c}
+const blobOf=c=>new Promise(r=>c.toBlob(r,'image/png'));const bytesOf=async b=>new Uint8Array(await b.arrayBuffer());
+const enc=new TextEncoder();
+/* ZIP sans compression (écrit à la main : aucune bibliothèque) */
+const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+const crc32=b=>{let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRC[(c^b[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0};
+function zipBlob(files){const parts=[],cen=[];let off=0;const dt=new Date(),time=(dt.getHours()<<11)|(dt.getMinutes()<<5)|(dt.getSeconds()>>1),date=((dt.getFullYear()-1980)<<9)|((dt.getMonth()+1)<<5)|dt.getDate();
+  for(const f of files){const nm=enc.encode(f.name),d=f.data,crc=crc32(d),h=new DataView(new ArrayBuffer(30));h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,0x0800,true);h.setUint16(10,time,true);h.setUint16(12,date,true);h.setUint32(14,crc,true);h.setUint32(18,d.length,true);h.setUint32(22,d.length,true);h.setUint16(26,nm.length,true);
+    parts.push(h.buffer,nm,d);const c=new DataView(new ArrayBuffer(46));c.setUint32(0,0x02014b50,true);c.setUint16(4,20,true);c.setUint16(6,20,true);c.setUint16(8,0x0800,true);c.setUint16(12,time,true);c.setUint16(14,date,true);c.setUint32(16,crc,true);c.setUint32(20,d.length,true);c.setUint32(24,d.length,true);c.setUint16(28,nm.length,true);c.setUint32(42,off,true);cen.push(c.buffer,nm);off+=30+nm.length+d.length}
+  let cs=0;for(const p of cen)cs+=p.byteLength;const e=new DataView(new ArrayBuffer(22));e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,cs,true);e.setUint32(16,off,true);return new Blob([...parts,...cen,e.buffer],{type:'application/zip'})}
+/* GIF animé (palette globale = palette des sprites, une couleur de transparence) */
+function lzw(idx,minc){const clear=1<<minc,eoi=clear+1,out=[];let size=minc+1,next=eoi+1,cur=0,sh=0,dict=new Map();const emit=c=>{cur|=c<<sh;sh+=size;while(sh>=8){out.push(cur&255);cur>>=8;sh-=8}};
+  emit(clear);let p=idx[0];for(let i=1;i<idx.length;i++){const k=idx[i],key=p*256+k,v=dict.get(key);if(v!==undefined){p=v;continue}emit(p);
+    if(next===4096){emit(clear);next=eoi+1;size=minc+1;dict=new Map()}else{if(next>=(1<<size))size++;dict.set(key,next++)}p=k}
+  emit(p);emit(eoi);if(sh>0)out.push(cur&255);return out}
+function gifBlob(fs,T,pal,scale,delayMs){const n=pal.length+1;let bits=1;while((1<<bits)<n)bits++;const o=[],w=(...b)=>o.push(...b),w16=v=>w(v&255,v>>8),W=T*scale,tr=pal.length,minc=Math.max(2,bits);
+  w(71,73,70,56,57,97);w16(W);w16(W);w(0x80|((bits-1)<<4)|(bits-1),0,0);for(let i=0;i<(1<<bits);i++){const p=pal[i]||[0,0,0];w(p[0],p[1],p[2])}
+  w(0x21,0xFF,11,...'NETSCAPE2.0'.split('').map(c=>c.charCodeAt(0)),3,1,0,0,0);const lut=new Map();pal.forEach((p,i)=>lut.set((p[0]<<16)|(p[1]<<8)|p[2],i));
+  for(const fr of fs){const px=new Uint8Array(W*W);for(let y=0;y<W;y++)for(let x=0;x<W;x++){const j=((y/scale)|0)*T+((x/scale)|0);px[y*W+x]=fr.mask[j]?(lut.get((fr.rgba[j*4]<<16)|(fr.rgba[j*4+1]<<8)|fr.rgba[j*4+2])??0):tr}
+    w(0x21,0xF9,4,0x09);w16(Math.round(delayMs/10));w(tr,0);w(0x2C);w16(0);w16(0);w16(W);w16(W);w(0,minc);const d=lzw(px,minc);for(let i=0;i<d.length;i+=255){const c=d.slice(i,i+255);w(c.length,...c)}w(0)}
+  w(0x3B);return new Blob([new Uint8Array(o)],{type:'image/gif'})}
+/* atlas JSON au format Aseprite (hash) : Godot, Unity, Phaser, LÖVE, TexturePacker... une étiquette par « animation_direction » */
+function atlasJSON(imageName,delay){const rows=rowsOf(),T=rows[0].R.T,W=Math.max(...rows.map(r=>r.fs.length))*T,frames={},tags=[];let k=0;
+  rows.forEach((r,ri)=>{const from=k;r.fs.forEach((fr,i)=>{frames[`${r.name}_${r.d}_${String(i).padStart(2,'0')}`]={frame:{x:i*T,y:ri*T,w:T,h:T},rotated:false,trimmed:false,spriteSourceSize:{x:0,y:0,w:T,h:T},sourceSize:{w:T,h:T},duration:delay};k++});tags.push({name:`${r.name}_${r.d}`,from,to:k-1,direction:'forward'})});
+  return JSON.stringify({frames,meta:{app:'character-forge',version:'1',image:imageName,format:'RGBA8888',size:{w:W,h:rows.length*T},scale:'1',frameTags:tags,slices:[]}},null,1)}
+function metaJSON(){const rows=rowsOf(),R=rows[0].R;return JSON.stringify({model:R.model,size:R.T,directions:R.dirs,animations:[...library].map(([n,r])=>({name:n,clip:r.clip,frames:r.N})),palette:R.pal.map(p=>'#'+p.map(v=>v.toString(16).padStart(2,'0')).join('')),transparent_rgb565:'0xF81F',transparent_png:'alpha=0',magenta_sheet:'255,0,255',format:'RGB565 little-endian, ordre animation > direction > image'},null,1)}
+function wordsOf(R){const w=new Uint16Array(R.frames.length*R.T*R.T);let o=0;R.dirs.forEach(d=>R.frames.filter(f=>f.d===d).sort((a,b)=>a.f-b.f).forEach(fr=>{for(let j=0;j<R.T*R.T;j++)w[o++]=fr.mask[j]?to565(fr.rgba[j*4],fr.rgba[j*4+1],fr.rgba[j*4+2]):0xF81F}));return w}
+function headerOf(name,R){const w=wordsOf(R),n=name.toUpperCase();let t=`// ${name} : ${R.dirs.length} directions (${R.dirs.join(',')}) x ${R.N} images, ${R.T}x${R.T} RGB565, transparence 0xF81F\n// ordre : direction, puis image\n#pragma once\n#include <stdint.h>\n#define ${n}_W ${R.T}\n#define ${n}_H ${R.T}\n#define ${n}_FRAMES ${R.N}\n#define ${n}_DIRS ${R.dirs.length}\nstatic const uint16_t ${name}[] = {\n`;
+  for(let i=0;i<w.length;i+=12)t+='  '+[...w.slice(i,i+12)].map(v=>'0x'+v.toString(16).toUpperCase().padStart(4,'0')).join(', ')+',\n';return t+'};\n'}
+function readme(b){const names=[...library.keys()];return `character-forge — paquet de sprites « ${b} »
+Animations : ${names.join(', ')}  |  directions : ${[...library.values()][0].dirs.join(', ')}  |  ${[...library.values()][0].T}x${[...library.values()][0].T} px
+
+CONTENU
+  ${b}_planche.png           toutes les animations (une ligne par animation et direction), fond transparent
+  ${b}_planche_magenta.png   même planche sur fond magenta 255,0,255 (format des planches de jeu)
+  ${b}_atlas.json            atlas au format Aseprite (frames + étiquettes « animation_direction »)
+  ${b}_<animation>.raw / .h  RGB565 pour la console AKA (transparence 0xF81F)
+  ${b}_meta.json             palette, tailles, directions
+  frames/<animation>/<dir>_NN.png   images séparées (fond transparent)
+  gif/<animation>_<dir>.gif  aperçus animés
+
+SUITE DU TRAVAIL (outils du dépôt character-forge, en ligne de commande)
+  python -m forge qa frames/<animation>                          contrôle qualité (cadre, taille, pieds, couleurs)
+  python -m forge animrules check --frames frames/<animation> --kind walk
+                                                                  vérifie que le mouvement est le bon (walk, run, crouch, kick, fall...)
+  python -m forge harmonize frames/<animation> --keep-colors -o harmonise --height 102
+                                                                  uniformise taille / palette / contour avec d'autres sprites
+  python -m forge atlas frames/<animation> -o export --name <animation>     atlas moteur + GIF
+  python -m forge sprites frames/<animation> -o sprites --name ${b}         spritesheet RGB565 + en-tête C
+`}
+async function buildPackage(withGifs){if(!library.size)return null;const b=base(),files=[],T=[...library.values()][0].T;
+  const tr=sheetCanvasAll(false),mg=sheetCanvasAll(true);files.push({name:`${b}_planche.png`,data:await bytesOf(await blobOf(tr))},{name:`${b}_planche_magenta.png`,data:await bytesOf(await blobOf(mg))},{name:`${b}_atlas.json`,data:enc.encode(atlasJSON(`${b}_planche.png`,110))},{name:`${b}_meta.json`,data:enc.encode(metaJSON())});
+  for(const [n,R] of library){files.push({name:`${b}_${n}.raw`,data:new Uint8Array(wordsOf(R).buffer)},{name:`${b}_${n}.h`,data:enc.encode(headerOf(`${b}_${n}`,R))});
+    for(const fr of R.frames)files.push({name:`frames/${n}/${fr.d}_${String(fr.f).padStart(2,'0')}.png`,data:await bytesOf(await blobOf(frameCanvas(fr,R.T,false)))});
+    if(withGifs)for(const d of R.dirs){const fs=R.frames.filter(f=>f.d===d).sort((a,c)=>a.f-c.f);files.push({name:`gif/${n}_${d}.gif`,data:await bytesOf(gifBlob(fs,R.T,R.pal,Math.max(2,Math.round(256/R.T)),110))})}}
+  files.push({name:'LISEZ-MOI.txt',data:enc.encode(readme(b))});return files}
+const msg=t=>{$('#xmsg').textContent=t};
+async function doZip(){if(!library.size)return;msg('Préparation du paquet…');const f=await buildPackage(true);dl(base()+'_paquet.zip',zipBlob(f),'application/zip');msg(`Paquet téléchargé : ${f.length} fichiers (planches, atlas, RGB565, images, GIF, LISEZ-MOI).`)}
+async function doFolder(){if(!window.showDirectoryPicker){msg('Ce navigateur ne sait pas écrire dans un dossier : utilise le paquet ZIP (Chrome / Edge le permettent).');return}
+  let dir;try{dir=await window.showDirectoryPicker({mode:'readwrite'})}catch(e){return}msg('Écriture…');const f=await buildPackage(true);
+  for(const x of f){const parts=x.name.split('/');let d=dir;for(const p of parts.slice(0,-1))d=await d.getDirectoryHandle(p,{create:true});const h=await d.getFileHandle(parts.at(-1),{create:true}),w=await h.createWritable();await w.write(x.data);await w.close()}
+  msg(`${f.length} fichiers écrits dans « ${dir.name} ».`)}
+$('#xzip').onclick=()=>doZip().catch(e=>msg('Erreur : '+e.message));$('#xdir').onclick=()=>doFolder().catch(e=>msg('Erreur : '+e.message));
+$('#xframes').onclick=async()=>{if(!library.size)return;const files=[];for(const [n,R] of library)for(const fr of R.frames)files.push({name:`${n}/${fr.d}_${String(fr.f).padStart(2,'0')}.png`,data:await bytesOf(await blobOf(frameCanvas(fr,R.T,false)))});dl(base()+'_images.zip',zipBlob(files),'application/zip');msg(`${files.length} images séparées.`)};
+$('#xatlas').onclick=()=>{if(!library.size)return;dl(base()+'_atlas.json',atlasJSON(base()+'_planche.png',110),'application/json');msg('Atlas JSON (format Aseprite). Exporte aussi la planche PNG avec le même nom.')};
+$('#xgif').onclick=()=>{if(!result)return;const R=result,d=$('#adir').value||R.dirs[0],fs=R.frames.filter(f=>f.d===d).sort((a,b)=>a.f-b.f);dl(`${base()}_${safe(R.clip)}_${d}.gif`,gifBlob(fs,R.T,R.pal,Math.max(2,Math.round(256/R.T)),110));msg(`GIF animé « ${safe(R.clip)} », direction ${d}.`)};
+$('#dlpng').onclick=async()=>{if(!library.size)return;const c=sheetCanvasAll($('#xmag').checked);dl(base()+($('#xmag').checked?'_planche_magenta.png':'_planche.png'),await blobOf(c));msg(`Planche PNG : ${rowsOf().length} lignes (${library.size} animation(s) × ${result.dirs.length} direction(s)).`)};
+$('#xall').onclick=async()=>{if(!clips.length){msg('Ce modèle n\'a pas d\'animation : seule la pose est rendue.');return}const keep=$('#clip').value;$('#xall').disabled=true;
+  try{for(let i=0;i<clips.length;i++){$('#clip').value=String(i);$('#prog').textContent=`Animation ${i+1}/${clips.length} : ${clips[i].name}`;await generate();store()}}catch(e){$('#prog').textContent='Erreur : '+e.message}
+  $('#clip').value=keep;$('#xall').disabled=false;msg(`${library.size} animation(s) dans la bibliothèque : exporte le paquet ZIP.`)};
+$('#xclear').onclick=()=>{library.clear();refreshExport();msg('Bibliothèque vidée.')};
+function refreshExport(){const n=library.size;$('#xlib').textContent=n?`Bibliothèque : ${[...library.keys()].join(', ')}`:'Bibliothèque vide : génère une animation (ou toutes).';for(const id of ['xzip','xdir','xframes','xatlas','xgif','dlpng','dlraw','dlh','dljson','xclear'])$('#'+id).disabled=!n}
+const _go=$('#go').onclick;$('#go').onclick=()=>generate().then(()=>{store();$('#sheet').scrollIntoView({block:'nearest',behavior:'smooth'});msg('Résultat prêt : exporte avec le panneau « Exporter » (paquet ZIP recommandé).')}).catch(e=>{$('#prog').textContent='Erreur : '+e.message;console.error(e)});
+$('#dlraw').onclick=()=>{if(result)dl(base()+'_'+safe(result.clip)+'.raw',wordsOf(result).buffer)};
+$('#dlh').onclick=()=>{if(result)dl(base()+'_'+safe(result.clip)+'.h',headerOf(base()+'_'+safe(result.clip),result),'text/plain')};
+$('#dljson').onclick=()=>{if(library.size)dl(base()+'_meta.json',metaJSON(),'application/json')};
+refreshExport();
+
 window._test={generate,get result(){return result},setup,loadFile};
 </script>
 </body>

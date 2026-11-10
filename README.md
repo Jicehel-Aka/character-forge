@@ -77,6 +77,13 @@ Leçons complètes : `docs/LECONS_PLANCHES.md`. Trois commandes en sortent :
   met des sprites d'une autre source au rendu du personnage de référence (taille, tête, palette, contour 1 px).
 - `python -m forge sheetops split PLANCHE -o dossier --cell-h 152 --per-part 6` : coupe une planche trop haute en bandes de lignes.
 
+### Récupérer le travail depuis « modèle 3D → sprites » (`docs/modele.html`)
+Panneau **Exporter** (toujours visible à droite) : **Paquet complet (.zip)** (planche transparente + planche **fond magenta**, atlas **Aseprite**
+JSON avec une étiquette par `animation_direction`, `.raw`/`.h` RGB565 par animation, images séparées, GIF animés, `LISEZ-MOI.txt`),
+**Enregistrer dans un dossier…** (Chrome/Edge : écrit directement dans le dossier du projet), planche PNG (case « fond magenta »), atlas JSON,
+GIF de la direction affichée, images `.zip`. **Générer toutes les animations** rend chaque clip du modèle avec les mêmes réglages et les
+range dans la bibliothèque, exportée d'un seul bloc. Le `LISEZ-MOI` donne les commandes pour enchaîner `forge qa`, `animrules`, `harmonize`, `atlas`.
+
 ## Contrôle qualité des frames (`qa`)
 `python -m forge qa DOSSIER_FRAMES [--max-colors 24]` : cadre coupé, poussières, alpha semi-transparent, nombre de
 couleurs, taille et ligne des pieds d'une frame à l'autre ; chaque problème donne une consigne de correction.
