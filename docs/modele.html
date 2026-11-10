@@ -34,6 +34,12 @@ code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding
     <canvas id="view" width="900" height="675"></canvas>
     <div class="row"><label style="margin:0">Animation</label><select id="clip"></select><button id="play">▶ / ❚❚</button><span class="mute" id="stat"></span></div>
   </div>
+  <div class="card" id="rcard"><h2>Squelette et animations d'autres fichiers</h2>
+    <input type="file" id="fanim" accept=".glb,.gltf,.fbx" multiple hidden><input type="file" id="fskel" accept=".glb,.gltf,.fbx" hidden>
+    <div class="row"><button class="primary" id="banim" title="Mixamo, bibliothèques d'animations, autre modèle animé : plusieurs fichiers à la fois">Ajouter des animations… (FBX / GLB)</button><label class="chip" style="margin:0" title="supprime le déplacement du bassin : le personnage reste au centre"><input type="checkbox" id="rinplace" checked> sur place</label></div>
+    <div class="row"><button id="bskel" title="pour un modèle sans squelette (maillage seul) : pose un squelette pris dans un autre fichier, à l'échelle du modèle">Ajouter un squelette… (modèle sans os)</button></div>
+    <p class="mute" id="rmsg" style="white-space:pre-line;margin:6px 0 0">Les animations sont reciblées sur les os du modèle (appariés par nom : Mixamo, Bip01, Blender…). Elles rejoignent la liste « Animation » et « Générer toutes les animations ».</p>
+  </div>
   <div class="card"><h2>Résultat</h2>
     <div class="row"><label style="margin:0">Direction</label><select id="adir"></select><canvas id="anim" width="64" height="64"></canvas><span class="mute" id="ainfo"></span></div>
     <canvas id="sheet" width="64" height="64"></canvas>
@@ -67,7 +73,7 @@ code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding
   </div>
   <div class="card"><h2>À savoir</h2>
     <ul class="mute" style="margin:0 0 0 18px;padding:0">
-      <li>Pas d'animation dans le fichier ? Seule la pose est rendue. Meshy propose un rig et des animations : télécharge le GLB animé, ou envoie-moi le fichier ici pour y poser un squelette Mixamo (<code>forge rig</code>).</li>
+      <li>Pas d'animation dans le fichier ? Seule la pose est rendue. Meshy propose un rig et des animations : télécharge le GLB animé. Sinon, la carte « Squelette et animations d'autres fichiers » ajoute un squelette (FBX Mixamo…) puis des animations venues d'autres fichiers (Mixamo, bibliothèques).</li>
       <li>FBX : seules les textures incluses dans le fichier sont lues.</li>
       <li>Les bras et jambes qui se confondent avec le corps sont assombris à la frontière (option cochée).</li>
     </ul>
@@ -121,6 +127,7 @@ view.addEventListener('pointerup',()=>orbit.drag=null);view.addEventListener('wh
 function setup(root,an,name){
   if(M)pivot.remove(M);M=root;clips=an.map(c=>{c.tracks=c.tracks.filter(t=>/\.(position|quaternion)$/.test(t.name)&&!Array.from(t.values).some(x=>!isFinite(x)));return c}).filter(c=>c.tracks.length);
   const n=normalise(root);root.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(root,true);root.position.set(-(b.min.x+b.max.x)/2,-b.min.y,-(b.min.z+b.max.z)/2);pivot.add(root);
+  root.userData.name=name;root.userData.rig=restState(root);
   mixer=new THREE.AnimationMixer(root);action=null;const sel=$('#clip');sel.innerHTML='<option value="">(pose seule)</option>'+clips.map((c,i)=>`<option value="${i}">${c.name||'clip '+i} (${c.duration.toFixed(2)} s)</option>`).join('');
   if(clips.length){sel.value='0';play(0)}
   let tris=0;root.traverse(o=>{if(o.isMesh){const g=o.geometry;tris+=(g.index?g.index.count:g.attributes.position.count)/3}});
@@ -150,7 +157,7 @@ const to565=(r,g,b)=>((r>>3)<<11)|((g>>2)<<5)|(b>>3),from565=v=>[((v>>11)&31)*25
 function medianCut(px,n){let boxes=[px];while(boxes.length<n){boxes.sort((a,b)=>b.length-a.length);const b=boxes.shift();if(!b||b.length<2){boxes.push(b);break}
   const rg=[0,1,2].map(k=>{let lo=255,hi=0;b.forEach(p=>{if(p[k]<lo)lo=p[k];if(p[k]>hi)hi=p[k]});return hi-lo}),k=rg.indexOf(Math.max(...rg));b.sort((p,q)=>p[k]-q[k]);const h=b.length>>1;boxes.push(b.slice(0,h),b.slice(h))}
   return boxes.filter(b=>b&&b.length).map(b=>[0,1,2].map(k=>Math.round(b.reduce((a,p)=>a+p[k],0)/b.length)))}
-const tick=()=>new Promise(r=>setTimeout(r,0));
+const yieldUI=()=>new Promise(r=>setTimeout(r,0));
 async function generate(){
   if(!M){$('#prog').textContent='Ouvre d\'abord un modèle.';return}
   const S=512,size=+$('#size').value,N=Math.max(1,+$('#frames').value),nd=+$('#ndir').value,dirs=nd===8?DIRS:nd===4?DIRS.filter((d,i)=>i%2===0):[DIRS[0]],pitch=(+$('#pitch').value)*Math.PI/180,padf=(+$('#pad').value)/100;
@@ -167,7 +174,7 @@ async function generate(){
   const raw=[];let k=0;
   for(const[dn,yaw]of dirs){pivot.rotation.y=-yaw*Math.PI/180;for(let i=0;i<N;i++){mx.setTime(times[i]);M.updateMatrixWorld(true);rr.render(scene,cam);const col=grab(rr.domElement);let cls=null;
     if(CG){const hid=[];scene.traverse(n=>{if(n.isMesh&&!CG.some(c=>c.m===n)&&n.visible){hid.push(n);n.visible=false}});CG.forEach(c=>{c.m.geometry=c.g2;c.m.material=cmat});const bgs=scene.background;scene.background=null;cr.render(scene,cam);cls=grab(cr.domElement);scene.background=bgs;CG.forEach(c=>{c.m.geometry=c.g0;c.m.material=c.mat0});hid.forEach(n=>n.visible=true)}
-    raw.push({d:dn,f:i,col,cls});$('#prog').textContent=`Rendu ${++k}/${dirs.length*N}`;if(k%4===0)await tick()}}
+    raw.push({d:dn,f:i,col,cls});$('#prog').textContent=`Rendu ${++k}/${dirs.length*N}`;if(k%4===0)await yieldUI()}}
   rr.dispose();cr.dispose();pivot.rotation.y=saveRot;M.position.copy(savePos);mx.stopAllAction();if(clip)play(+ci);playing=true;
   // cadrage serré commun
   let x0=S,y0=S,x1=0,y1=0;for(const r of raw){const d=r.col.data;for(let y=0;y<S;y++)for(let x=0;x<S;x++)if(d[(y*S+x)*4+3]>16){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}}
@@ -296,7 +303,137 @@ $('#dlh').onclick=()=>{if(result)dl(base()+'_'+safe(result.clip)+'.h',headerOf(b
 $('#dljson').onclick=()=>{if(library.size)dl(base()+'_meta.json',metaJSON(),'application/json')};
 refreshExport();
 
-window._test={generate,get result(){return result},setup,loadFile};
+/* ---------- squelette et animations venus d'autres fichiers ----------
+   Animations : on échantillonne le clip source os par os (rotations MONDE relatives au repos), on les repose sur les os
+   du modèle appariés par nom canonique (mixamorig:LeftUpLeg = Bip01 L Thigh = thigh_l...). Indépendant des axes locaux
+   des os, des unités et du nombre d'os (les os sans équivalent gardent leur repos). Squelette : placé à l'échelle du
+   modèle, poids = distance au segment d'os le plus proche (comme forge rig), lissés sur le maillage. */
+const bonesOf=r=>{const a=[];r.traverse(o=>{if(o.isBone)a.push(o)});return a};
+const CANON={hips:'hips',hip:'hips',pelvis:'hips',upleg:'thigh',upperleg:'thigh',thigh:'thigh',leg:'calf',lowerleg:'calf',calf:'calf',shin:'calf',foot:'foot',ankle:'foot',toebase:'toe',toe:'toe',toes:'toe',ball:'toe',
+  armshoulder:'shoulder',armbicep:'arm',bicep:'arm',biceps:'arm',armforearm:'forearm',leghip:'thigh',legshin:'calf',legfoot:'foot',legtoes:'toe',shoulder:'shoulder',clavicle:'shoulder',collar:'shoulder',arm:'arm',uparm:'arm',upperarm:'arm',forearm:'forearm',lowerarm:'forearm',hand:'hand',spine:'spine',spine1:'spine1',chest:'spine1',spine2:'spine2',upperchest:'spine2',neck:'neck',head:'head'};
+function canon(name){
+  const s=name.split(/[:|]/).pop().replace(/^(mixamorig\d*|bip0*1|cc_base_|def-?)[_ .-]*/i,'');
+  const tk=s.replace(/([a-z])([A-Z])/g,'$1 $2').replace(/([A-Za-z])(\d)/g,'$1 $2').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  let side='';const rest=[];for(let t of tk){const m=/^([lr])(hand|foot|arm|forearm|thigh|leg|calf|shin|shoulder|clavicle|toe|toes|toebase|upleg|uparm|hip|elbow|knee)$/.exec(t);if(m){side=m[1]==='l'?'L':'R';t=m[2]}
+    if(t==='left'||t==='l')side='L';else if(t==='right'||t==='r')side='R';else rest.push(t)}
+  let j=rest.join('').replace(/^hand(?=(thumb|index|middle|ring|pinky|little))/,'').replace('little','pinky');
+  return side+(CANON[j]||j)}
+const rsMat=(inv,o)=>new THREE.Matrix4().multiplyMatrices(inv,o.matrixWorld);
+function restState(root){            // état de repos de chaque os, exprimé dans le repère du fichier (hors transformation de normalisation)
+  root.updateMatrixWorld(true);const inv=new THREE.Matrix4().copy(root.matrixWorld).invert();
+  const seen=new Set();
+  return bonesOf(root).map(b=>{const dup=seen.has(b.name);seen.add(b.name);const p=new THREE.Vector3(),q=new THREE.Quaternion(),s=new THREE.Vector3();rsMat(inv,b).decompose(p,q,s);
+    const par=b.parent,pm=par?rsMat(inv,par):new THREE.Matrix4(),pq=new THREE.Quaternion();pm.decompose(new THREE.Vector3(),pq,new THREE.Vector3());
+    return{b,dup,key:canon(b.name),p,q,lq:b.quaternion.clone(),pBone:par&&par.isBone?par:null,pq,pInv:pm.clone().invert()}})}
+function frameOf(rs){const g=k=>rs.find(r=>r.key===k),h=g('hips'),hd=g('head'),l=g('Lthigh'),r=g('Rthigh');
+  if(!(h&&hd&&l&&r))return null;const up=hd.p.clone().sub(h.p).normalize(),lat=r.p.clone().sub(l.p);lat.addScaledVector(up,-lat.dot(up)).normalize();
+  const fw=new THREE.Vector3().crossVectors(lat,up);return{up,q:new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(lat,up,fw))}}
+const hipH=(rs,fr)=>{const h=rs.find(r=>r.key==='hips'),f=rs.filter(r=>/foot$/.test(r.key));return h&&f.length&&fr?Math.abs(h.p.clone().sub(f.reduce((a,r)=>a.add(r.p),new THREE.Vector3()).multiplyScalar(1/f.length)).dot(fr.up)):0};
+async function readRig(f){
+  const ext=f.name.split('.').pop().toLowerCase(),url=URL.createObjectURL(f);
+  try{if(ext==='fbx'){const r=await new FBXLoader().loadAsync(url);return{root:r,anims:r.animations||[]}}
+    if(ext==='glb'||ext==='gltf'){const g=await new GLTFLoader().loadAsync(url);return{root:g.scene,anims:g.animations}}
+    throw new Error('format non géré (FBX, GLB)')}finally{URL.revokeObjectURL(url)}}
+function refreshClips(sel){const s=$('#clip');s.innerHTML='<option value="">(pose seule)</option>'+clips.map((c,i)=>`<option value="${i}">${c.name||'clip '+i} (${c.duration.toFixed(2)} s)</option>`).join('');
+  if(sel!=null){s.value=String(sel);play(sel)}
+  $('#info').textContent=$('#info').textContent.replace(/\d+ animation\(s\)/,clips.length+' animation(s)')}
+function convertClip(S,clip,o){
+  const T=M.userData.rig,Rs=S.rs,sk=new Map();Rs.forEach(r=>{if(!r.dup&&!sk.has(r.key))sk.set(r.key,r)});
+  const pairs=T.map(t=>({t,s:t.dup?null:sk.get(t.key)||null})),matched=pairs.filter(p=>p.s).length;
+  const fs=frameOf(Rs),ft=frameOf(T),qa=fs&&ft?ft.q.clone().multiply(fs.q.clone().invert()):new THREE.Quaternion();
+  const hp=pairs.find(p=>p.t.key==='hips'&&p.s),hs=hipH(Rs,fs),ht=hipH(T,ft),k=hs>0&&ht>0?ht/hs:1,upT=ft?ft.up:new THREE.Vector3(0,1,0);
+  const mx=new THREE.AnimationMixer(S.root);mx.clipAction(clip).play();
+  const fps=30,N=Math.max(2,Math.round(clip.duration*fps)),times=[],qv=new Map(pairs.filter(p=>p.s).map(p=>[p.t.b,[]])),pv=[],WA=new Map(),sinv=new THREE.Matrix4().copy(S.root.matrixWorld).invert();
+  const prev=new Map();
+  for(let i=0;i<=N;i++){const tm=Math.min(clip.duration,i/fps);times.push(tm);mx.setTime(tm);S.root.updateMatrixWorld(true);
+    const cur=new Map();for(const p of pairs)if(p.s){const pp=new THREE.Vector3(),q=new THREE.Quaternion();rsMat(sinv,p.s.b).decompose(pp,q,new THREE.Vector3());cur.set(p.s,{p:pp,q})}
+    for(const {t,s} of pairs){const pw=t.pBone?WA.get(t.pBone):t.pq;let W;
+      if(s){const c=cur.get(s),D=c.q.clone().multiply(s.q.clone().invert()),Dp=qa.clone().multiply(D).multiply(qa.clone().invert());W=Dp.multiply(t.q);
+        const loc=pw.clone().invert().multiply(W),pr=prev.get(t.b);if(pr&&pr.dot(loc)<0){loc.x*=-1;loc.y*=-1;loc.z*=-1;loc.w*=-1}prev.set(t.b,loc);qv.get(t.b).push(loc.x,loc.y,loc.z,loc.w)}
+      else W=pw.clone().multiply(t.lq);
+      WA.set(t.b,W)}
+    if(hp){const c=cur.get(hp.s);let d=c.p.clone().sub(hp.s.p).multiplyScalar(k).applyQuaternion(qa);if(o.inplace)d=upT.clone().multiplyScalar(d.dot(upT));
+      pv.push(...hp.t.p.clone().add(d).applyMatrix4(hp.t.pInv).toArray())}}
+  mx.stopAllAction();mx.uncacheRoot(S.root);
+  const tracks=[];for(const [b,v] of qv)tracks.push(new THREE.QuaternionKeyframeTrack(b.name+'.quaternion',times,v));
+  if(hp)tracks.push(new THREE.VectorKeyframeTrack(hp.t.b.name+'.position',times,pv));
+  return{clip:new THREE.AnimationClip(clip.name,times[times.length-1],tracks),matched,total:T.length,hips:!!hp}}
+const GENERIC=/^(mixamo\.com|take ?\d*|armature.*|default.*|animation.*|clip ?\d*|a_?\d*)$/i;
+async function addAnims(files){
+  const out=[];if(!M||!M.userData.rig||!M.userData.rig.length){return rmsg('Ce modèle n\'a pas de squelette : ajoute d\'abord un squelette (bouton de droite), puis les animations.',1)}
+  for(const f of files){
+    try{rmsg('Lecture de '+f.name+'…');const{root,anims}=await readRig(f);root.updateMatrixWorld(true);const bn=bonesOf(root);
+      const useful=anims.filter(c=>c.tracks.some(t=>/\.(position|quaternion)$/.test(t.name)));
+      if(!bn.length){out.push(`✗ ${f.name} : pas de squelette dans ce fichier`);continue}
+      if(!useful.length){out.push(`✗ ${f.name} : squelette sans animation`);continue}
+      const S={root,rs:restState(root)};
+      for(const c0 of useful){const c=c0.clone();c.tracks=c.tracks.filter(t=>/\.(position|quaternion)$/.test(t.name)&&!Array.from(t.values).some(x=>!isFinite(x)));
+        const r=convertClip(S,c,{inplace:$('#rinplace').checked});
+        if(!r.hips||r.matched<8){out.push(`✗ ${f.name} : seulement ${r.matched}/${r.total} os appariés${r.hips?'':' (pas de bassin)'} — squelettes trop différents`);continue}
+        const base=f.name.replace(/\.[^.]+$/,'').replace(/^[0-9a-f]{8}-/,'');r.clip.name=GENERIC.test(c0.name||'')||!c0.name?base:base+' · '+c0.name;
+        clips.push(r.clip);out.push(`✓ ${r.clip.name} : ${r.matched}/${r.total} os appariés, ${r.clip.duration.toFixed(2)} s`)}
+    }catch(e){out.push(`✗ ${f.name} : ${e.message}`)}}
+  const added=out.filter(l=>l[0]==='✓').length;refreshClips(added?clips.length-1:null);rmsg(out.join('\n'),!added);return out}
+function rmsg(t,bad){const e=$('#rmsg');e.textContent=t;e.classList.toggle('bad',!!bad)}
+async function addSkeleton(f){
+  if(!M)return rmsg('Ouvre d\'abord un modèle.',1);if(M.userData.rig&&M.userData.rig.length)return rmsg('Ce modèle a déjà un squelette. Ouvre la version sans squelette pour en poser un autre.',1);
+  rmsg('Lecture de '+f.name+'…');const{root:S}=await readRig(f);const bs0=bonesOf(S);if(bs0.length<8)return rmsg('Pas de squelette humanoïde dans ce fichier.',1);
+  const dead=[];S.traverse(o=>{if(o.isMesh)dead.push(o)});dead.forEach(o=>o.parent&&o.parent.remove(o));
+  const rs=restState(S),fr=frameOf(rs);if(!fr)return rmsg('Squelette non reconnu (il faut bassin, tête et cuisses nommés comme Mixamo, Blender rigify, Bip01...).',1);
+  M.updateMatrixWorld(true);const inv=new THREE.Matrix4().copy(M.matrixWorld).invert(),meshes=[];M.traverse(o=>{if(o.isMesh)meshes.push(o)});if(!meshes.length)return rmsg('Aucun maillage.',1);
+  const bb=new THREE.Box3(),geos=meshes.map(m=>{const g=m.geometry.clone();g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv,m.matrixWorld));g.computeBoundingBox();bb.union(g.boundingBox);return g});
+  const holder=new THREE.Group();holder.add(S);holder.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(fr.up,new THREE.Vector3(0,1,0)));
+  holder.updateMatrixWorld(true);const sb=new THREE.Box3();bonesOf(S).forEach(b=>sb.expandByPoint(new THREE.Vector3().setFromMatrixPosition(b.matrixWorld)));
+  const Hm=bb.max.y-bb.min.y,Hb=sb.max.y-sb.min.y,s=Hm/Hb,cm=bb.getCenter(new THREE.Vector3()),cb=sb.getCenter(new THREE.Vector3());
+  holder.scale.setScalar(s);holder.position.set(cm.x-s*cb.x,bb.min.y-s*sb.min.y,cm.z-s*cb.z);holder.updateMatrixWorld(true);
+  // ajustement des articulations au maillage : jambes et bras recentrés sur la coupe du maillage (sinon les poids basculent entre jambe gauche / droite)
+  {const key=new Map();bonesOf(S).forEach(b=>{const k=canon(b.name);if(!key.has(k))key.set(k,b)});const vs=[];geos.forEach(g=>{const a=g.attributes.position.array;for(let i=0;i<a.length;i+=3)vs.push(a[i],a[i+1],a[i+2])});
+    const med=a=>{if(a.length<12)return null;a.sort((p,q)=>p-q);return a[a.length>>1]},wp=b=>new THREE.Vector3().setFromMatrixPosition(b.matrixWorld);
+    const move=(b,x,y,z)=>{const w=wp(b);if(x!=null)w.x=x;if(y!=null)w.y=y;if(z!=null)w.z=z;b.parent.updateWorldMatrix(true,false);b.parent.worldToLocal(w);b.position.copy(w);b.updateMatrixWorld(true)};
+    const hip=key.get('hips'),cx=hip?wp(hip).x:cm.x,H=Hm;
+    for(const sd of['L','R']){const sg=sd==='L'?1:-1;      // gauche du personnage = x>0 si le rig est de face (+Z) ; on teste les deux côtés par la position du pied
+      const th=key.get(sd+'thigh'),ca=key.get(sd+'calf'),ft=key.get(sd+'foot');if(!(th&&ca&&ft))continue;const side=wp(ft).x>=cx?1:-1;
+      for(const b of[th,ca,ft]){const w=wp(b),xs=[],zs=[];for(let i=0;i<vs.length;i+=3)if(Math.abs(vs[i+1]-w.y)<.02*H&&side*(vs[i]-cx)>.01*H&&Math.abs(vs[i]-w.x)<.14*H){xs.push(vs[i]);zs.push(vs[i+2])}
+        const mx=med(xs),mz=med(zs);if(mx!=null)move(b,mx,null,mz)}
+      const sh=key.get(sd+'arm'),fa=key.get(sd+'forearm'),hd=key.get(sd+'hand');
+      if(sh&&fa&&hd){for(const b of[sh,fa,hd]){const w=wp(b),ys=[],zs=[];for(let i=0;i<vs.length;i+=3)if(Math.abs(vs[i]-w.x)<.025*H&&Math.abs(vs[i+1]-w.y)<.07*H&&side*(vs[i]-cx)>.1*H){ys.push(vs[i+1]);zs.push(vs[i+2])}
+          const my=med(ys),mz=med(zs);if(my!=null)move(b,null,my,mz)}}}
+    holder.updateMatrixWorld(true)}
+  const bs=bonesOf(S),P=bs.map(b=>new THREE.Vector3().setFromMatrixPosition(b.matrixWorld)),idx=new Map(bs.map((b,i)=>[b,i])),E=[];
+  bs.forEach((b,i)=>{const ch=b.children.filter(c=>c.isBone);if(ch.length)ch.forEach(c=>E.push([i,P[i],P[idx.get(c)]]));
+    else{const pp=b.parent&&b.parent.isBone?P[idx.get(b.parent)]:null;E.push([i,P[i],pp?P[i].clone().add(P[i].clone().sub(pp).multiplyScalar(.5)):P[i]])}});
+  const nbn=bs.length,unit=Hm/170,nE=E.length,A=new Float32Array(nE*6),EB=new Int32Array(nE);E.forEach((e,i)=>{EB[i]=e[0];e[1].toArray(A,i*6);e[2].toArray(A,i*6+3)});
+  let total=0;const done=[];
+  for(let mi=0;mi<geos.length;mi++){
+    const g=geos[mi],pos0=g.attributes.position.array,n0=pos0.length/3,wid=new Int32Array(n0),wm=new Map(),uq=[];   // sommets soudés par position : les coutures UV gardent les mêmes poids (pas de fissures)
+    const qz=unit/50;for(let v=0;v<n0;v++){const key=Math.round(pos0[3*v]/qz)+','+Math.round(pos0[3*v+1]/qz)+','+Math.round(pos0[3*v+2]/qz);let id=wm.get(key);if(id===undefined){id=uq.length;wm.set(key,id);uq.push(v)}wid[v]=id}
+    const nv=uq.length,pos=new Float32Array(nv*3);uq.forEach((v,i)=>{pos[3*i]=pos0[3*v];pos[3*i+1]=pos0[3*v+1];pos[3*i+2]=pos0[3*v+2]});
+    const W=new Float32Array(nv*nbn),tmp=new Float32Array(nbn);
+    for(let v=0;v<nv;v++){const x=pos[3*v],y=pos[3*v+1],z=pos[3*v+2];tmp.fill(1e9);let dm=1e9;
+      for(let e=0;e<nE;e++){const o=e*6,ax=A[o],ay=A[o+1],az=A[o+2],bx=A[o+3]-ax,by=A[o+4]-ay,bz=A[o+5]-az;let t=((x-ax)*bx+(y-ay)*by+(z-az)*bz)/(bx*bx+by*by+bz*bz+1e-12);t=t<0?0:t>1?1:t;
+        const dx=ax+bx*t-x,dy=ay+by*t-y,dz=az+bz*t-z,d=Math.sqrt(dx*dx+dy*dy+dz*dz);if(d<tmp[EB[e]])tmp[EB[e]]=d;if(d<dm)dm=d}
+      const sc=0.8*dm+unit;let sum=0;for(let k=0;k<nbn;k++)if(tmp[k]<1e8){const w=Math.exp(-(tmp[k]*tmp[k]-dm*dm)/(sc*sc));W[v*nbn+k]=w;sum+=w}for(let k=0;k<nbn;k++)W[v*nbn+k]/=sum;
+      if(v%4000===3999){rmsg(`Poids de peau : maillage ${mi+1}/${geos.length}, ${Math.round(100*v/nv)} %…`);await yieldUI()}}
+    if(g.index&&nv*nbn<=14e6){                       // lissage sur le graphe du maillage : évite les coutures dures entre os voisins
+      const ix=g.index.array,nb=Array.from({length:nv},()=>new Set());for(let t=0;t<ix.length;t+=3){const a=wid[ix[t]],b=wid[ix[t+1]],c=wid[ix[t+2]];if(a!==b){nb[a].add(b);nb[b].add(a)}if(a!==c){nb[a].add(c);nb[c].add(a)}if(b!==c){nb[b].add(c);nb[c].add(b)}}
+      const NB=nb.map(s=>Int32Array.from(s));let W1=W,W2=new Float32Array(W.length);
+      for(let r=0;r<3;r++){for(let v=0;v<nv;v++){const q=NB[v];for(let k=0;k<nbn;k++){let a=0;for(let j=0;j<q.length;j++)a+=W1[q[j]*nbn+k];W2[v*nbn+k]=q.length?.4*W1[v*nbn+k]+.6*a/q.length:W1[v*nbn+k]}}[W1,W2]=[W2,W1]}
+      if(W1!==W)W.set(W1)}
+    const su=new Uint16Array(nv*4),wu=new Float32Array(nv*4);
+    for(let v=0;v<nv;v++){const top=[-1,-1,-1,-1],tv=[0,0,0,0];for(let k=0;k<nbn;k++){const w=W[v*nbn+k];for(let q=0;q<4;q++)if(w>tv[q]){for(let r=3;r>q;r--){tv[r]=tv[r-1];top[r]=top[r-1]}tv[q]=w;top[q]=k;break}}
+      const sm=tv[0]+tv[1]+tv[2]+tv[3]||1;for(let q=0;q<4;q++){su[4*v+q]=Math.max(top[q],0);wu[4*v+q]=top[q]<0?0:tv[q]/sm}}
+    const si=new Uint16Array(n0*4),sw=new Float32Array(n0*4);for(let v=0;v<n0;v++){const u=wid[v];for(let q=0;q<4;q++){si[4*v+q]=su[4*u+q];sw[4*v+q]=wu[4*u+q]}}
+    total+=n0;
+    g.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(si,4));g.setAttribute('skinWeight',new THREE.Float32BufferAttribute(sw,4));done.push(g)}
+  const G=new THREE.Group();G.add(holder);G.updateMatrixWorld(true);const skel=new THREE.Skeleton(bs);
+  meshes.forEach((m,i)=>{const sm=new THREE.SkinnedMesh(done[i],m.material);sm.name=m.name;sm.frustumCulled=false;G.add(sm);sm.updateMatrixWorld(true);sm.bind(skel,new THREE.Matrix4())});
+  const prev=M.userData.name||'modèle';setup(G,[],prev+' + squelette');
+  rmsg(`Squelette « ${f.name} » posé : ${bs.length} os, ${meshes.length} maillage(s), ${total.toLocaleString('fr')} sommets, échelle ×${s.toFixed(3)}.\nHypothèse : modèle debout, de face, bras écartés en T ou en A. Vérifie en jouant une animation ; si un bras entraîne le corps, c'est que le modèle est en A et le squelette en T (ou l'inverse) : utilise un squelette de même pose.`)}
+$('#banim').onclick=()=>$('#fanim').click();$('#bskel').onclick=()=>$('#fskel').click();
+$('#fanim').onchange=async e=>{const fl=[...e.target.files];e.target.value='';if(fl.length)await addAnims(fl)};
+$('#fskel').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(f)try{await addSkeleton(f)}catch(er){rmsg('Échec : '+er.message,1)}};
+
+window._test={generate,get result(){return result},setup,loadFile,addAnims,addSkeleton,get clips(){return clips},get M(){return M}};
 </script>
 </body>
 </html>

@@ -84,6 +84,19 @@ JSON avec une étiquette par `animation_direction`, `.raw`/`.h` RGB565 par anima
 GIF de la direction affichée, images `.zip`. **Générer toutes les animations** rend chaque clip du modèle avec les mêmes réglages et les
 range dans la bibliothèque, exportée d'un seul bloc. Le `LISEZ-MOI` donne les commandes pour enchaîner `forge qa`, `animrules`, `harmonize`, `atlas`.
 
+### Ajouter squelette et animations venus d'autres fichiers (`docs/modele.html`)
+Carte **Squelette et animations d'autres fichiers**, sous la vue 3D :
+- **Ajouter des animations… (FBX / GLB)** : un ou plusieurs fichiers (clips Mixamo, bibliothèques d'animations, autre modèle animé).
+  Chaque clip est **reciblé** sur le squelette du modèle : les os sont appariés par nom canonique (`mixamorig:LeftUpLeg` = `Bip01 L Thigh` =
+  `thigh_l`…), puis les rotations sont recopiées en repère monde relatif au repos (indépendant des axes locaux, des unités et du nombre d'os ;
+  les os sans équivalent gardent leur repos). Le déplacement du bassin est mis à l'échelle de la jambe, et supprimé si « sur place » est coché.
+  Les clips rejoignent la liste Animation et « Générer toutes les animations » ; le rapport donne les os appariés (refus sous 8 os ou sans bassin).
+- **Ajouter un squelette… (modèle sans os)** : pose le squelette d'un autre fichier (ex. un FBX Mixamo) sur un maillage statique : mise à
+  l'échelle sur la hauteur, recentrage des jambes et bras sur la coupe du maillage, poids = segment d'os le plus proche, lissés sur le maillage
+  (sommets soudés par position pour éviter les fissures aux coutures UV).
+Hypothèses/limites : modèle debout, de face, en T ou en A (même pose que le squelette) ; rigs très atypiques (danseuse : os « Leg_-_HipR »…)
+n'apparient que quelques os ; aucun poids peint à la main. Test : `tests/ui_modele_rig.py` (Playwright).
+
 ## Contrôle qualité des frames (`qa`)
 `python -m forge qa DOSSIER_FRAMES [--max-colors 24]` : cadre coupé, poussières, alpha semi-transparent, nombre de
 couleurs, taille et ligne des pieds d'une frame à l'autre ; chaque problème donne une consigne de correction.
