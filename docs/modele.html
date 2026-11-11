@@ -328,6 +328,7 @@ const bonesOf=r=>{const a=[];r.traverse(o=>{if(o.isBone)a.push(o)});return a};
 const CANON={hips:'hips',hip:'hips',pelvis:'hips',upleg:'thigh',upperleg:'thigh',thigh:'thigh',leg:'calf',lowerleg:'calf',calf:'calf',shin:'calf',foot:'foot',ankle:'foot',toebase:'toe',toe:'toe',toes:'toe',ball:'toe',
   armshoulder:'shoulder',armbicep:'arm',bicep:'arm',biceps:'arm',armforearm:'forearm',leghip:'thigh',legshin:'calf',legfoot:'foot',legtoes:'toe',shoulder:'shoulder',clavicle:'shoulder',collar:'shoulder',arm:'arm',uparm:'arm',upperarm:'arm',forearm:'forearm',lowerarm:'forearm',hand:'hand',spine:'spine',spine1:'spine1',chest:'spine1',spine2:'spine2',upperchest:'spine2',neck:'neck',head:'head'};
 function canon(name){
+  if(/^mixamorig/i.test(name))name=name.replace(/_\d+$/,'');   // suffixe ajouté par certains exporteurs glTF (Hips_32)
   const s=name.split(/[:|]/).pop().replace(/^(mixamorig\d*|bip0*1|cc_base_|def-?)[_ .-]*/i,'');
   const tk=s.replace(/([a-z])([A-Z])/g,'$1 $2').replace(/([A-Za-z])(\d)/g,'$1 $2').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
   let side='';const rest=[];for(let t of tk){const m=/^([lr])(hand|foot|arm|forearm|thigh|leg|calf|shin|shoulder|clavicle|toe|toes|toebase|upleg|uparm|hip|elbow|knee)$/.exec(t);if(m){side=m[1]==='l'?'L':'R';t=m[2]}
@@ -397,7 +398,8 @@ async function addSkeleton(f){
   const dead=[];S.traverse(o=>{if(o.isMesh)dead.push(o)});dead.forEach(o=>o.parent&&o.parent.remove(o));
   const rs=restState(S),fr=frameOf(rs);if(!fr)return rmsg('Squelette non reconnu (il faut bassin, tête et cuisses nommés comme Mixamo, Blender rigify, Bip01...).',1);
   M.updateMatrixWorld(true);const inv=new THREE.Matrix4().copy(M.matrixWorld).invert(),meshes=[];M.traverse(o=>{if(o.isMesh)meshes.push(o)});if(!meshes.length)return rmsg('Aucun maillage.',1);
-  const bb=new THREE.Box3(),geos=meshes.map(m=>{const g=m.geometry.clone();g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv,m.matrixWorld));g.computeBoundingBox();bb.union(g.boundingBox);return g});
+  const flatten=g=>{for(const k of Object.keys(g.attributes)){const a=g.attributes[k];if(a.isInterleavedBufferAttribute||a.normalized||!(a.array instanceof Float32Array)){const n=a.itemSize,arr=new Float32Array(a.count*n),get=['getX','getY','getZ','getW'];for(let i=0;i<a.count;i++)for(let c=0;c<n;c++)arr[i*n+c]=a[get[c]](i);g.setAttribute(k,new THREE.BufferAttribute(arr,n))}}};   // GLB « entrelacé » ou quantifié : .array ne contient pas que les positions
+  const bb=new THREE.Box3(),geos=meshes.map(m=>{const g=m.geometry.clone();flatten(g);g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv,m.matrixWorld));g.computeBoundingBox();bb.union(g.boundingBox);return g});
   const holder=new THREE.Group();holder.add(S);holder.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(fr.up,new THREE.Vector3(0,1,0)));
   holder.updateMatrixWorld(true);const sb=new THREE.Box3();bonesOf(S).forEach(b=>sb.expandByPoint(new THREE.Vector3().setFromMatrixPosition(b.matrixWorld)));
   const Hm=bb.max.y-bb.min.y,Hb=sb.max.y-sb.min.y,s=Hm/Hb,cm=bb.getCenter(new THREE.Vector3()),cb=sb.getCenter(new THREE.Vector3());
@@ -444,7 +446,7 @@ async function addSkeleton(f){
   const G=new THREE.Group();G.add(holder);G.updateMatrixWorld(true);const skel=new THREE.Skeleton(bs);
   meshes.forEach((m,i)=>{const sm=new THREE.SkinnedMesh(done[i],m.material);sm.name=m.name;sm.frustumCulled=false;G.add(sm);sm.updateMatrixWorld(true);sm.bind(skel,new THREE.Matrix4())});
   const prev=M.userData.name||'modèle';setup(G,[],prev+' + squelette');
-  rmsg(`Squelette « ${f.name} » posé : ${bs.length} os, ${meshes.length} maillage(s), ${total.toLocaleString('fr')} sommets, échelle ×${s.toFixed(3)}.\nHypothèse : modèle debout, de face, bras écartés en T ou en A. Vérifie en jouant une animation ; si un bras entraîne le corps, c'est que le modèle est en A et le squelette en T (ou l'inverse) : utilise un squelette de même pose.`)}
+  rmsg(`Squelette « ${f.name} » posé : ${bs.length} os, ${meshes.length} maillage(s), ${total.toLocaleString('fr')} sommets, échelle ×${s.toPrecision(3)}.\nHypothèse : modèle debout, de face, bras écartés en T ou en A. Vérifie en jouant une animation ; si un bras entraîne le corps, c'est que le modèle est en A et le squelette en T (ou l'inverse) : utilise un squelette de même pose.`)}
 $('#banim').onclick=()=>$('#fanim').click();$('#bskel').onclick=()=>$('#fskel').click();
 $('#fanim').onchange=async e=>{const fl=[...e.target.files];e.target.value='';if(fl.length)await addAnims(fl)};
 $('#fskel').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(f)try{await addSkeleton(f)}catch(er){rmsg('Échec : '+er.message,1)}};

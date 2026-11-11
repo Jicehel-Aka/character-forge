@@ -5,3 +5,5 @@ consolidated/
 *.glb
 *.obj
 .venv/
+!docs/wardrobe/**/*.glb
+!docs/anims/**/*.glb
