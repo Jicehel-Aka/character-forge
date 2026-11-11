@@ -45,7 +45,7 @@ code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding
   <div class="card" id="rcard"><h2>Squelette et animations d'autres fichiers</h2>
     <input type="file" id="fanim" accept=".glb,.gltf,.fbx" multiple hidden><input type="file" id="fskel" accept=".glb,.gltf,.fbx" hidden>
     <div class="row"><button class="primary" id="banim" title="Mixamo, bibliothèques d'animations, autre modèle animé : plusieurs fichiers à la fois">Ajouter des animations… (FBX / GLB)</button><label class="chip" style="margin:0" title="supprime le déplacement du bassin : le personnage reste au centre"><input type="checkbox" id="rinplace" checked> sur place</label></div>
-    <div class="row"><button id="bskel" title="pour un modèle sans squelette (maillage seul) : pose un squelette pris dans un autre fichier, à l'échelle du modèle">Ajouter un squelette… (modèle sans os)</button></div>
+    <div class="row"><button class="primary" id="bskeld" title="modèle sans squelette (maillage seul) : pose automatiquement le squelette humanoïde standard fourni avec la page, à l'échelle du modèle. Aucun fichier à choisir.">Poser le squelette standard (automatique)</button><button id="bskel" title="pose le squelette d'un autre fichier (FBX Mixamo, GLB animé…) : ce fichier doit CONTENIR un squelette, pas être le modèle sans os lui-même">Ou prendre le squelette d'un autre fichier…</button></div>
     <div class="row"><button id="bglb" title="écrit le modèle avec son squelette (celui du fichier ou celui qui vient d'être ajouté), la garde-robe habillée et, si coché, les animations de la liste">Télécharger le modèle avec squelette (GLB)</button><label class="chip" style="margin:0"><input type="checkbox" id="bglba" checked> avec les animations</label></div>
     <div class="row"><button id="bclose" title="soude les sommets, retire les facettes flottantes et comble les trous : surface fermée, nécessaire à la pose du squelette">Fermer le maillage</button><label class="chip" style="margin:0"><input type="checkbox" id="closeauto" checked> automatiquement avant la pose du squelette</label></div>
     <div class="row"><button id="rchk" title="mesure la symétrie, les proportions et l'étirement du maillage dans des poses extrêmes, puis lisse les poids des sommets qui se déchirent">Contrôler et réparer le squelette</button><label class="chip" style="margin:0"><input type="checkbox" id="rchkauto" checked> automatiquement après la pose du squelette</label></div>
@@ -516,7 +516,7 @@ function armAxis(P,A0,tip,H,thick,rad=.07){
   return{a,d}}
 async function addSkeleton(f){
   if(!M)return rmsg('Ouvre d\'abord un modèle.',1);
-  rmsg('Lecture de '+f.name+'…');const{root:S}=await readRig(f);const bs0=bonesOf(S);if(bs0.length<8)return rmsg('Pas de squelette humanoïde dans ce fichier.',1);
+  rmsg('Lecture de '+f.name+'…');const{root:S}=await readRig(f);const bs0=bonesOf(S);if(bs0.length<8)return rmsg('Ce fichier ne contient pas de squelette humanoïde (il faut un fichier AVEC os : FBX Mixamo, GLB animé…). Pour un modèle sans os, utilise plutôt « Poser le squelette standard (automatique) » : aucun fichier à choisir.',1);
   const dead=[];S.traverse(o=>{if(o.isMesh)dead.push(o)});dead.forEach(o=>o.parent&&o.parent.remove(o));
   const rs=restState(S),fr=frameOf(rs);if(!fr)return rmsg('Squelette non reconnu (il faut bassin, tête et cuisses nommés comme Mixamo, Blender rigify, Bip01...).',1);
   M.updateMatrixWorld(true);const inv=new THREE.Matrix4().copy(M.matrixWorld).invert(),meshes=[];M.traverse(o=>{if(o.isMesh)meshes.push(o)});if(!meshes.length)return rmsg('Aucun maillage.',1);
@@ -610,7 +610,7 @@ async function addSkeleton(f){
   const prev=M.userData.name||'modèle';setup(G,[],prev+' + squelette');
   rmsg(`Squelette « ${f.name} » posé : ${bs.length} os, ${meshes.length} maillage(s), ${total.toLocaleString('fr')} sommets, échelle ×${s.toPrecision(3)}.\nHypothèse : modèle debout, de face, bras écartés en T ou en A. Vérifie en jouant une animation ; si un bras entraîne le corps, c'est que le modèle est en A et le squelette en T (ou l'inverse) : utilise un squelette de même pose.`);
   if($('#rchkauto').checked)setTimeout(()=>{try{const r=rigAnalyse(true);rmsg($('#rmsg').textContent+'\n'+rigReport(r,true))}catch(e){console.error(e)}},50)}
-$('#banim').onclick=()=>$('#fanim').click();$('#bskel').onclick=()=>$('#fskel').click();
+$('#banim').onclick=()=>$('#fanim').click();$('#bskel').onclick=()=>$('#fskel').click();$('#bskeld').onclick=async()=>{try{if(!M)return rmsg('Ouvre d\'abord un modèle.',1);rmsg('Pose du squelette standard…');const r=await fetch(ADIR+'ual_standard.glb');if(!r.ok)throw new Error('squelette standard introuvable ('+r.status+')');await addSkeleton(new File([await r.blob()],'ual_standard.glb'))}catch(er){rmsg('Échec : '+er.message,1)}};
 $('#fanim').onchange=async e=>{const fl=[...e.target.files];e.target.value='';if(fl.length)await addAnims(fl)};
 $('#bclose').onclick=()=>{if(!M)return rmsg('Ouvre d\'abord un modèle.',1);rmsg(closeReport(closeModel(M)))};
 $('#fskel').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(f)try{await addSkeleton(f)}catch(er){rmsg('Échec : '+er.message,1)}};
