@@ -374,7 +374,7 @@ function convertClip(S,clip,o){
   const fps=30,N=Math.max(2,Math.round(clip.duration*fps)),times=[],qv=new Map(pairs.filter(p=>p.s).map(p=>[p.t.b,[]])),pv=[],WA=new Map(),sinv=new THREE.Matrix4().copy(S.root.matrixWorld).invert();
   // membres : si le bras (ou la jambe) du modèle ne pointe pas dans la même direction que celui de la source au repos (modèle en A, source en T),
   // les rotations de la source sont appliquées à partir de la direction d'origine de la source (sinon les bras partent trop en arrière)
-  const CH={arm:'forearm',forearm:'hand',thigh:'calf',calf:'foot'},corr=new Map(),qI=new THREE.Quaternion();
+  const CH={arm:'forearm',forearm:'hand',thigh:'calf',calf:'foot',foot:'toe'},corr=new Map(),qI=new THREE.Quaternion();
   for(const {t,s} of pairs){if(!s)continue;const side=t.key[0]==='L'||t.key[0]==='R'?t.key[0]:'',base=t.key.slice(side.length);
     const cb=base==='hand'?'forearm':base,ch=CH[cb];if(!ch)continue;const tc=T.find(x=>x.key===side+ch&&!x.dup),sc=sk.get(side+ch);if(!tc||!sc)continue;
     const dt=tc.p.clone().sub(t.p),ds=sc.p.clone().sub(s.p).applyQuaternion(qa);if(dt.lengthSq()<1e-12||ds.lengthSq()<1e-12)continue;
@@ -384,7 +384,7 @@ function convertClip(S,clip,o){
   for(let i=0;i<=N;i++){const tm=Math.min(clip.duration,i/fps);times.push(tm);mx.setTime(tm);S.root.updateMatrixWorld(true);
     const cur=new Map();for(const p of pairs)if(p.s){const pp=new THREE.Vector3(),q=new THREE.Quaternion();rsMat(sinv,p.s.b).decompose(pp,q,new THREE.Vector3());cur.set(p.s,{p:pp,q})}
     for(const {t,s} of pairs){const pw=t.pBone?WA.get(t.pBone):t.pq;let W;
-      if(s){const c=cur.get(s),D=c.q.clone().multiply(s.q.clone().invert()),Dp=qa.clone().multiply(D).multiply(qa.clone().invert());W=Dp.multiply(corr.has(t)?corr.get(t).clone().multiply(t.q):t.q);
+      if(s){const c=cur.get(s),D=c.q.clone().multiply(s.q.clone().invert()),Dp=qa.clone().multiply(D).multiply(qa.clone().invert());W=Dp.multiply(corr.has(t)&&!window.__nocorr?corr.get(t).clone().multiply(t.q):t.q);
         const loc=pw.clone().invert().multiply(W),pr=prev.get(t.b);if(pr&&pr.dot(loc)<0){loc.x*=-1;loc.y*=-1;loc.z*=-1;loc.w*=-1}prev.set(t.b,loc);qv.get(t.b).push(loc.x,loc.y,loc.z,loc.w)}
       else W=pw.clone().multiply(t.lq);
       WA.set(t.b,W)}
@@ -412,13 +412,14 @@ async function addAnims(files,opt={}){
   const added=out.filter(l=>l[0]==='✓').length;refreshClips(added?clips.length-1:null);rmsg(out.join('\n'),!added);return out}
 function rmsg(t,bad){const e=$('#rmsg');e.textContent=t;e.classList.toggle('bad',!!bad)}
 async function addSkeleton(f){
-  if(!M)return rmsg('Ouvre d\'abord un modèle.',1);if(M.userData.rig&&M.userData.rig.length)return rmsg('Ce modèle a déjà un squelette. Ouvre la version sans squelette pour en poser un autre.',1);
+  if(!M)return rmsg('Ouvre d\'abord un modèle.',1);
   rmsg('Lecture de '+f.name+'…');const{root:S}=await readRig(f);const bs0=bonesOf(S);if(bs0.length<8)return rmsg('Pas de squelette humanoïde dans ce fichier.',1);
   const dead=[];S.traverse(o=>{if(o.isMesh)dead.push(o)});dead.forEach(o=>o.parent&&o.parent.remove(o));
   const rs=restState(S),fr=frameOf(rs);if(!fr)return rmsg('Squelette non reconnu (il faut bassin, tête et cuisses nommés comme Mixamo, Blender rigify, Bip01...).',1);
   M.updateMatrixWorld(true);const inv=new THREE.Matrix4().copy(M.matrixWorld).invert(),meshes=[];M.traverse(o=>{if(o.isMesh)meshes.push(o)});if(!meshes.length)return rmsg('Aucun maillage.',1);
   const flatten=g=>{for(const k of Object.keys(g.attributes)){const a=g.attributes[k];if(a.isInterleavedBufferAttribute||a.normalized||!(a.array instanceof Float32Array)){const n=a.itemSize,arr=new Float32Array(a.count*n),get=['getX','getY','getZ','getW'];for(let i=0;i<a.count;i++)for(let c=0;c<n;c++)arr[i*n+c]=a[get[c]](i);g.setAttribute(k,new THREE.BufferAttribute(arr,n))}}};   // GLB « entrelacé » ou quantifié : .array ne contient pas que les positions
-  const bb=new THREE.Box3(),geos=meshes.map(m=>{const g=m.geometry.clone();flatten(g);g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv,m.matrixWorld));g.computeBoundingBox();bb.union(g.boundingBox);return g});
+  const bb=new THREE.Box3(),geos=meshes.map(m=>{const g=m.geometry.clone();flatten(g);if(m.isSkinnedMesh){m.skeleton.update();const pa=g.attributes.position,t=new THREE.Vector3();for(let i=0;i<pa.count;i++){t.fromBufferAttribute(m.geometry.attributes.position,i);m.applyBoneTransform(i,t);pa.setXYZ(i,t.x,t.y,t.z)}g.deleteAttribute('skinIndex');g.deleteAttribute('skinWeight')}   // modèle déjà squelettisé : on garde la pose actuelle comme repos et on remplace son squelette
+    g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv,m.matrixWorld));g.computeBoundingBox();bb.union(g.boundingBox);return g});
   const holder=new THREE.Group();holder.add(S);holder.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(fr.up,new THREE.Vector3(0,1,0)));
   holder.updateMatrixWorld(true);const sb=new THREE.Box3();bonesOf(S).forEach(b=>sb.expandByPoint(new THREE.Vector3().setFromMatrixPosition(b.matrixWorld)));
   const Hm=bb.max.y-bb.min.y,Hb=sb.max.y-sb.min.y,s=Hm/Hb,cm=bb.getCenter(new THREE.Vector3()),cb=sb.getCenter(new THREE.Vector3());
@@ -428,50 +429,69 @@ async function addSkeleton(f){
     const med=a=>{if(a.length<12)return null;a.sort((p,q)=>p-q);return a[a.length>>1]},wp=b=>new THREE.Vector3().setFromMatrixPosition(b.matrixWorld);
     const move=(b,x,y,z)=>{const w=wp(b);if(x!=null)w.x=x;if(y!=null)w.y=y;if(z!=null)w.z=z;b.parent.updateWorldMatrix(true,false);b.parent.worldToLocal(w);b.position.copy(w);b.updateMatrixWorld(true)};
     const hip=key.get('hips'),cx=hip?wp(hip).x:cm.x,H=Hm;
+    for(const k of['hips','spine','spine1','spine2','neck','head']){const b=key.get(k);if(!b)continue;const w=wp(b),zs=[];for(let i=0;i<vs.length;i+=3)if(Math.abs(vs[i+1]-w.y)<.03*H&&Math.abs(vs[i]-cx)<.2*H)zs.push(vs[i+2]);const mz=med(zs);if(mz!=null)move(b,null,null,mz)}   // d'abord l'axe du tronc (déplacer un os entraîne ses enfants), puis jambes et bras en coordonnées absolues
+
     for(const sd of['L','R']){const t2=key.get(sd+'thigh'),c2=key.get(sd+'calf'),f2=key.get(sd+'foot');if(t2&&c2&&f2){const a=wp(t2),f=wp(f2);move(c2,null,f.y+.5*(a.y-f.y),null);move(f2,null,f.y,null)}}   // genou à mi-hauteur entre hanche et cheville (proportions humaines)
     for(const sd of['L','R']){const sg=sd==='L'?1:-1;      // gauche du personnage = x>0 si le rig est de face (+Z) ; on teste les deux côtés par la position du pied
       const th=key.get(sd+'thigh'),ca=key.get(sd+'calf'),ft=key.get(sd+'foot');if(!(th&&ca&&ft))continue;const side=wp(ft).x>=cx?1:-1;
       for(const b of[th,ca,ft]){const w=wp(b),xs=[],zs=[];for(let i=0;i<vs.length;i+=3)if(Math.abs(vs[i+1]-w.y)<.02*H&&side*(vs[i]-cx)>.01*H&&Math.abs(vs[i]-w.x)<.14*H){xs.push(vs[i]);zs.push(vs[i+2])}
-        const mx=med(xs),mz=med(zs);if(mx!=null)move(b,mx,null,mz)}
+        const mx=med(xs),mz=med(zs);if(mx!=null)move(b,mx,null,b===th?null:mz)}   // articulation de la hanche : z du bassin (la tranche du maillage à cette hauteur ne contient que les fesses)
       const sh=key.get(sd+'arm'),fa=key.get(sd+'forearm'),hd=key.get(sd+'hand');
       if(sh&&fa&&hd){   // bras : on suit le bras du maillage (pas forcément horizontal) de l'épaule jusqu'au bout de la main
         const A0=wp(sh),Af=wp(fa),Ah=wp(hd),l1=A0.distanceTo(Af),l2=Af.distanceTo(Ah),Lsk=l1+l2,P=[];
         for(let i=0;i<vs.length;i+=3)if(side*(vs[i]-cx)>.05*H&&vs[i+1]>bb.min.y+.5*H)P.push(new THREE.Vector3(vs[i],vs[i+1],vs[i+2]));
-        let far=null,fd=0;for(const q of P){const d=q.distanceTo(A0);if(d>fd){fd=d;far=q}}
+        let far=null,fd=0;for(const q of P){const dx=q.x-A0.x,dy=q.y-A0.y,d=q.distanceTo(A0),sn=dy/(d||1);if(side*dx>.5*d&&sn>-.87&&sn<.34&&d>fd){fd=d;far=q}}   // bout de la main : point le plus loin dans un cône vers l'extérieur, de 20° au-dessus à 60° au-dessous de l'horizontale (écarte hanches et jambes)
         if(far&&fd>.6*Lsk&&fd<1.5*Lsk){const tip=new THREE.Vector3();let nt=0;for(const q of P)if(q.distanceTo(far)<.05*H){tip.add(q);nt++}tip.divideScalar(nt);
           const dir=tip.clone().sub(A0),L=dir.length();dir.divideScalar(L);const fw=.92,fe=fw*l1/Lsk;
           const at=f=>{const c=A0.clone().addScaledVector(dir,f*L),acc=new THREE.Vector3();let n=0;
             for(const q of P){const t=q.clone().sub(A0),u=t.dot(dir);if(Math.abs(u-f*L)<.05*H&&t.addScaledVector(dir,-u).length()<.1*H){acc.add(q);n++}}
             return n>=3?acc.divideScalar(n):c};
           const E=at(fe),Wr=at(fw);move(sh,null,null,Math.min(Math.max(E.z,Math.min(A0.z,E.z)),Math.max(A0.z,E.z)));move(fa,E.x,E.y,E.z);move(hd,Wr.x,Wr.y,Wr.z)}}}
-    for(const k of['hips','spine','spine1','spine2','neck','head']){const b=key.get(k);if(!b)continue;const w=wp(b),zs=[];for(let i=0;i<vs.length;i+=3)if(Math.abs(vs[i+1]-w.y)<.03*H&&Math.abs(vs[i]-cx)<.2*H)zs.push(vs[i+2]);const mz=med(zs);if(mz!=null)move(b,null,null,mz)}
     holder.updateMatrixWorld(true)}
   const bs=bonesOf(S),P=bs.map(b=>new THREE.Vector3().setFromMatrixPosition(b.matrixWorld)),idx=new Map(bs.map((b,i)=>[b,i])),E=[];
   bs.forEach((b,i)=>{const ch=b.children.filter(c=>c.isBone);if(ch.length)ch.forEach(c=>E.push([i,P[i],P[idx.get(c)]]));
     else{const pp=b.parent&&b.parent.isBone?P[idx.get(b.parent)]:null;E.push([i,P[i],pp?P[i].clone().add(P[i].clone().sub(pp).multiplyScalar(.5)):P[i]])}});
   const nbn=bs.length,unit=Hm/170,nE=E.length,A=new Float32Array(nE*6),EB=new Int32Array(nE);E.forEach((e,i)=>{EB[i]=e[0];e[1].toArray(A,i*6);e[2].toArray(A,i*6+3)});
   let total=0;const done=[];
-  for(let mi=0;mi<geos.length;mi++){
-    const g=geos[mi],pos0=g.attributes.position.array,n0=pos0.length/3,wid=new Int32Array(n0),wm=new Map(),uq=[];   // sommets soudés par position : les coutures UV gardent les mêmes poids (pas de fissures)
-    const qz=unit/50;for(let v=0;v<n0;v++){const key=Math.round(pos0[3*v]/qz)+','+Math.round(pos0[3*v+1]/qz)+','+Math.round(pos0[3*v+2]/qz);let id=wm.get(key);if(id===undefined){id=uq.length;wm.set(key,id);uq.push(v)}wid[v]=id}
-    const nv=uq.length,pos=new Float32Array(nv*3);uq.forEach((v,i)=>{pos[3*i]=pos0[3*v];pos[3*i+1]=pos0[3*v+1];pos[3*i+2]=pos0[3*v+2]});
-    const W=new Float32Array(nv*nbn),tmp=new Float32Array(nbn);
-    for(let v=0;v<nv;v++){const x=pos[3*v],y=pos[3*v+1],z=pos[3*v+2];tmp.fill(1e9);let dm=1e9;
-      for(let e=0;e<nE;e++){const o=e*6,ax=A[o],ay=A[o+1],az=A[o+2],bx=A[o+3]-ax,by=A[o+4]-ay,bz=A[o+5]-az;let t=((x-ax)*bx+(y-ay)*by+(z-az)*bz)/(bx*bx+by*by+bz*bz+1e-12);t=t<0?0:t>1?1:t;
-        const dx=ax+bx*t-x,dy=ay+by*t-y,dz=az+bz*t-z,d=Math.sqrt(dx*dx+dy*dy+dz*dz);if(d<tmp[EB[e]])tmp[EB[e]]=d;if(d<dm)dm=d}
-      const sc=0.8*dm+unit;let sum=0;for(let k=0;k<nbn;k++)if(tmp[k]<1e8){const w=Math.exp(-(tmp[k]*tmp[k]-dm*dm)/(sc*sc));W[v*nbn+k]=w;sum+=w}for(let k=0;k<nbn;k++)W[v*nbn+k]/=sum;
-      if(v%4000===3999){rmsg(`Poids de peau : maillage ${mi+1}/${geos.length}, ${Math.round(100*v/nv)} %…`);await yieldUI()}}
-    if(g.index&&nv*nbn<=14e6){                       // lissage sur le graphe du maillage : évite les coutures dures entre os voisins
-      const ix=g.index.array,nb=Array.from({length:nv},()=>new Set());for(let t=0;t<ix.length;t+=3){const a=wid[ix[t]],b=wid[ix[t+1]],c=wid[ix[t+2]];if(a!==b){nb[a].add(b);nb[b].add(a)}if(a!==c){nb[a].add(c);nb[c].add(a)}if(b!==c){nb[b].add(c);nb[c].add(b)}}
-      const NB=nb.map(s=>Int32Array.from(s));let W1=W,W2=new Float32Array(W.length);
-      for(let r=0;r<3;r++){for(let v=0;v<nv;v++){const q=NB[v];for(let k=0;k<nbn;k++){let a=0;for(let j=0;j<q.length;j++)a+=W1[q[j]*nbn+k];W2[v*nbn+k]=q.length?.4*W1[v*nbn+k]+.6*a/q.length:W1[v*nbn+k]}}[W1,W2]=[W2,W1]}
-      if(W1!==W)W.set(W1)}
-    const su=new Uint16Array(nv*4),wu=new Float32Array(nv*4);
-    for(let v=0;v<nv;v++){const top=[-1,-1,-1,-1],tv=[0,0,0,0];for(let k=0;k<nbn;k++){const w=W[v*nbn+k];for(let q=0;q<4;q++)if(w>tv[q]){for(let r=3;r>q;r--){tv[r]=tv[r-1];top[r]=top[r-1]}tv[q]=w;top[q]=k;break}}
-      const sm=tv[0]+tv[1]+tv[2]+tv[3]||1;for(let q=0;q<4;q++){su[4*v+q]=Math.max(top[q],0);wu[4*v+q]=top[q]<0?0:tv[q]/sm}}
-    const si=new Uint16Array(n0*4),sw=new Float32Array(n0*4);for(let v=0;v<n0;v++){const u=wid[v];for(let q=0;q<4;q++){si[4*v+q]=su[4*u+q];sw[4*v+q]=wu[4*u+q]}}
-    total+=n0;
-    g.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(si,4));g.setAttribute('skinWeight',new THREE.Float32BufferAttribute(sw,4));done.push(g)}
+  // poids de peau : un seul calcul pour tous les maillages (sommets soudés par position, même entre pièces) puis lissage sur un graphe commun,
+  // sinon les coutures entre pièces (aisselle, cou, poignets...) s'ouvrent quand le membre bouge
+  const qz=unit/50,wm=new Map(),uq=[],wids=[];
+  for(const g of geos){const pp=g.attributes.position.array,n=pp.length/3,wid=new Int32Array(n);
+    for(let v=0;v<n;v++){const key=Math.round(pp[3*v]/qz)+','+Math.round(pp[3*v+1]/qz)+','+Math.round(pp[3*v+2]/qz);let id=wm.get(key);if(id===undefined){id=uq.length/3;wm.set(key,id);uq.push(pp[3*v],pp[3*v+1],pp[3*v+2])}wid[v]=id}
+    wids.push(wid);total+=n}
+  const nv=uq.length/3,pos=Float32Array.from(uq);
+  const hipI=bs.findIndex(b=>canon(b.name)==='hips'),cxh=hipI>=0?P[hipI].x:cm.x;
+  const limbSide=new Float32Array(nbn),limbTol=new Float32Array(nbn),calfCut=new Float32Array(nbn).fill(-1e9),footY={};
+  bs.forEach((b,i)=>{const k=canon(b.name),sd=k[0]==='L'||k[0]==='R'?k[0]:'',base=k.slice(sd.length);if(sd&&base==='foot')footY[sd]=P[i].y});
+  bs.forEach((b,i)=>{const k=canon(b.name),sd=k[0]==='L'||k[0]==='R'?k[0]:'',base=k.slice(sd.length);if(!sd)return;const sg=P[i].x>=cxh?1:-1;
+    if(['thigh','calf','foot','toe'].includes(base)){limbSide[i]=sg;limbTol[i]=.02*Hm}
+    else if(['shoulder','arm','forearm','hand'].includes(base)){limbSide[i]=sg;limbTol[i]=.06*Hm}
+    if(base==='calf'&&footY[sd]!=null)calfCut[i]=footY[sd]+.05*Hm})   // sous la cheville (et 5 % de la taille au-dessus, tendon d'Achille), le talon appartient au pied et non au mollet
+  const skipB=bs.map(b=>/^[LR]?toe/.test(canon(b.name)));   // pas de poids sur les orteils : le pied reste rigide (pas de pointes ni de pouce déformé, invisible à la taille d'un sprite)
+  const W=new Float32Array(nv*nbn),tmp=new Float32Array(nbn),pen=.5*Hm;
+  for(let v=0;v<nv;v++){const x=pos[3*v],y=pos[3*v+1],z=pos[3*v+2];tmp.fill(1e9);let dm=1e9;
+    for(let e=0;e<nE;e++){const o=e*6,ax=A[o],ay=A[o+1],az=A[o+2],bx=A[o+3]-ax,by=A[o+4]-ay,bz=A[o+5]-az;let t=((x-ax)*bx+(y-ay)*by+(z-az)*bz)/(bx*bx+by*by+bz*bz+1e-12);t=t<0?0:t>1?1:t;
+      const k=EB[e];if(skipB[k])continue;const dx=ax+bx*t-x,dy=ay+by*t-y,dz=az+bz*t-z;let d=Math.sqrt(dx*dx+dy*dy+dz*dz);
+      if(limbSide[k]&&limbSide[k]*(x-cxh)<-limbTol[k])d+=pen;if(y<calfCut[k])d+=pen*Math.min(1,(calfCut[k]-y)/(.05*Hm));
+      if(d<tmp[k])tmp[k]=d;if(d<dm)dm=d}
+    const sc=0.8*dm+unit;let sum=0;for(let k=0;k<nbn;k++)if(tmp[k]<1e8){const w=Math.exp(-(tmp[k]*tmp[k]-dm*dm)/(sc*sc));W[v*nbn+k]=w;sum+=w}for(let k=0;k<nbn;k++)W[v*nbn+k]/=sum;
+    if(v%4000===3999){rmsg(`Poids de peau : ${Math.round(100*v/nv)} %…`);await yieldUI()}}
+  if(nv*nbn<=14e6){const nb=Array.from({length:nv},()=>new Set());
+    geos.forEach((g,mi)=>{const wid=wids[mi],ix=g.index?g.index.array:null,nt=ix?ix.length:wid.length;for(let t=0;t<nt;t+=3){const a=wid[ix?ix[t]:t],b=wid[ix?ix[t+1]:t+1],c=wid[ix?ix[t+2]:t+2];if(a!==b){nb[a].add(b);nb[b].add(a)}if(a!==c){nb[a].add(c);nb[c].add(a)}if(b!==c){nb[b].add(c);nb[c].add(b)}}});
+    const NB=nb.map(s=>Int32Array.from(s));let W1=W,W2=new Float32Array(W.length);
+    for(let r=0;r<3;r++){for(let v=0;v<nv;v++){const q=NB[v];for(let k=0;k<nbn;k++){let a=0;for(let j=0;j<q.length;j++)a+=W1[q[j]*nbn+k];W2[v*nbn+k]=q.length?.4*W1[v*nbn+k]+.6*a/q.length:W1[v*nbn+k]}}[W1,W2]=[W2,W1]}
+    if(W1!==W)W.set(W1)}
+  // jambes : jamais de poids d'une jambe sur un sommet de l'autre côté (pieds/jambes très proches : le lissage et la soudure les mélangeaient, d'où les « voiles » au talon)
+  for(let k=0;k<nbn;k++){if(!limbSide[k]||limbTol[k]>.03*Hm)continue;const base=canon(bs[k].name).slice(1);if(!['thigh','calf','foot'].includes(base))continue;
+    for(let v=0;v<nv;v++)if(limbSide[k]*(pos[3*v]-cxh)<-.004*Hm&&pos[3*v+1]<P[hipI>=0?hipI:0].y-.02*Hm)W[v*nbn+k]=0
+    }
+  for(let v=0;v<nv;v++){let sm=0;for(let k=0;k<nbn;k++)sm+=W[v*nbn+k];if(sm>1e-9)for(let k=0;k<nbn;k++)W[v*nbn+k]/=sm}
+  const su=new Uint16Array(nv*4),wu=new Float32Array(nv*4);
+  for(let v=0;v<nv;v++){const top=[-1,-1,-1,-1],tv=[0,0,0,0];for(let k=0;k<nbn;k++){const w=W[v*nbn+k];for(let q=0;q<4;q++)if(w>tv[q]){for(let r=3;r>q;r--){tv[r]=tv[r-1];top[r]=top[r-1]}tv[q]=w;top[q]=k;break}}
+    const sm=tv[0]+tv[1]+tv[2]+tv[3]||1;for(let q=0;q<4;q++){su[4*v+q]=Math.max(top[q],0);wu[4*v+q]=top[q]<0?0:tv[q]/sm}}
+  geos.forEach((g,mi)=>{const wid=wids[mi],n0=wid.length,si=new Uint16Array(n0*4),sw=new Float32Array(n0*4);
+    for(let v=0;v<n0;v++){const u=wid[v];for(let q=0;q<4;q++){si[4*v+q]=su[4*u+q];sw[4*v+q]=wu[4*u+q]}}
+    g.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(si,4));g.setAttribute('skinWeight',new THREE.Float32BufferAttribute(sw,4));done.push(g)});
   bs.forEach(b=>{delete b.userData.rq;delete b.userData.rp});   // le repos est celui d'après l'ajustement aux articulations
   const G=new THREE.Group();G.add(holder);G.updateMatrixWorld(true);const skel=new THREE.Skeleton(bs);
   meshes.forEach((m,i)=>{const sm=new THREE.SkinnedMesh(done[i],m.material);sm.name=m.name;sm.frustumCulled=false;G.add(sm);sm.updateMatrixWorld(true);sm.bind(skel,new THREE.Matrix4())});
@@ -628,7 +648,7 @@ $('#bglb').onclick=async()=>{
     rmsg(`${name} : ${(buf.byteLength/1048576).toFixed(1)} Mo, ${anims.length} animation(s). Rouvre-le dans « Ouvrir le modèle » : les animations apparaissent dans la liste.`);
     const i=$('#clip').value;if(i!=='')play(+i)}
   catch(e){rmsg('Échec de l\'export : '+e.message,1);console.error(e)}};
-window._test={exportGLB:()=>$('#bglb').onclick(),anAdd,AN,wdAdd,get WD(){return WD},generate,get result(){return result},setup,loadFile,addAnims,addSkeleton,get clips(){return clips},get M(){return M},get library(){return library}};
+window._test={setClipTime:(i,t)=>{$("#clip").value=String(i);play(i);playing=false;mixer.setTime(t)},exportGLB:()=>$('#bglb').onclick(),anAdd,AN,wdAdd,get WD(){return WD},generate,get result(){return result},setup,loadFile,addAnims,addSkeleton,get clips(){return clips},get M(){return M},get library(){return library}};
 </script>
 </body>
 </html>
