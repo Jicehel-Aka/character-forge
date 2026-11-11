@@ -465,6 +465,17 @@ function closeGeometry(g,minArea=0.01){
   g.computeBoundingBox();g.computeBoundingSphere();if(!g.attributes.normal)g.computeVertexNormals();rpt.faces1=all.length;return rpt}
 function closeModel(root,minArea=0.01){const r={meshes:0,holes:0,floating:0,floatingTris:0,degenerate:0,skipped:0};root.traverse(o=>{if(o.isMesh&&!o.isSkinnedMesh&&o.geometry&&o.geometry.attributes.position){const x=closeGeometry(o.geometry,minArea);r.meshes++;for(const k of ['holes','floating','floatingTris','degenerate','skipped'])r[k]+=x[k]}});return r}
 function closeReport(r){return r.meshes?`Maillage refermé : ${r.holes} trou(s) comblé(s), ${r.floating} pièce(s) flottante(s) (${r.floatingTris} triangles) supprimée(s), ${r.degenerate} triangle(s) dégénéré(s) retiré(s)${r.skipped?', '+r.skipped+' bord(s) non traité(s)':''}.`:'Aucun maillage non skinné à refermer.'}
+/* axe du bras dans le maillage : droite passant par les centres de tranches du membre (épaule vers bout de la main). P = sommets du côté du bras,
+   A0 = épaule approximative, tip = bout de la main. Retourne {a: point de l'axe à l'abscisse de A0, d: direction unitaire} ou null. */
+function armAxis(P,A0,tip,H,thick,rad=.07){
+  if(window.__noaxis)return null;
+  let a=A0.clone(),d=tip.clone().sub(a).normalize();
+  for(let it=0;it<4;it++){const Ls=tip.distanceTo(a),cs=[];
+    for(let f=.45;f<=.97;f+=.04){const c=new THREE.Vector3();let n=0;for(const q of P){const t=q.clone().sub(a),u=t.dot(d);if(Math.abs(u-f*Ls)<thick*H&&t.addScaledVector(d,-u).length()<rad*H){c.add(q);n++}}if(n>=3)cs.push(c.divideScalar(n))}
+    if(cs.length<6)return null;const h=cs.length>>1,m1=new THREE.Vector3(),m2=new THREE.Vector3();cs.slice(0,h).forEach(c=>m1.add(c));cs.slice(h).forEach(c=>m2.add(c));m1.divideScalar(h);m2.divideScalar(cs.length-h);
+    const dn=m2.clone().sub(m1);if(dn.length()<1e-6)return null;dn.normalize();if(dn.dot(d)<.5)return null;
+    const C=m1.clone().add(m2).multiplyScalar(.5);if(Math.abs(dn.x)<.3)return null;const t=(A0.x-C.x)/dn.x;d=dn;a=C.clone().addScaledVector(dn,t)}
+  return{a,d}}
 async function addSkeleton(f){
   if(!M)return rmsg('Ouvre d\'abord un modèle.',1);
   rmsg('Lecture de '+f.name+'…');const{root:S}=await readRig(f);const bs0=bonesOf(S);if(bs0.length<8)return rmsg('Pas de squelette humanoïde dans ce fichier.',1);
@@ -501,9 +512,12 @@ async function addSkeleton(f){
           const at=f=>{const c=A0.clone().addScaledVector(dir,f*L),acc=new THREE.Vector3();let n=0;
             for(const q of P){const t=q.clone().sub(A0),u=t.dot(dir);if(Math.abs(u-f*L)<.05*H&&t.addScaledVector(dir,-u).length()<.1*H){acc.add(q);n++}}
             return n>=3?acc.divideScalar(n):c};
-          const E=at(fe),Wr=at(fw);move(sh,null,null,Math.min(Math.max(E.z,Math.min(A0.z,E.z)),Math.max(A0.z,E.z)));move(fa,E.x,E.y,E.z);move(hd,Wr.x,Wr.y,Wr.z);
+          const AX=armAxis(P,A0,tip,H,.045);   // axe réel du bras dans le maillage : épaule, coude et poignet sont posés SUR cet axe (sinon un squelette de proportions différentes casse le bras en V)
+          if(AX){const Ls=tip.clone().sub(AX.a).dot(AX.d),tg2=l1/Lsk,Wr=AX.a.clone().addScaledVector(AX.d,fw*Ls),E=AX.a.clone().addScaledVector(AX.d,tg2*fw*Ls);move(sh,AX.a.x,AX.a.y,AX.a.z);move(fa,E.x,E.y,E.z);move(hd,Wr.x,Wr.y,Wr.z)}
+          else{const E=at(fe),Wr=at(fw);move(sh,null,null,Math.min(Math.max(E.z,Math.min(A0.z,E.z)),Math.max(A0.z,E.z)));move(fa,E.x,E.y,E.z);move(hd,Wr.x,Wr.y,Wr.z)}
+          if(!AX){
           // proportions : le coude reste là où le squelette d'origine le met (bras/avant-bras), sinon un bras court et l'autre long
-          const S0=wp(sh),Ee=wp(fa),Ww=wp(hd),a1=S0.distanceTo(Ee),b1=Ee.distanceTo(Ww),tg=l1/Lsk;if(Math.abs(a1/(a1+b1)-tg)>.08){const E2=S0.clone().lerp(Ww,tg);move(fa,E2.x,E2.y,E2.z);move(hd,Ww.x,Ww.y,Ww.z)}}}}
+          const S0=wp(sh),Ee=wp(fa),Ww=wp(hd),a1=S0.distanceTo(Ee),b1=Ee.distanceTo(Ww),tg=l1/Lsk;if(Math.abs(a1/(a1+b1)-tg)>.08){const E2=S0.clone().lerp(Ww,tg);move(fa,E2.x,E2.y,E2.z);move(hd,Ww.x,Ww.y,Ww.z)}}}}}
     // symétrie : si les deux côtés ne diffèrent que de quelques %, on les ramène à leur moyenne (le maillage n'est jamais parfaitement symétrique)
     for(const base of[['thigh','calf','foot'],['arm','forearm','hand']])for(const nm of base){const l=key.get('L'+nm),r=key.get('R'+nm);if(!l||!r)continue;const pl=wp(l),pr=wp(r),dl=Math.abs(pl.x-cx),dr=Math.abs(pr.x-cx),sg=pl.x>=cx?1:-1;
       if(Math.abs(dl-dr)<.06*H&&Math.abs(pl.y-pr.y)<.06*H){const d=(dl+dr)/2,y=(pl.y+pr.y)/2,z=nm==='thigh'||nm==='arm'?null:(pl.z+pr.z)/2;move(l,cx+sg*d,y,z);move(r,cx-sg*d,y,z)}}
@@ -918,8 +932,18 @@ function rigAnalyse(fix){
   const Hbody=hipH(T,fr)||1,Hm=Hbody*1.9;
   for(const b of['thigh','calf','foot','arm','forearm','hand']){const l=find('L'+b),r=find('R'+b);if(!l||!r)continue;const dv=l.p.distanceTo(refl(r.p))/Hm;if(dv>.02)rep.warn.push(`articulation « ${b} » asymétrique (${(dv*100).toFixed(1)} % de la taille)`)}
   for(const sd of['L','R']){const th=find(sd+'thigh'),ca=find(sd+'calf'),fo=find(sd+'foot'),ar=find(sd+'arm'),fa=find(sd+'forearm'),hd=find(sd+'hand');
-    if(th&&ca&&fo){const a=th.p.distanceTo(ca.p),b=ca.p.distanceTo(fo.p);if(b/a<.7||b/a>1.4)rep.warn.push(`jambe ${sd==='L'?'gauche':'droite'} : genou mal placé (cuisse/mollet = ${(a/b).toFixed(2)})`)}
-    if(ar&&fa&&hd){const a=ar.p.distanceTo(fa.p),b=fa.p.distanceTo(hd.p);if(b/a<.7||b/a>1.5)rep.warn.push(`bras ${sd==='L'?'gauche':'droit'} : coude mal placé (bras/avant-bras = ${(a/b).toFixed(2)})`)}}
+    if(th&&ca&&fo){const a=th.p.distanceTo(ca.p),b=ca.p.distanceTo(fo.p);if(b/a<.8||b/a>1.25)rep.warn.push(`jambe ${sd==='L'?'gauche':'droite'} : genou mal placé (cuisse/mollet = ${(a/b).toFixed(2)})`)}
+    if(ar&&fa&&hd){const a=ar.p.distanceTo(fa.p),b=fa.p.distanceTo(hd.p);if(b/a<.8||b/a>1.25)rep.warn.push(`bras ${sd==='L'?'gauche':'droit'} : coude mal placé (bras/avant-bras = ${(a/b).toFixed(2)})`)}}
+  // 1b. les os des bras sont-ils DANS les bras du maillage ? (axe du bras déduit des sommets, en pose de repos)
+  try{toRest();const loc=v=>new THREE.Vector3(v.dot(Rt),v.dot(up),v.dot(F)),Vl=[];
+    for(const m of sms){const Pa=m.geometry.attributes.position,t=new THREE.Vector3();for(let i=0;i<Pa.count;i++){t.fromBufferAttribute(Pa,i);m.applyBoneTransform(i,t);t.applyMatrix4(m.matrixWorld);Vl.push(loc(t))}}
+    const hl=loc(hp);rep.armDev=[];
+    for(const sd of['L','R']){const ar=find(sd+'arm'),fa=find(sd+'forearm'),hd=find(sd+'hand');if(!(ar&&fa&&hd))continue;const A=loc(ar.p),E=loc(fa.p),Wr=loc(hd.p),sg=A.x>=hl.x?1:-1;
+      const Pm=Vl.filter(q=>sg*(q.x-hl.x)>.05*Hm&&q.y>Wr.y-.25*Hm&&q.y<A.y+.1*Hm),tip=Wr.clone().addScaledVector(Wr.clone().sub(E),.4);
+      const ax=Pm.length>40?armAxis(Pm,A,tip,Hm,.035,.06):null;if(!ax)continue;
+      const dist=p=>{const v=p.clone().sub(ax.a);return v.addScaledVector(ax.d,-v.dot(ax.d)).length()/Hm};
+      const dm=Math.max(dist(A),dist(E),dist(Wr));rep.armDev.push(+dm.toFixed(3));
+      if(dm>.035)rep.warn.push(`bras ${sd==='L'?'gauche':'droit'} : os hors de l'axe du bras du maillage (écart ${(dm*100).toFixed(1)} % de la taille : épaule ${(dist(A)*100).toFixed(1)} %, coude ${(dist(E)*100).toFixed(1)} %, poignet ${(dist(Wr)*100).toFixed(1)} %) → refais la pose du squelette`)}}catch(e){console.error(e)}
   if(hipsT){const l=find('Lthigh'),r=find('Rthigh');if(l&&r){const mid=l.p.clone().add(r.p).multiplyScalar(.5);if(Math.abs(mid.clone().sub(hp).dot(Rt))>.03*Hm)rep.warn.push('bassin décalé par rapport aux hanches')}}
   // ---- 2 à 4, maillage par maillage
   const Minv=new THREE.Matrix4().copy(M.matrixWorld).invert(),sideOf=new Map();for(const t of T)if(/^[LR]/.test(t.key)&&/(thigh|calf|foot|toe|arm|forearm|hand|shoulder|thumb|index|middle|ring|pinky)/.test(t.key))sideOf.set(t.b,t.key[0]==='R'?1:-1);
