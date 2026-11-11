@@ -105,6 +105,17 @@ n'apparient que quelques os ; aucun poids peint à la main. Test : `tests/ui_mod
 - Limites : proportions humaines ; sur un modèle déjà habillé le vêtement d'origine dépasse tant qu'on ne le masque pas ; les hauts à capes ou épaulières larges peuvent traverser des bras très fins ; modèle sans squelette → ajouter d'abord un squelette (carte précédente).
 - Reconstruire : `node tools/wardrobe/build.mjs SRC_QUATERNIUS SRC_KAYKIT docs/wardrobe` puis `python tools/wardrobe/thumbs.py`. Test : `tests/ui_modele_wardrobe.py`.
 
+### Assistant sprites (carte « Assistant sprites » de `modele.html`)
+Personnage (banque `docs/bank/` de 5 personnages KayKit CC0, « Mes personnages » gardés dans le navigateur, ou un nouveau fichier : un squelette lui est posé automatiquement) → type de sortie → actions → planches.
+- **Plateforme (vue de côté, caméra 0°)** : repos (face), marche, course, saut, chute, échelle (de dos), corde, coup reçu (côté, tourné vers la droite).
+- **Aventure (vue du dessus, 4 directions, caméra 35°)** : mêmes actions, échelle et corde décochées.
+- Chaque ligne est modifiable (nom, animation source, directions, nombre d'images) ; « ＋ Ajouter une action » en crée d'autres (toute animation des bibliothèques, ou chargée dans la page). Toutes les actions partagent le même cadrage (le personnage garde la même taille et les pieds au même niveau) et la même palette.
+- Montée d'échelle et de corde : animations calculées (`procClip`), directions de segments image par image, valables pour un modèle en T ou en A.
+- `tools/rig_cli.py` : pose squelette + animations et écrit un GLB sans interface.
+
+### Contrôle et réparation du squelette (`rigAnalyse`)
+Symétrie gauche/droite et proportions des articulations ; poids : un os gauche n'agit jamais sur le côté droit, sommets soudés = mêmes poids ; épreuve en 7 poses extrêmes avec mesure de l'étirement de chaque arête (une arête étirée entre deux os non voisins = déchirure) puis lissage des poids fautifs. Rapport affiché après la pose du squelette, à l'export et par le bouton « Contrôler et réparer le squelette ». La pose du squelette ramène aussi les deux côtés à leur moyenne et remet le coude à la proportion du squelette d'origine.
+
 ### Bibliothèque d'animations (`docs/anims/`, carte « Bibliothèque d'animations » de `modele.html`)
 114 animations **CC0** (Quaternius *Universal Animation Library* : 45 ; KayKit *Adventurers* : 69), sans ouvrir de fichier : choisis un pack, filtre par catégorie ou par nom, clique sur une ou plusieurs animations puis « Ajouter la sélection » (ou « Tout ajouter »). Elles sont reciblées sur le squelette du modèle (il faut un squelette : celui du fichier, ou un squelette ajouté), rejoignent la liste « Animation » et « Générer toutes les animations », et partagent la palette commune. Reconstruire : `node tools/anims/build.mjs UAL.gltf Knight.glb docs/anims`. Test : `tests/ui_modele_anims.py`.
 

@@ -1,0 +1,49 @@
+{
+ "characters": [
+  {
+   "id": "knight",
+   "name": "Knight",
+   "file": "knight.glb",
+   "kb": 2383,
+   "rigged": true,
+   "source": "KayKit Adventurers (Kay Lousberg)",
+   "license": "CC0 1.0"
+  },
+  {
+   "id": "barbarian",
+   "name": "Barbarian",
+   "file": "barbarian.glb",
+   "kb": 2339,
+   "rigged": true,
+   "source": "KayKit Adventurers (Kay Lousberg)",
+   "license": "CC0 1.0"
+  },
+  {
+   "id": "mage",
+   "name": "Mage",
+   "file": "mage.glb",
+   "kb": 2316,
+   "rigged": true,
+   "source": "KayKit Adventurers (Kay Lousberg)",
+   "license": "CC0 1.0"
+  },
+  {
+   "id": "rogue",
+   "name": "Rogue",
+   "file": "rogue.glb",
+   "kb": 2342,
+   "rigged": true,
+   "source": "KayKit Adventurers (Kay Lousberg)",
+   "license": "CC0 1.0"
+  },
+  {
+   "id": "rogue_hooded",
+   "name": "Rogue Hooded",
+   "file": "rogue_hooded.glb",
+   "kb": 2324,
+   "rigged": true,
+   "source": "KayKit Adventurers (Kay Lousberg)",
+   "license": "CC0 1.0"
+  }
+ ]
+}

@@ -42,3 +42,4 @@ Animations **CC0 1.0** (aucune attribution requise ; crédit volontaire). Les GL
 
 ## three.js GLTFExporter / TextureUtils (docs/vendor/three/addons/)
 Copiés de three.js r160 (MIT), même version que le reste de `docs/vendor/three`, pour le bouton « Télécharger le modèle avec squelette (GLB) ».
+| KayKit Character Pack : Adventurers 1.0 (personnages) | Kay Lousberg | CC0 1.0 | banque de personnages `docs/bank/` (Knight, Barbarian, Mage, Rogue, Rogue Hooded, animations retirées) | github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0 |

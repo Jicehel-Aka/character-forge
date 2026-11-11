@@ -7,3 +7,4 @@ consolidated/
 .venv/
 !docs/wardrobe/**/*.glb
 !docs/anims/**/*.glb
+!docs/bank/*.glb

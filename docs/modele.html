@@ -34,11 +34,20 @@ code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding
     <canvas id="view" width="900" height="675"></canvas>
     <div class="row"><label style="margin:0">Animation</label><select id="clip"></select><button id="play">▶ / ❚❚</button><span class="mute" id="stat"></span></div>
   </div>
+  <div class="card" id="zcard"><h2>Assistant sprites</h2>
+    <p class="mute" style="margin:0 0 6px">1. Choisis le personnage · 2. le type de jeu · 3. les actions (cochées = générées ; tu peux en ajouter) · 4. génère, puis exporte.</p>
+    <div class="row"><label style="margin:0">Personnage</label><select id="zchar" style="max-width:300px"></select><button id="zload">Charger</button><button id="znew" title="Meshy, Mixamo, tout GLB / FBX / OBJ : un squelette lui sera posé automatiquement s'il n'en a pas">Nouveau : ouvrir un fichier…</button><button id="zsave" title="le garde dans ce navigateur (squelette compris)">Enregistrer dans « Mes personnages »</button></div>
+    <div class="row"><label style="margin:0">Type de sortie</label><select id="ztype"><option value="plat">Jeu de plateforme (vue de côté)</option><option value="adv">Jeu d'aventure (vue du dessus, 4 directions)</option></select><label style="margin:0">Caméra (°)</label><input type="number" id="zpitch" value="0" min="0" max="60" style="width:60px"></div>
+    <div id="zacts"></div>
+    <div class="row"><button id="zaddact">＋ Ajouter une action</button><label class="chip" style="margin:0"><input type="checkbox" id="zclear" checked> vider la bibliothèque avant</label><button class="primary" id="zgo">Générer les actions cochées</button></div>
+    <p class="mute" id="zmsg" style="white-space:pre-line;margin:6px 0 0"></p>
+  </div>
   <div class="card" id="rcard"><h2>Squelette et animations d'autres fichiers</h2>
     <input type="file" id="fanim" accept=".glb,.gltf,.fbx" multiple hidden><input type="file" id="fskel" accept=".glb,.gltf,.fbx" hidden>
     <div class="row"><button class="primary" id="banim" title="Mixamo, bibliothèques d'animations, autre modèle animé : plusieurs fichiers à la fois">Ajouter des animations… (FBX / GLB)</button><label class="chip" style="margin:0" title="supprime le déplacement du bassin : le personnage reste au centre"><input type="checkbox" id="rinplace" checked> sur place</label></div>
     <div class="row"><button id="bskel" title="pour un modèle sans squelette (maillage seul) : pose un squelette pris dans un autre fichier, à l'échelle du modèle">Ajouter un squelette… (modèle sans os)</button></div>
     <div class="row"><button id="bglb" title="écrit le modèle avec son squelette (celui du fichier ou celui qui vient d'être ajouté), la garde-robe habillée et, si coché, les animations de la liste">Télécharger le modèle avec squelette (GLB)</button><label class="chip" style="margin:0"><input type="checkbox" id="bglba" checked> avec les animations</label></div>
+    <div class="row"><button id="rchk" title="mesure la symétrie, les proportions et l'étirement du maillage dans des poses extrêmes, puis lisse les poids des sommets qui se déchirent">Contrôler et réparer le squelette</button><label class="chip" style="margin:0"><input type="checkbox" id="rchkauto" checked> automatiquement après la pose du squelette</label></div>
     <p class="mute" id="rmsg" style="white-space:pre-line;margin:6px 0 0">Les animations sont reciblées sur les os du modèle (appariés par nom : Mixamo, Bip01, Blender…). Elles rejoignent la liste « Animation » et « Générer toutes les animations ».</p>
   </div>
   <div class="card" id="acard"><h2>Bibliothèque d'animations (CC0)</h2>
@@ -177,26 +186,27 @@ function medianCut(px,n){let boxes=[px];while(boxes.length<n){boxes.sort((a,b)=>
   const rg=[0,1,2].map(k=>{let lo=255,hi=0;b.forEach(p=>{if(p[k]<lo)lo=p[k];if(p[k]>hi)hi=p[k]});return hi-lo}),k=rg.indexOf(Math.max(...rg));b.sort((p,q)=>p[k]-q[k]);const h=b.length>>1;boxes.push(b.slice(0,h),b.slice(h))}
   return boxes.filter(b=>b&&b.length).map(b=>[0,1,2].map(k=>Math.round(b.reduce((a,p)=>a+p[k],0)/b.length)))}
 const yieldUI=()=>new Promise(r=>setTimeout(r,0));
-async function generate(){
+async function generate(o={}){
   if(!M){$('#prog').textContent='Ouvre d\'abord un modèle.';return}
-  const S=512,size=+$('#size').value,N=Math.max(1,+$('#frames').value),nd=+$('#ndir').value,dirs=nd===8?DIRS:nd===4?DIRS.filter((d,i)=>i%2===0):[DIRS[0]],pitch=(+$('#pitch').value)*Math.PI/180,padf=(+$('#pad').value)/100;
-  const ci=$('#clip').value,clip=ci===''?null:clips[+ci],tmax=+$('#tmax').value||1e9;playing=false;
+  // o : réglages d'une action de l'assistant (clip, directions, images, caméra, cadre fixe commun à toutes les actions)
+  const S=512,size=+$('#size').value,N=Math.max(1,o.N||+$('#frames').value),nd=+$('#ndir').value,dirs=o.dirs?o.dirs.map(n=>DIRS.find(d=>d[0]===n)).filter(Boolean):nd===8?DIRS:nd===4?DIRS.filter((d,i)=>i%2===0):[DIRS[0]],pitch=(o.pitch!=null?o.pitch:+$('#pitch').value)*Math.PI/180,padf=o.fixed?0:(+$('#pad').value)/100;
+  const ci=o.clipIndex!=null?String(o.clipIndex):$('#clip').value,clip=ci===''?null:clips[+ci],tmax=(o.tmax!=null?o.tmax:+$('#tmax').value)||1e9;playing=false;
   const rr=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});rr.setSize(S,S,false);rr.setPixelRatio(1);rr.setClearColor(0,0);rr.outputColorSpace=THREE.SRGBColorSpace;
   const cr=new THREE.WebGLRenderer({antialias:false,alpha:true,preserveDrawingBuffer:true});cr.setSize(S,S,false);cr.setPixelRatio(1);cr.setClearColor(0,0);cr.outputColorSpace=THREE.LinearSRGBColorSpace;
   const mx=new THREE.AnimationMixer(M);let act=null;if(clip){act=mx.clipAction(clip);act.reset().play()}
   const times=[...Array(N).keys()].map(i=>clip?i/N*Math.min(clip.duration,tmax):0);
   const saveRot=pivot.rotation.y,savePos=M.position.clone();M.position.set(0,0,0);pivot.rotation.y=0;mx.setTime(0);M.updateMatrixWorld(true);
-  const b0=new THREE.Box3().setFromObject(M,true),h=b0.max.y-b0.min.y,cx=(b0.min.x+b0.max.x)/2,cz=(b0.min.z+b0.max.z)/2;M.position.set(-cx,-b0.min.y,-cz);M.updateMatrixWorld(true);
-  const half=h*1.25/2,cam=new THREE.OrthographicCamera(-half,half,half,-half,.01,1000),cen=new THREE.Vector3(0,.5*h,0);cam.position.set(0,cen.y+Math.sin(pitch)*100,Math.cos(pitch)*100);cam.lookAt(cen);
+  const b0=o.ref?o.ref.box:new THREE.Box3().setFromObject(M,true),h=b0.max.y-b0.min.y,cx=(b0.min.x+b0.max.x)/2,cz=(b0.min.z+b0.max.z)/2;M.position.set(-cx,-b0.min.y,-cz);M.updateMatrixWorld(true);
+  const half=h*(o.fixed?1.45:1.25)/2,cam=new THREE.OrthographicCamera(-half,half,half,-half,.01,1000),cen=new THREE.Vector3(0,(o.fixed?.675:.5)*h,0);cam.position.set(0,cen.y+Math.sin(pitch)*100,Math.cos(pitch)*100);cam.lookAt(cen);
   const CG=$('#sep').checked?classGeoms(M):null,cmat=new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.DoubleSide});
   const cvs=document.createElement('canvas');cvs.width=cvs.height=S;const x2=cvs.getContext('2d',{willReadFrequently:true}),grab=c=>{x2.clearRect(0,0,S,S);x2.drawImage(c,0,0);return x2.getImageData(0,0,S,S)};
   const raw=[];let k=0;
-  for(const[dn,yaw]of dirs){pivot.rotation.y=-yaw*Math.PI/180;for(let i=0;i<N;i++){mx.setTime(times[i]);M.updateMatrixWorld(true);rr.render(scene,cam);const col=grab(rr.domElement);let cls=null;
+  for(const[dn,yaw]of dirs){pivot.rotation.y=yaw*Math.PI/180;for(let i=0;i<N;i++){mx.setTime(times[i]);M.updateMatrixWorld(true);rr.render(scene,cam);const col=grab(rr.domElement);let cls=null;
     if(CG){const hid=[];scene.traverse(n=>{if(n.isMesh&&!CG.some(c=>c.m===n)&&n.visible){hid.push(n);n.visible=false}});CG.forEach(c=>{c.m.geometry=c.g2;c.m.material=cmat});const bgs=scene.background;scene.background=null;cr.render(scene,cam);cls=grab(cr.domElement);scene.background=bgs;CG.forEach(c=>{c.m.geometry=c.g0;c.m.material=c.mat0});hid.forEach(n=>n.visible=true)}
     raw.push({d:dn,f:i,col,cls});$('#prog').textContent=`Rendu ${++k}/${dirs.length*N}`;if(k%4===0)await yieldUI()}}
   rr.dispose();cr.dispose();pivot.rotation.y=saveRot;M.position.copy(savePos);mx.stopAllAction();if(clip)play(+ci);playing=true;
   // cadrage serré commun
-  let x0=S,y0=S,x1=0,y1=0;for(const r of raw){const d=r.col.data;for(let y=0;y<S;y++)for(let x=0;x<S;x++)if(d[(y*S+x)*4+3]>16){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}}
+  let x0=S,y0=S,x1=0,y1=0;if(o.fixed){x0=0;y0=0;x1=S-1;y1=S-1}else for(const r of raw){const d=r.col.data;for(let y=0;y<S;y++)for(let x=0;x<S;x++)if(d[(y*S+x)*4+3]>16){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}}
   if(x1<x0){$('#prog').textContent='Rendu vide (modèle invisible ?).';return}
   const side=Math.max(x1-x0+1,y1-y0+1)*(1+2*padf),ccx=(x0+x1+1)/2,ccy=(y0+y1+1)/2,sx=ccx-side/2,sy=ccy-side/2,T=size,blk=side/T;
   // réduction par couverture (alpha) + parties fines conservées
@@ -217,7 +227,7 @@ async function generate(){
   const px=[];for(const fr of frames)for(let j=0;j<T*T;j++)if(fr.mask[j])px.push([fr.C[j*3]|0,fr.C[j*3+1]|0,fr.C[j*3+2]|0]);
   const pal=medianCut(px,+$('#colors').value).map(p=>from565(to565(...p)));
   for(const fr of frames){fr.rgba=new Uint8ClampedArray(T*T*4);for(let j=0;j<T*T;j++){if(!fr.mask[j])continue;let best=0,bd=1e9;for(let q=0;q<pal.length;q++){const p=pal[q],dd=(p[0]-fr.C[j*3])**2+(p[1]-fr.C[j*3+1])**2+(p[2]-fr.C[j*3+2])**2;if(dd<bd){bd=dd;best=q}}fr.rgba[j*4]=pal[best][0];fr.rgba[j*4+1]=pal[best][1];fr.rgba[j*4+2]=pal[best][2];fr.rgba[j*4+3]=255}}
-  result={T,N,dirs:dirs.map(d=>d[0]),frames,pal,clip:clip?clip.name:null,model:$('#info').textContent};showResult();$('#prog').textContent=`${frames.length} images ${T}×${T}, ${pal.length} couleurs.`}
+  result={T,N,dirs:dirs.map(d=>d[0]),frames,pal,clip:clip?clip.name:null,label:o.label||null,model:$('#info').textContent};showResult();if(o.store)store();$('#prog').textContent=`${frames.length} images ${T}×${T}, ${pal.length} couleurs.`}
 $('#go').onclick=()=>generate().catch(e=>{$('#prog').textContent='Erreur : '+e.message;console.error(e)});
 
 /* ---------- affichage / export ---------- */
@@ -238,7 +248,7 @@ $('#dljson').onclick=()=>{if(!result)return;const R=result;dl(base()+'.json',JSO
 /* ======================= EXPORT : bibliothèque d'animations, paquet ZIP, atlas, GIF, dossier ======================= */
 const library=new Map();   // nom de clip -> résultat (toutes les animations générées avec les mêmes réglages)
 const safe=s=>String(s||'pose').replace(/^.*[|:]/,'').replace(/[^\w\-]+/g,'_').replace(/^_+|_+$/g,'')||'pose';
-function store(){const R=result;if(!R)return;const any=[...library.values()][0];if(any&&(any.T!==R.T||any.dirs.join()!==R.dirs.join()))library.clear();library.set(safe(R.clip),R);refreshExport()}
+function store(){const R=result;if(!R)return;const any=[...library.values()][0];if(any&&any.T!==R.T)library.clear();library.set(safe(R.label||R.clip),R);refreshExport()}
 function rowsOf(){const rows=[];library.forEach((R,name)=>R.dirs.forEach(d=>rows.push({name,d,R,fs:R.frames.filter(f=>f.d===d).sort((a,b)=>a.f-b.f)})));return rows}
 function frameCanvas(fr,T,mag){const c=document.createElement('canvas');c.width=c.height=T;const x=c.getContext('2d');if(mag){x.fillStyle='#ff00ff';x.fillRect(0,0,T,T)}
   const t=document.createElement('canvas');t.width=t.height=T;t.getContext('2d').putImageData(new ImageData(fr.rgba,T,T),0,0);x.drawImage(t,0,0);
@@ -269,12 +279,12 @@ function gifBlob(fs,T,pal,scale,delayMs){const n=pal.length+1;let bits=1;while((
 function atlasJSON(imageName,delay){const rows=rowsOf(),T=rows[0].R.T,W=Math.max(...rows.map(r=>r.fs.length))*T,frames={},tags=[];let k=0;
   rows.forEach((r,ri)=>{const from=k;r.fs.forEach((fr,i)=>{frames[`${r.name}_${r.d}_${String(i).padStart(2,'0')}`]={frame:{x:i*T,y:ri*T,w:T,h:T},rotated:false,trimmed:false,spriteSourceSize:{x:0,y:0,w:T,h:T},sourceSize:{w:T,h:T},duration:delay};k++});tags.push({name:`${r.name}_${r.d}`,from,to:k-1,direction:'forward'})});
   return JSON.stringify({frames,meta:{app:'character-forge',version:'1',image:imageName,format:'RGBA8888',size:{w:W,h:rows.length*T},scale:'1',frameTags:tags,slices:[]}},null,1)}
-function metaJSON(){const rows=rowsOf(),R=rows[0].R;return JSON.stringify({model:R.model,size:R.T,directions:R.dirs,animations:[...library].map(([n,r])=>({name:n,clip:r.clip,frames:r.N})),palette:R.pal.map(p=>'#'+p.map(v=>v.toString(16).padStart(2,'0')).join('')),transparent_rgb565:'0xF81F',transparent_png:'alpha=0',magenta_sheet:'255,0,255',format:'RGB565 little-endian, ordre animation > direction > image'},null,1)}
+function metaJSON(){const rows=rowsOf(),R=rows[0].R;return JSON.stringify({model:R.model,size:R.T,directions:R.dirs,animations:[...library].map(([n,r])=>({name:n,clip:r.clip,frames:r.N,directions:r.dirs})),palette:R.pal.map(p=>'#'+p.map(v=>v.toString(16).padStart(2,'0')).join('')),transparent_rgb565:'0xF81F',transparent_png:'alpha=0',magenta_sheet:'255,0,255',format:'RGB565 little-endian, ordre animation > direction > image'},null,1)}
 function wordsOf(R){const w=new Uint16Array(R.frames.length*R.T*R.T);let o=0;R.dirs.forEach(d=>R.frames.filter(f=>f.d===d).sort((a,b)=>a.f-b.f).forEach(fr=>{for(let j=0;j<R.T*R.T;j++)w[o++]=fr.mask[j]?to565(fr.rgba[j*4],fr.rgba[j*4+1],fr.rgba[j*4+2]):0xF81F}));return w}
 function headerOf(name,R){const w=wordsOf(R),n=name.toUpperCase();let t=`// ${name} : ${R.dirs.length} directions (${R.dirs.join(',')}) x ${R.N} images, ${R.T}x${R.T} RGB565, transparence 0xF81F\n// ordre : direction, puis image\n#pragma once\n#include <stdint.h>\n#define ${n}_W ${R.T}\n#define ${n}_H ${R.T}\n#define ${n}_FRAMES ${R.N}\n#define ${n}_DIRS ${R.dirs.length}\nstatic const uint16_t ${name}[] = {\n`;
   for(let i=0;i<w.length;i+=12)t+='  '+[...w.slice(i,i+12)].map(v=>'0x'+v.toString(16).toUpperCase().padStart(4,'0')).join(', ')+',\n';return t+'};\n'}
 function readme(b){const names=[...library.keys()];return `character-forge — paquet de sprites « ${b} »
-Animations : ${names.join(', ')}  |  directions : ${[...library.values()][0].dirs.join(', ')}  |  ${[...library.values()][0].T}x${[...library.values()][0].T} px
+Animations : ${names.join(', ')}  |  directions : ${[...new Set([...library.values()].flatMap(r=>r.dirs))].join(', ')}  |  ${[...library.values()][0].T}x${[...library.values()][0].T} px
 
 CONTENU
   ${b}_planche.png           toutes les animations (une ligne par animation et direction), fond transparent
@@ -446,7 +456,12 @@ async function addSkeleton(f){
           const at=f=>{const c=A0.clone().addScaledVector(dir,f*L),acc=new THREE.Vector3();let n=0;
             for(const q of P){const t=q.clone().sub(A0),u=t.dot(dir);if(Math.abs(u-f*L)<.05*H&&t.addScaledVector(dir,-u).length()<.1*H){acc.add(q);n++}}
             return n>=3?acc.divideScalar(n):c};
-          const E=at(fe),Wr=at(fw);move(sh,null,null,Math.min(Math.max(E.z,Math.min(A0.z,E.z)),Math.max(A0.z,E.z)));move(fa,E.x,E.y,E.z);move(hd,Wr.x,Wr.y,Wr.z)}}}
+          const E=at(fe),Wr=at(fw);move(sh,null,null,Math.min(Math.max(E.z,Math.min(A0.z,E.z)),Math.max(A0.z,E.z)));move(fa,E.x,E.y,E.z);move(hd,Wr.x,Wr.y,Wr.z);
+          // proportions : le coude reste là où le squelette d'origine le met (bras/avant-bras), sinon un bras court et l'autre long
+          const S0=wp(sh),Ee=wp(fa),Ww=wp(hd),a1=S0.distanceTo(Ee),b1=Ee.distanceTo(Ww),tg=l1/Lsk;if(Math.abs(a1/(a1+b1)-tg)>.08){const E2=S0.clone().lerp(Ww,tg);move(fa,E2.x,E2.y,E2.z);move(hd,Ww.x,Ww.y,Ww.z)}}}}
+    // symétrie : si les deux côtés ne diffèrent que de quelques %, on les ramène à leur moyenne (le maillage n'est jamais parfaitement symétrique)
+    for(const base of[['thigh','calf','foot'],['arm','forearm','hand']])for(const nm of base){const l=key.get('L'+nm),r=key.get('R'+nm);if(!l||!r)continue;const pl=wp(l),pr=wp(r),dl=Math.abs(pl.x-cx),dr=Math.abs(pr.x-cx),sg=pl.x>=cx?1:-1;
+      if(Math.abs(dl-dr)<.06*H&&Math.abs(pl.y-pr.y)<.06*H){const d=(dl+dr)/2,y=(pl.y+pr.y)/2,z=nm==='thigh'||nm==='arm'?null:(pl.z+pr.z)/2;move(l,cx+sg*d,y,z);move(r,cx-sg*d,y,z)}}
     holder.updateMatrixWorld(true)}
   const bs=bonesOf(S),P=bs.map(b=>new THREE.Vector3().setFromMatrixPosition(b.matrixWorld)),idx=new Map(bs.map((b,i)=>[b,i])),E=[];
   bs.forEach((b,i)=>{const ch=b.children.filter(c=>c.isBone);if(ch.length)ch.forEach(c=>E.push([i,P[i],P[idx.get(c)]]));
@@ -496,7 +511,8 @@ async function addSkeleton(f){
   const G=new THREE.Group();G.add(holder);G.updateMatrixWorld(true);const skel=new THREE.Skeleton(bs);
   meshes.forEach((m,i)=>{const sm=new THREE.SkinnedMesh(done[i],m.material);sm.name=m.name;sm.frustumCulled=false;G.add(sm);sm.updateMatrixWorld(true);sm.bind(skel,new THREE.Matrix4())});
   const prev=M.userData.name||'modèle';setup(G,[],prev+' + squelette');
-  rmsg(`Squelette « ${f.name} » posé : ${bs.length} os, ${meshes.length} maillage(s), ${total.toLocaleString('fr')} sommets, échelle ×${s.toPrecision(3)}.\nHypothèse : modèle debout, de face, bras écartés en T ou en A. Vérifie en jouant une animation ; si un bras entraîne le corps, c'est que le modèle est en A et le squelette en T (ou l'inverse) : utilise un squelette de même pose.`)}
+  rmsg(`Squelette « ${f.name} » posé : ${bs.length} os, ${meshes.length} maillage(s), ${total.toLocaleString('fr')} sommets, échelle ×${s.toPrecision(3)}.\nHypothèse : modèle debout, de face, bras écartés en T ou en A. Vérifie en jouant une animation ; si un bras entraîne le corps, c'est que le modèle est en A et le squelette en T (ou l'inverse) : utilise un squelette de même pose.`);
+  if($('#rchkauto').checked)setTimeout(()=>{try{const r=rigAnalyse(true);rmsg($('#rmsg').textContent+'\n'+rigReport(r,true))}catch(e){console.error(e)}},50)}
 $('#banim').onclick=()=>$('#fanim').click();$('#bskel').onclick=()=>$('#fskel').click();
 $('#fanim').onchange=async e=>{const fl=[...e.target.files];e.target.value='';if(fl.length)await addAnims(fl)};
 $('#fskel').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(f)try{await addSkeleton(f)}catch(er){rmsg('Échec : '+er.message,1)}};
@@ -642,13 +658,206 @@ $('#bglb').onclick=async()=>{
   if(!M)return rmsg('Ouvre d\'abord un modèle.',1);if(!(M.userData.rig&&M.userData.rig.length))return rmsg('Ce modèle n\'a pas de squelette : rien à exporter de plus que le fichier d\'origine. Ajoute un squelette d\'abord.',1);
   try{rmsg('Écriture du GLB…');const{GLTFExporter}=await import('three/addons/exporters/GLTFExporter.js');
     const t0=clips.length?+$('#clip').value:null;if(mixer)mixer.stopAllAction();M.traverse(o=>{if(o.isBone&&o.userData.rq){o.position.copy(o.userData.rp);o.quaternion.copy(o.userData.rq)}});M.updateMatrixWorld(true);
+    try{if($('#rchkauto').checked)rigAnalyse(true)}catch(e){console.error(e)}
     const{E,anims}=bakeForExport(M,$('#bglba').checked?clips:[]);
     const buf=await new Promise((ok,ko)=>new GLTFExporter().parse(E,ok,ko,{binary:true,animations:anims,onlyVisible:false,maxTextureSize:2048}));
     const name=(M.userData.name||'modele').replace(/\.[^.]+$/,'').replace(/[^\w.-]+/g,'_')+'_squelette.glb';dl(name,buf,'model/gltf-binary');
     rmsg(`${name} : ${(buf.byteLength/1048576).toFixed(1)} Mo, ${anims.length} animation(s). Rouvre-le dans « Ouvrir le modèle » : les animations apparaissent dans la liste.`);
     const i=$('#clip').value;if(i!=='')play(+i)}
   catch(e){rmsg('Échec de l\'export : '+e.message,1);console.error(e)}};
-window._test={setClipTime:(i,t)=>{$("#clip").value=String(i);play(i);playing=false;mixer.setTime(t)},exportGLB:()=>$('#bglb').onclick(),anAdd,AN,wdAdd,get WD(){return WD},generate,get result(){return result},setup,loadFile,addAnims,addSkeleton,get clips(){return clips},get M(){return M},get library(){return library}};
+/* ======================= ASSISTANT SPRITES : personnage → type de jeu → actions → planches ======================= */
+// Clips calculés (absents des bibliothèques libres) : montée d'échelle et de corde.
+// Image par image on donne la direction voulue de chaque segment (bras, avant-bras, cuisse, mollet) dans le repère du personnage
+// (x : sa droite, y : le haut, z : devant) ; la rotation est déduite de la pose de repos, donc ça marche pour un modèle en T comme en A.
+function procClip(kind){
+  const T=M.userData.rig,fr=T&&frameOf(T);if(!fr)return null;
+  const up=fr.up.clone(),Rt=new THREE.Vector3(1,0,0).applyQuaternion(fr.q).normalize(),F=new THREE.Vector3(0,0,-1).applyQuaternion(fr.q).normalize();
+  const find=k=>T.find(t=>t.key===k&&!t.dup),hips=find('hips');if(!hips)return null;
+  const CHD={arm:'forearm',forearm:'hand',thigh:'calf',calf:'foot'},chains=new Map();
+  for(const sd of['L','R'])for(const b of Object.keys(CHD)){const t=find(sd+b),c=find(sd+CHD[b]);if(t&&c)chains.set(t,{k:sd+b,r:c.p.clone().sub(t.p).normalize()})}
+  if(chains.size<8)return null;
+  const V=(x,y,z)=>Rt.clone().multiplyScalar(x).addScaledVector(up,y).addScaledVector(F,z).normalize(),L=(a,b,u)=>a.map((v,i)=>v+(b[i]-v)*u),sm=u=>u*u*(3-2*u);
+  const hh=hipH(T,fr)||1;
+  const SPEC={
+    ladder:{dur:1.2,fn:ph=>{const s=Math.sin(2*Math.PI*ph),d={};
+      for(const sd of['L','R']){const o=sd==='L'?-1:1,h=(sd==='L'?s:-s),u=(h+1)/2,k=sm(Math.max(0,sd==='L'?-s:s));
+        d[sd+'arm']=V(...L([o*.45,-.5,.3],[o*.3,.95,.1],u));d[sd+'forearm']=V(...L([o*.1,.55,.6],[o*.05,1,.05],u));
+        d[sd+'thigh']=V(...L([o*.05,-1,.08],[o*.1,-.45,.9],k));d[sd+'calf']=V(...L([0,-1,.05],[o*.05,-.9,-.4],k))}
+      return{d,hipY:.03*hh*Math.abs(Math.cos(2*Math.PI*ph)),hipYaw:.14*s,hipLean:.06}}},
+    rope:{dur:1.2,fn:ph=>{const s=Math.sin(2*Math.PI*ph),d={};
+      for(const sd of['L','R']){const o=sd==='L'?-1:1,h=(sd==='L'?s:-s),u=(h+1)/2,k=sm((sd==='L'?-s:s)*.5+.5);
+        d[sd+'arm']=V(...L([o*.2,.1,.95],[o*.12,.9,.45],u));d[sd+'forearm']=V(...L([o*.05,.95,.3],[o*.03,1,.1],u));
+        d[sd+'thigh']=V(...L([o*.08,-.6,.8],[o*.08,-.2,.98],k));d[sd+'calf']=V(...L([0,-.55,-.83],[0,-.85,-.5],k))}
+      return{d,hipY:.025*hh*Math.abs(Math.cos(2*Math.PI*ph)),hipYaw:.05*s,hipLean:-.12}}}
+  }[kind];if(!SPEC)return null;
+  const fps=20,N=Math.round(SPEC.dur*fps),times=[],WA=new Map(),prev=new Map(),qv=new Map(),pv=[];
+  for(const t of chains.keys())qv.set(t,[]);qv.set(hips,[]);
+  for(let i=0;i<=N;i++){const P=SPEC.fn((i%N)/N);times.push(i/fps);
+    for(const t of T){const pw=t.pBone?WA.get(t.pBone):t.pq;let W;
+      if(t===hips){const qy=new THREE.Quaternion().setFromAxisAngle(up,P.hipYaw||0),qx=new THREE.Quaternion().setFromAxisAngle(Rt,P.hipLean||0);W=qy.multiply(qx).multiply(t.q)}
+      else if(chains.has(t))W=new THREE.Quaternion().setFromUnitVectors(chains.get(t).r,P.d[chains.get(t).k]).multiply(t.q);
+      else W=pw.clone().multiply(t.lq);
+      WA.set(t.b,W);
+      if(qv.has(t)){const loc=pw.clone().invert().multiply(W),pr=prev.get(t.b);if(pr&&pr.dot(loc)<0){loc.x*=-1;loc.y*=-1;loc.z*=-1;loc.w*=-1}prev.set(t.b,loc);qv.get(t).push(loc.x,loc.y,loc.z,loc.w)}}
+    pv.push(...hips.p.clone().addScaledVector(up,P.hipY||0).applyMatrix4(hips.pInv).toArray())}
+  const tracks=[];for(const[t,v]of qv)tracks.push(new THREE.QuaternionKeyframeTrack(t.b.name+'.quaternion',times,v));
+  tracks.push(new THREE.VectorKeyframeTrack(hips.b.name+'.position',times,pv));
+  return new THREE.AnimationClip('Calculé · '+(kind==='ladder'?'Climb_Ladder':'Climb_Rope'),times[times.length-1],tracks)}
+
+const BANK={chars:[],mine:[]};
+const DIRSET={e:['e'],w:['w'],s:['s'],n:['n'],d4:['s','e','n','w'],d8:DIRS.map(d=>d[0])};
+const DIRLAB={e:'Côté (droite)',w:'Côté (gauche)',s:'Face',n:'Dos',d4:'4 directions',d8:'8 directions'};
+const PRESETS={
+  plat:{label:'Jeu de plateforme (vue de côté)',pitch:0,acts:[
+    {id:'idle',label:'Repos',src:'ual:Idle_Loop',dir:'s',N:4,on:1},{id:'walk',label:'Marche',src:'ual:Walk_Loop',dir:'e',N:6,on:1},{id:'run',label:'Course',src:'ual:Jog_Fwd_Loop',dir:'e',N:6,on:1},
+    {id:'jump',label:'Saut',src:'kaykit:Jump_Full_Short',dir:'e',N:6,on:1},{id:'fall',label:'Chute',src:'ual:Jump_Loop',dir:'e',N:4,tmax:1,on:1},
+    {id:'ladder',label:'Échelle (de dos)',src:'proc:ladder',dir:'n',N:6,on:1},{id:'rope',label:'Corde',src:'proc:rope',dir:'e',N:6,on:1},{id:'hit',label:'Coup reçu',src:'kaykit:Hit_A',dir:'e',N:4,on:1}]},
+  adv:{label:'Jeu d\'aventure (vue du dessus, 4 directions)',pitch:35,acts:[
+    {id:'idle',label:'Repos',src:'ual:Idle_Loop',dir:'d4',N:4,on:1},{id:'walk',label:'Marche',src:'ual:Walk_Loop',dir:'d4',N:6,on:1},{id:'run',label:'Course',src:'ual:Jog_Fwd_Loop',dir:'d4',N:6,on:1},
+    {id:'jump',label:'Saut',src:'kaykit:Jump_Full_Short',dir:'d4',N:6,on:1},{id:'fall',label:'Chute',src:'ual:Jump_Loop',dir:'d4',N:4,tmax:1,on:1},
+    {id:'ladder',label:'Échelle (de dos)',src:'proc:ladder',dir:'n',N:6,on:0},{id:'rope',label:'Corde',src:'proc:rope',dir:'d4',N:6,on:0},{id:'hit',label:'Coup reçu',src:'kaykit:Hit_A',dir:'d4',N:4,on:1}]}};
+const WZ={type:'plat',acts:JSON.parse(JSON.stringify(PRESETS.plat.acts))};
+const zsay=(t,bad)=>{const e=$('#zmsg');e.textContent=t;e.classList.toggle('bad',!!bad)};
+function srcOptions(sel){const g=[];
+  g.push('<optgroup label="Calculées (échelle, corde)"><option value="proc:ladder">Monter à l\'échelle</option><option value="proc:rope">Monter à la corde</option></optgroup>');
+  if(AN.cat)for(const p of AN.cat.packs)g.push(`<optgroup label="${p.label}">${p.clips.map(c=>`<option value="${p.id}:${c.name}">${c.name.replace(/_/g,' ')} (${c.dur}s)</option>`).join('')}</optgroup>`);
+  const mine=clips.filter(c=>!/^(UAL|KayKit|Calculé) · /.test(c.name));if(mine.length)g.push(`<optgroup label="Chargées dans cette page">${mine.map(c=>`<option value="clip:${c.name}">${c.name}</option>`).join('')}</optgroup>`);
+  return g.join('').replace(`value="${sel}"`,`value="${sel}" selected`)}
+function drawActs(){
+  $('#zacts').innerHTML=WZ.acts.map((a,i)=>`<div class="row zr" data-i="${i}" style="flex-wrap:nowrap;gap:4px"><input type="checkbox" class="zon" ${a.on?'checked':''}><input class="zlab" value="${a.label}" style="width:120px" title="nom de l'action (nom de la ligne dans la planche)"><select class="zsrc" style="max-width:190px">${srcOptions(a.src)}</select><select class="zdir">${Object.entries(DIRLAB).map(([k,v])=>`<option value="${k}" ${a.dir===k?'selected':''}>${v}</option>`).join('')}</select><input type="number" class="zn" value="${a.N}" min="1" max="24" style="width:54px" title="images"><button class="zdel" title="retirer" style="padding:2px 7px">✕</button></div>`).join('')}
+function readActs(){document.querySelectorAll('#zacts .zr').forEach(r=>{const a=WZ.acts[+r.dataset.i];a.on=r.querySelector('.zon').checked?1:0;a.label=r.querySelector('.zlab').value||a.id;a.src=r.querySelector('.zsrc').value;a.dir=r.querySelector('.zdir').value;a.N=+r.querySelector('.zn').value||1})}
+function setType(t){WZ.type=t;WZ.acts=JSON.parse(JSON.stringify(PRESETS[t].acts));$('#zpitch').value=PRESETS[t].pitch;drawActs()}
+$('#ztype').onchange=e=>setType(e.target.value);
+$('#zacts').onclick=e=>{if(!e.target.classList.contains('zdel'))return;readActs();WZ.acts.splice(+e.target.closest('.zr').dataset.i,1);drawActs()};
+$('#zaddact').onclick=()=>{readActs();WZ.acts.push({id:'act'+(WZ.acts.length+1),label:'Nouvelle action',src:'ual:Punch_Jab',dir:PRESETS[WZ.type].acts[1].dir,N:6,on:1});drawActs()};
+$('#zacts').onchange=e=>{if(e.target.classList.contains('zlab')||e.target.classList.contains('zsrc')||e.target.classList.contains('zdir')||e.target.classList.contains('zn'))readActs()};
+const slug=s=>String(s).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')||'action';
+// --- banque de personnages et « Mes personnages » (stockés dans le navigateur)
+const IDB={db:null,open(){return this.db||(this.db=new Promise((ok,ko)=>{const r=indexedDB.open('character-forge',1);r.onupgradeneeded=()=>r.result.createObjectStore('chars');r.onsuccess=()=>ok(r.result);r.onerror=()=>ko(r.error)}))},
+  async tx(m,f){const db=await this.open();return new Promise((ok,ko)=>{const t=db.transaction('chars',m),s=t.objectStore('chars'),q=f(s);t.oncomplete=()=>ok(q&&q.result);t.onerror=()=>ko(t.error)})}};
+async function bankInit(){
+  try{BANK.chars=(await (await fetch('bank/catalog.json')).json()).characters}catch(e){BANK.chars=[]}
+  try{BANK.mine=await IDB.tx('readonly',s=>s.getAllKeys())||[]}catch(e){BANK.mine=[]}
+  $('#zchar').innerHTML=`<optgroup label="Banque (libre de droits)">${BANK.chars.map(c=>`<option value="b:${c.id}">${c.name} · ${c.source}</option>`).join('')}</optgroup>`+(BANK.mine.length?`<optgroup label="Mes personnages">${BANK.mine.map(k=>`<option value="m:${k}">${k}</option>`).join('')}</optgroup>`:'')}
+$('#zload').onclick=async()=>{const v=$('#zchar').value;if(!v)return;zsay('Chargement…');
+  try{let f;if(v[0]==='b'){const c=BANK.chars.find(x=>x.id===v.slice(2)),r=await fetch('bank/'+c.file);if(!r.ok)throw new Error('HTTP '+r.status);f=new File([await r.blob()],c.file)}
+    else{const buf=await IDB.tx('readonly',s=>s.get(v.slice(2)));if(!buf)throw new Error('introuvable');f=new File([buf],v.slice(2)+'.glb')}
+    await loadFile(f);zsay(`« ${f.name} » chargé : ${M.userData.rig&&M.userData.rig.length?'squelette présent':'pas de squelette (il sera posé automatiquement)'}.`)}catch(e){zsay('Échec : '+e.message,1)}};
+$('#znew').onclick=()=>$('#file').click();
+$('#zsave').onclick=async()=>{if(!M)return zsay('Charge d\'abord un personnage.',1);if(!(M.userData.rig&&M.userData.rig.length))return zsay('Pose d\'abord un squelette (il sera posé au moment de générer, ou carte plus bas).',1);
+  const nm=prompt('Nom du personnage ?',(M.userData.name||'perso').replace(/\.[^.]+$/,''));if(!nm)return;
+  try{const{GLTFExporter}=await import('three/addons/exporters/GLTFExporter.js');if(mixer)mixer.stopAllAction();M.traverse(o=>{if(o.isBone&&o.userData.rq){o.position.copy(o.userData.rp);o.quaternion.copy(o.userData.rq)}});M.updateMatrixWorld(true);
+    const{E}=bakeForExport(M,[]),buf=await new Promise((ok,ko)=>new GLTFExporter().parse(E,ok,ko,{binary:true,onlyVisible:false,maxTextureSize:1024}));
+    await IDB.tx('readwrite',s=>s.put(buf,nm));await bankInit();$('#zchar').value='m:'+nm;zsay(`« ${nm} » enregistré dans ce navigateur (${(buf.byteLength/1048576).toFixed(1)} Mo) : il sera dans « Mes personnages ».`)}catch(e){zsay('Échec : '+e.message,1)}};
+function restBox(){if(mixer)mixer.stopAllAction();M.traverse(o=>{if(o.isBone&&o.userData.rq){o.position.copy(o.userData.rp);o.quaternion.copy(o.userData.rq)}});const sp=M.position.clone(),sr=pivot.rotation.y;M.position.set(0,0,0);pivot.rotation.y=0;M.updateMatrixWorld(true);
+  const b=new THREE.Box3().setFromObject(M,true);M.position.copy(sp);pivot.rotation.y=sr;return{box:b}}
+async function ensureClip(src){
+  const[k,...r]=src.split(':'),name=r.join(':');
+  if(k==='proc'){const nm='Calculé · '+(name==='ladder'?'Climb_Ladder':'Climb_Rope');let i=clips.findIndex(c=>c.name===nm);if(i<0){const c=procClip(name);if(!c)throw new Error('squelette non reconnu pour l\'animation calculée');clips.push(c);refreshClips(null);i=clips.length-1}return i}
+  if(k==='clip')return clips.findIndex(c=>c.name===name);
+  const tag=k==='ual'?'UAL':'KayKit',nm=tag+' · '+name;let i=clips.findIndex(c=>c.name===nm);
+  if(i<0){await anAdd(AN.cat.packs.find(p=>p.id===k),[name]);i=clips.findIndex(c=>c.name===nm)}if(i<0)throw new Error(`animation « ${name} » introuvable`);return i}
+let wizBusy=false;
+$('#zgo').onclick=async()=>{if(wizBusy)return;if(!M)return zsay('Charge d\'abord un personnage (banque ou nouveau).',1);readActs();const todo=WZ.acts.filter(a=>a.on);if(!todo.length)return zsay('Coche au moins une action.',1);
+  wizBusy=true;$('#zgo').disabled=true;const errs=[];
+  try{
+    if(!(M.userData.rig&&M.userData.rig.length)){zsay('Pose automatique du squelette…');const r=await fetch(ADIR+'ual_standard.glb');await addSkeleton(new File([await r.blob()],'ual_standard.glb'));if(!(M.userData.rig&&M.userData.rig.length))throw new Error($('#rmsg').textContent)}
+    let rr=null;try{rr=rigAnalyse(true)}catch(e){console.error(e)}
+    if($('#zclear').checked)library.clear();$('#ainpl').checked=true;$('#rinplace').checked=true;
+    const pitch=+$('#zpitch').value,ref=restBox();let k=0;
+    for(const a of todo){k++;zsay(`(${k}/${todo.length}) ${a.label}…`);
+      try{const ci=await ensureClip(a.src);await generate({clipIndex:ci,dirs:DIRSET[a.dir],N:a.N,pitch,fixed:true,ref,label:slug(a.label),store:true,tmax:a.tmax})}catch(e){errs.push(`${a.label} : ${e.message}`)}}
+    if($('#xcommon').checked&&library.size)unifyPalette();
+    zsay(`${library.size} action(s) générée(s) : ${[...library.keys()].join(', ')}.${errs.length?'\nÉchecs : '+errs.join(' ; '):''}${rr?'\n'+rigReport(rr,true):''}\nExporte le paquet (carte « Exporter ») ; tu peux ajouter d'autres actions et relancer sans vider.`,errs.length&&!library.size)}
+  catch(e){zsay('Échec : '+e.message,1);console.error(e)}
+  wizBusy=false;$('#zgo').disabled=false};
+bankInit();drawActs();
+
+/* ======================= CONTRÔLE ET RÉPARATION DU SQUELETTE =======================
+   1. cohérence : symétrie gauche/droite des articulations, proportions des segments, articulations au centre du maillage ;
+   2. poids : un os gauche n'influence jamais un sommet du côté droit (et inversement) ; sommets soudés = mêmes poids ;
+   3. épreuve en poses extrêmes (jambe en avant / en arrière, genou plié, jambe écartée, bras levé / en avant / plié / en arrière) :
+      on mesure l'étirement de chaque arête du maillage ; une arête étirée ou écrasée = déchirure ou « voile » ;
+   4. réparation : les poids des sommets fautifs sont lissés avec leurs voisins, jusqu'à ce que les déchirures disparaissent. */
+function rigAnalyse(fix){
+  const T=M&&M.userData.rig;if(!T||!T.length)return null;const fr=frameOf(T);if(!fr)return null;
+  const up=fr.up.clone(),Rt=new THREE.Vector3(1,0,0).applyQuaternion(fr.q).normalize(),F=new THREE.Vector3(0,0,-1).applyQuaternion(fr.q).normalize();
+  const hipsT=T.find(t=>t.key==='hips'),find=k=>T.find(t=>t.key===k&&!t.dup);
+  const sms=[];M.traverse(o=>{if(o.isSkinnedMesh&&o.geometry.attributes.skinWeight&&o.geometry.attributes.skinIndex)sms.push(o)});
+  if(!sms.length||!hipsT)return null;
+  const toRest=()=>{M.traverse(o=>{if(o.isBone&&o.userData.rq){o.position.copy(o.userData.rp);o.quaternion.copy(o.userData.rq)}});M.updateMatrixWorld(true);sms.forEach(m=>m.skeleton.update())};
+  const V=(x,y,z)=>Rt.clone().multiplyScalar(x).addScaledVector(up,y).addScaledVector(F,z).normalize();
+  const CHD={arm:'forearm',forearm:'hand',thigh:'calf',calf:'foot'},chains=new Map();
+  for(const sd of['L','R'])for(const b of Object.keys(CHD)){const t=find(sd+b),c=find(sd+CHD[b]);if(t&&c)chains.set(t,{k:sd+b,r:c.p.clone().sub(t.p).normalize()})}
+  const setPose=d=>{const WA=new Map();for(const t of T){const pw=t.pBone?WA.get(t.pBone):t.pq;let W;
+      if(chains.has(t)&&d[chains.get(t).k])W=new THREE.Quaternion().setFromUnitVectors(chains.get(t).r,d[chains.get(t).k]).multiply(t.q);else W=pw.clone().multiply(t.lq);
+      WA.set(t.b,W);t.b.quaternion.copy(pw.clone().invert().multiply(W))}
+    M.updateMatrixWorld(true);sms.forEach(m=>m.skeleton.update())};
+  const poses=[];const P=(name,f)=>{const d={};for(const sd of['L','R']){const o=sd==='L'?-1:1,e=f(o);for(const k of Object.keys(e))d[sd+k]=V(...e[k])}poses.push({name,d})};
+  P('jambe en avant',o=>({thigh:[0,-.35,.94],calf:[0,-.9,-.2]}));P('jambe en arrière',o=>({thigh:[0,-.9,-.44],calf:[0,-.6,-.8]}));P('jambe écartée',o=>({thigh:[o*.55,-.83,0],calf:[o*.55,-.83,0]}));
+  P('bras levés',o=>({arm:[o*.15,.98,.1],forearm:[o*.1,1,0]}));P('bras en avant',o=>({arm:[o*.1,.05,1],forearm:[o*.1,.05,1]}));
+  P('coudes pliés',o=>({arm:[o*.3,-.9,.1],forearm:[o*.1,.2,.97]}));P('bras en arrière',o=>({arm:[o*.2,-.5,-.85],forearm:[o*.2,-.5,-.85]}));
+  const rep={meshes:[],warn:[],cross:0,cracks:0,badBefore:0,badAfter:0,edges:0,iters:0};
+  // ---- 1. cohérence du squelette
+  const hp=hipsT.p.clone(),refl=p=>p.clone().addScaledVector(Rt,-2*p.clone().sub(hp).dot(Rt));
+  const Hbody=hipH(T,fr)||1,Hm=Hbody*1.9;
+  for(const b of['thigh','calf','foot','arm','forearm','hand']){const l=find('L'+b),r=find('R'+b);if(!l||!r)continue;const dv=l.p.distanceTo(refl(r.p))/Hm;if(dv>.02)rep.warn.push(`articulation « ${b} » asymétrique (${(dv*100).toFixed(1)} % de la taille)`)}
+  for(const sd of['L','R']){const th=find(sd+'thigh'),ca=find(sd+'calf'),fo=find(sd+'foot'),ar=find(sd+'arm'),fa=find(sd+'forearm'),hd=find(sd+'hand');
+    if(th&&ca&&fo){const a=th.p.distanceTo(ca.p),b=ca.p.distanceTo(fo.p);if(b/a<.7||b/a>1.4)rep.warn.push(`jambe ${sd==='L'?'gauche':'droite'} : genou mal placé (cuisse/mollet = ${(a/b).toFixed(2)})`)}
+    if(ar&&fa&&hd){const a=ar.p.distanceTo(fa.p),b=fa.p.distanceTo(hd.p);if(b/a<.7||b/a>1.5)rep.warn.push(`bras ${sd==='L'?'gauche':'droit'} : coude mal placé (bras/avant-bras = ${(a/b).toFixed(2)})`)}}
+  if(hipsT){const l=find('Lthigh'),r=find('Rthigh');if(l&&r){const mid=l.p.clone().add(r.p).multiplyScalar(.5);if(Math.abs(mid.clone().sub(hp).dot(Rt))>.03*Hm)rep.warn.push('bassin décalé par rapport aux hanches')}}
+  // ---- 2 à 4, maillage par maillage
+  const Minv=new THREE.Matrix4().copy(M.matrixWorld).invert(),sideOf=new Map();for(const t of T)if(/^[LR]/.test(t.key)&&/(thigh|calf|foot|toe|arm|forearm|hand|shoulder|thumb|index|middle|ring|pinky)/.test(t.key))sideOf.set(t.b,t.key[0]==='R'?1:-1);
+  const store=sms.map(m=>{const g=m.geometry;for(const k of['skinWeight']){const a=g.attributes[k];if(a.isInterleavedBufferAttribute||a.normalized||!(a.array instanceof Float32Array)){const arr=new Float32Array(a.count*4);for(let i=0;i<a.count;i++)for(let c=0;c<4;c++)arr[i*4+c]=a.normalized&&a.array instanceof Uint16Array?a.array[i*4+c]/65535:a.normalized&&a.array instanceof Uint8Array?a.array[i*4+c]/255:a.getComponent(i,c);g.setAttribute(k,new THREE.BufferAttribute(arr,4))}}return m});
+  for(const m of store){
+    toRest();const g=m.geometry,pos=g.attributes.position,n=pos.count,si=g.attributes.skinIndex,sw=g.attributes.skinWeight,bones=m.skeleton.bones,tmp=new THREE.Vector3(),rest=new Float32Array(n*3),restM=new Float32Array(n*3),mm=new THREE.Matrix4().multiplyMatrices(Minv,m.matrixWorld);
+    for(let i=0;i<n;i++){tmp.fromBufferAttribute(pos,i);m.applyBoneTransform(i,tmp);rest[3*i]=tmp.x;rest[3*i+1]=tmp.y;rest[3*i+2]=tmp.z;tmp.applyMatrix4(mm);restM.set([tmp.x,tmp.y,tmp.z],3*i)}
+    let ymin=1e9,ymax=-1e9;for(let i=0;i<n;i++){ymin=Math.min(ymin,rest[3*i+1]);ymax=Math.max(ymax,rest[3*i+1])}const Hl=Math.max(1e-6,Math.hypot(...[0,1,2].map(a=>{let lo=1e9,hi=-1e9;for(let i=0;i<n;i++){lo=Math.min(lo,rest[3*i+a]);hi=Math.max(hi,rest[3*i+a])}return hi-lo})));
+    const q=Hl*4e-4,wid=new Map(),uid=new Int32Array(n),reps=[];
+    for(let i=0;i<n;i++){const k=Math.round(rest[3*i]/q)+','+Math.round(rest[3*i+1]/q)+','+Math.round(rest[3*i+2]/q);let u=wid.get(k);if(u===undefined){u=reps.length;wid.set(k,u);reps.push(i)}uid[i]=u}
+    const nu=reps.length,ind=g.index?g.index.array:null,nt=ind?ind.length:n,ed=new Set(),ea=[],eb=[],adj=Array.from({length:nu},()=>new Set());
+    for(let t=0;t<nt;t+=3){const a=uid[ind?ind[t]:t],b=uid[ind?ind[t+1]:t+1],c=uid[ind?ind[t+2]:t+2];for(const[x,y]of[[a,b],[b,c],[c,a]]){if(x===y)continue;const k=x<y?x*nu+y:y*nu+x;if(ed.has(k))continue;ed.add(k);ea.push(x);eb.push(y);adj[x].add(y);adj[y].add(x)}}
+    const ne=ea.length,L0=new Float32Array(ne);for(let e=0;e<ne;e++){const a=reps[ea[e]],b=reps[eb[e]];L0[e]=Math.hypot(rest[3*a]-rest[3*b],rest[3*a+1]-rest[3*b+1],rest[3*a+2]-rest[3*b+2])}
+    // poids creux par sommet unique (le premier sommet du groupe fait foi)
+    let W=reps.map(i=>{const o=new Map();for(let c=0;c<4;c++){const w=sw.getComponent(i,c);if(w>1e-4)o.set(si.getComponent(i,c),(o.get(si.getComponent(i,c))||0)+w)}return o});
+    const norm=o=>{let s=0;for(const w of o.values())s+=w;if(s<=0)return o;const e=[...o].sort((a,b)=>b[1]-a[1]).slice(0,4);let s2=0;for(const[,w]of e)s2+=w;return new Map(e.map(([k,w])=>[k,w/s2]))};
+    const write=()=>{for(let i=0;i<n;i++){const o=W[uid[i]],e=[...o].sort((a,b)=>b[1]-a[1]);for(let c=0;c<4;c++){si.setComponent(i,c,e[c]?e[c][0]:0);sw.setComponent(i,c,e[c]?e[c][1]:0)}}si.needsUpdate=sw.needsUpdate=true};
+    // sommets soudés : mêmes poids
+    let dup=0;for(let i=0;i<n;i++){const r=reps[uid[i]];if(r===i)continue;for(let c=0;c<4;c++)if(si.getComponent(i,c)!==si.getComponent(r,c)||Math.abs(sw.getComponent(i,c)-sw.getComponent(r,c))>1e-3){dup++;break}}
+    rep.cracks+=dup;
+    // côté : un os gauche n'agit pas sur le côté droit
+    let cross=0;if(fix){const lim=.04*Hm,hpv=hp;for(let u=0;u<nu;u++){const i=reps[u],lat=(restM[3*i]-hpv.x)*Rt.x+(restM[3*i+1]-hpv.y)*Rt.y+(restM[3*i+2]-hpv.z)*Rt.z,o=W[u];let ch=false;
+        for(const[b]of[...o]){const s=sideOf.get(bones[b]);if(s&&s*lat<-lim){o.delete(b);ch=true}}if(ch){cross++;if(!o.size)o.set(bones.indexOf(hipsT.b)>=0?bones.indexOf(hipsT.b):0,1);W[u]=norm(o)}}}
+    rep.cross+=cross;
+    const par=bones.map(b=>bones.indexOf(b.parent)),dep=bones.map((b,i)=>{let d=0,j=i;while(par[j]>=0){j=par[j];d++}return d}),hc=new Map(),hop=(x,y)=>{if(x<0||y<0||x===y)return 0;const k=x<y?x*999+y:y*999+x;let h=hc.get(k);if(h!==undefined)return h;let a=x,b=y,n=0;while(a!==b){if(dep[a]>=dep[b]){a=par[a]}else{b=par[b]}n++;if(a<0&&b<0)break;if(a<0||b<0){n=9;break}}hc.set(k,n);return n};const eval_=()=>{const bad=new Uint8Array(nu);let nb=0,worst={};const dom=u=>{let bb=-1,bw=0;for(const[b,w]of W[u])if(w>bw){bw=w;bb=b}return bb};
+      for(const po of poses){setPose(po.d);const pp=new Float32Array(nu*3);for(let u=0;u<nu;u++){const i=reps[u];tmp.fromBufferAttribute(pos,i);m.applyBoneTransform(i,tmp);pp[3*u]=tmp.x;pp[3*u+1]=tmp.y;pp[3*u+2]=tmp.z}
+        let nbp=0;for(let e=0;e<ne;e++){const l0=L0[e];if(l0<Hl*.004)continue;const a=ea[e],b=eb[e],l=Math.hypot(pp[3*a]-pp[3*b],pp[3*a+1]-pp[3*b+1],pp[3*a+2]-pp[3*b+2]),r=l/l0;if((r>1.8||r<.3)&&hop(dom(a),dom(b))>=2){nbp++;bad[a]=bad[b]=1}}
+        worst[po.name]=(worst[po.name]||0)+nbp}
+      toRest();for(let u=0;u<nu;u++)nb+=bad[u];return{bad,nb,worst}};
+    if(fix)write();
+    let ev=eval_();const before=ev.nb;rep.badBefore+=before;rep.edges+=ne;const ws0=JSON.stringify(ev.worst);let it=0;
+    if(fix&&before){const backup=W.map(o=>new Map(o));let best=before,bestW=backup;
+      for(it=1;it<=10&&ev.nb>0;it++){const reg=new Set();for(let u=0;u<nu;u++)if(ev.bad[u]){reg.add(u);for(const v of adj[u])reg.add(v)}
+        const nw=new Map();for(const u of reg){const acc=new Map();let cnt=0;for(const v of adj[u]){cnt++;for(const[b,w]of W[v])acc.set(b,(acc.get(b)||0)+w)}
+          const out=new Map();for(const[b,w]of W[u])out.set(b,w*(ev.bad[u]?.3:.6));if(cnt)for(const[b,w]of acc)out.set(b,(out.get(b)||0)+w/cnt*(ev.bad[u]?.7:.4));
+          // pas de poids d'un os du mauvais côté
+          const i=reps[u],lat=(restM[3*i]-hp.x)*Rt.x+(restM[3*i+1]-hp.y)*Rt.y+(restM[3*i+2]-hp.z)*Rt.z;for(const b of[...out.keys()]){const s=sideOf.get(bones[b]);if(s&&s*lat<-.04*Hm)out.delete(b)}
+          nw.set(u,out.size?norm(out):W[u])}
+        for(const[u,o]of nw)W[u]=o;write();ev=eval_();if(ev.nb<best){best=ev.nb;bestW=W.map(o=>new Map(o))}}
+      if(best<ev.nb||ev.nb>=before){W=bestW;write()}
+      rep.iters=Math.max(rep.iters,it-1);ev={nb:best}}
+    rep.badAfter+=fix?(ev.nb!==undefined?ev.nb:before):before;rep.meshes.push({name:m.name||'maillage',nu,ne,before,after:ev.nb,worst:JSON.parse(ws0)});
+  }
+  toRest();return rep}
+function rigReport(r,fix){if(!r)return'Contrôle impossible (il faut un modèle avec squelette reconnu : bassin, tête, cuisses).';
+  const L=[];L.push(r.warn.length?'Cohérence du squelette : '+r.warn.join(' ; ')+'.':'Cohérence du squelette : symétrie et proportions correctes.');
+  const worst={};r.meshes.forEach(m=>{for(const[k,v]of Object.entries(m.worst))worst[k]=(worst[k]||0)+v});const wl=Object.entries(worst).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([k,v])=>`${k} (${v})`);
+  L.push(`Épreuve de ${7} poses extrêmes : ${r.badBefore} sommet(s) déchiré(s) ou écrasé(s) sur ${r.meshes.reduce((a,m)=>a+m.nu,0)}${wl.length?' — surtout : '+wl.join(', '):''}.`);
+  if(fix)L.push(`Réparation : ${r.cross} sommet(s) corrigé(s) côté gauche/droite, ${r.cracks} soudure(s) harmonisée(s), ${r.iters} passe(s) de lissage → ${r.badAfter} sommet(s) encore fautif(s).`);
+  return L.join('\n')}
+
+$('#rchk').onclick=()=>{try{rmsg('Contrôle en cours…');setTimeout(()=>{try{const r=rigAnalyse(true);rmsg(rigReport(r,true),!r)}catch(e){rmsg('Échec du contrôle : '+e.message,1);console.error(e)}},30)}catch(e){}};
+window._test={rigAnalyse,rigReport,setClipTime:(i,t)=>{$("#clip").value=String(i);play(i);playing=false;mixer.setTime(t)},exportGLB:()=>$('#bglb').onclick(),anAdd,AN,wdAdd,get WD(){return WD},generate,get result(){return result},setup,loadFile,addAnims,addSkeleton,get clips(){return clips},get M(){return M},get library(){return library}};
 </script>
 </body>
 </html>
