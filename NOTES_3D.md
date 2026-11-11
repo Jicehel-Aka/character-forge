@@ -359,3 +359,7 @@ mode de transparence opaque / découpé / fondu avec opacité, double face. « C
 La banque (personnages et pièces de vêtements) est copiée en local (IndexedDB) et, si activé dans la carte « Stockage permanent », dans un dépôt
 GitHub dédié (`chars/nom.glb`, `pieces/<catégorie>__nom.glb`) via l'API Contents. Lecture sans identifiant (dépôt public), écriture avec un jeton
 fine-grained limité au dépôt, gardé dans le localStorage du navigateur. Test avec API simulée : `tests/ui_modele_cloud.py`.
+
+## Génération des animations : images inutiles et étiquettes
+
+À la génération, les images consécutives identiques et la fin d'une animation qui refait un cycle déjà présent plus à gauche (période p : les images p.. répètent 0..) sont retirées, uniquement si elles le sont dans toutes les directions (colonnes alignées). Case « supprimer les images identiques… » à décocher pour tout garder. Une animation réduite à 1 seule image (sur plusieurs demandées) déclenche une alerte ⚠ dans le rapport (squelette, « sur place » ou animation en cause). Les planches exportées ont en première case de chaque ligne le nom et la direction (case « case du nom à gauche », décalage d'une case répercuté dans l'atlas JSON).

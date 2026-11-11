@@ -87,6 +87,7 @@ code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding
       <div><label>Hauteur (px)</label><select id="size"><option>48</option><option selected>64</option><option>96</option><option>128</option></select></div>
       <div><label>Couleurs</label><input type="number" id="colors" value="32" min="4" max="64"></div>
       <div><label>Images / direction</label><input type="number" id="frames" value="6" min="1" max="24"></div>
+      <div style="grid-column:1/-1"><label class="chip" style="margin:0" title="supprime les images consécutives identiques et celles qui refont un cycle déjà présent plus à gauche"><input type="checkbox" id="trim" checked> supprimer les images identiques / d'un cycle déjà présent</label></div>
       <div><label>Directions</label><select id="ndir"><option value="8" selected>8</option><option value="4">4 (s, e, n, w)</option><option value="1">1 (face)</option></select></div>
       <div><label>Inclinaison caméra (°)</label><input type="number" id="pitch" value="30" min="0" max="60"></div>
       <div><label>Marge (%)</label><input type="number" id="pad" value="4" min="0" max="20"></div>
@@ -100,7 +101,7 @@ code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding
   <div class="card" id="xcard" style="position:sticky;top:12px"><h2>Exporter</h2>
     <p class="mute" id="xlib" style="margin:0 0 6px"></p>
     <div class="row"><button class="primary" id="xzip" title="planches, atlas, RGB565, images, GIF, mode d'emploi">Paquet complet (.zip)</button><button id="xdir" title="Chrome / Edge : écrit directement dans le dossier de ton projet">Enregistrer dans un dossier…</button></div>
-    <div class="row"><button id="dlpng">Planche PNG</button><label class="chip" style="margin:0"><input type="checkbox" id="xmag"> fond magenta</label></div>
+    <div class="row"><button id="dlpng">Planche PNG</button><label class="chip" style="margin:0"><input type="checkbox" id="xmag"> fond magenta</label><label class="chip" style="margin:0" title="première case de chaque ligne : nom de l'animation et direction (décalage d'une case, indiqué dans l'atlas)"><input type="checkbox" id="xlabel" checked> case du nom à gauche</label></div>
     <div class="row"><button id="xatlas">Atlas JSON (Aseprite)</button><button id="xgif">GIF animé</button><button id="xframes">Images (.zip)</button></div>
     <div class="row"><button id="dlraw">.raw RGB565</button><button id="dlh">En-tête C (.h)</button><button id="dljson">Métadonnées</button></div>
     <div class="row"><button id="xall" title="rend chaque animation du modèle avec les réglages actuels, puis exporte-les ensemble">Générer toutes les animations</button><button id="xclear">Vider</button></div>
@@ -195,6 +196,20 @@ function medianCut(px,n){let boxes=[px];while(boxes.length<n){boxes.sort((a,b)=>
   const rg=[0,1,2].map(k=>{let lo=255,hi=0;b.forEach(p=>{if(p[k]<lo)lo=p[k];if(p[k]>hi)hi=p[k]});return hi-lo}),k=rg.indexOf(Math.max(...rg));b.sort((p,q)=>p[k]-q[k]);const h=b.length>>1;boxes.push(b.slice(0,h),b.slice(h))}
   return boxes.filter(b=>b&&b.length).map(b=>[0,1,2].map(k=>Math.round(b.reduce((a,p)=>a+p[k],0)/b.length)))}
 const yieldUI=()=>new Promise(r=>setTimeout(r,0));
+/* images inutiles : (1) identiques à la précédente conservée, (2) fin qui recommence un cycle déjà présent plus à gauche (période p : les images
+   p.. répètent 0..). Une image n'est retirée que si elle l'est dans TOUTES les directions (colonnes alignées). */
+const GENWARN=[];
+function trimFrames(frames,dirs,T){
+  const by=dirs.map(d=>frames.filter(f=>f.d===d).sort((a,b)=>a.f-b.f));
+  const dif=(a,b)=>{let n=0,m=0;for(let j=0;j<T*T;j++){const A=a.mask[j],B=b.mask[j];if(!A&&!B)continue;m++;if(A!==B||Math.abs(a.rgba[j*4]-b.rgba[j*4])+Math.abs(a.rgba[j*4+1]-b.rgba[j*4+1])+Math.abs(a.rgba[j*4+2]-b.rgba[j*4+2])>60)n++}return m?n/m:0};
+  const rem=by.map(fs=>{const r=new Map(),kept=[0];
+    for(let i=1;i<fs.length;i++){if(dif(fs[i],fs[kept[kept.length-1]])<=.02)r.set(i,'ident');else kept.push(i)}
+    for(let p=2;p<kept.length;p++){let ok=true;for(let i=p;i<kept.length&&ok;i++)ok=dif(fs[kept[i]],fs[kept[i-p]])<=.04;if(ok){for(let i=p;i<kept.length;i++)r.set(kept[i],'cycle');break}}
+    return r});
+  const gone=new Map();for(const[i,w]of rem[0])if(rem.every(r=>r.has(i)))gone.set(i,w);
+  const keep=by[0].map((_,i)=>i).filter(i=>!gone.has(i)),map=new Map(keep.map((i,k)=>[i,k]));
+  const out=frames.filter(f=>map.has(f.f));out.forEach(f=>{f.f=map.get(f.f)});
+  return{frames:out,N:keep.length,ident:[...gone.values()].filter(w=>w==='ident').length,cycle:[...gone.values()].filter(w=>w==='cycle').length}}
 async function generate(o={}){
   if(!M){$('#prog').textContent='Ouvre d\'abord un modèle.';return}
   // o : réglages d'une action de l'assistant (clip, directions, images, caméra, cadre fixe commun à toutes les actions)
@@ -236,7 +251,12 @@ async function generate(o={}){
   const px=[];for(const fr of frames)for(let j=0;j<T*T;j++)if(fr.mask[j])px.push([fr.C[j*3]|0,fr.C[j*3+1]|0,fr.C[j*3+2]|0]);
   const pal=medianCut(px,+$('#colors').value).map(p=>from565(to565(...p)));
   for(const fr of frames){fr.rgba=new Uint8ClampedArray(T*T*4);for(let j=0;j<T*T;j++){if(!fr.mask[j])continue;let best=0,bd=1e9;for(let q=0;q<pal.length;q++){const p=pal[q],dd=(p[0]-fr.C[j*3])**2+(p[1]-fr.C[j*3+1])**2+(p[2]-fr.C[j*3+2])**2;if(dd<bd){bd=dd;best=q}}fr.rgba[j*4]=pal[best][0];fr.rgba[j*4+1]=pal[best][1];fr.rgba[j*4+2]=pal[best][2];fr.rgba[j*4+3]=255}}
-  result={T,N,dirs:dirs.map(d=>d[0]),frames,pal,clip:clip?clip.name:null,label:o.label||null,model:$('#info').textContent};showResult();if(o.store)store();$('#prog').textContent=`${frames.length} images ${T}×${T}, ${pal.length} couleurs.`}
+  let N1=N,tr=null,fr1=frames;const nm=o.label||(clip?clip.name:'pose');
+  if(N>1&&$('#trim').checked){tr=trimFrames(frames,dirs.map(d=>d[0]),T);fr1=tr.frames;N1=tr.N}
+  let note='';if(tr&&N1<N)note=` · ${N} → ${N1} images (${tr.ident} identique(s), ${tr.cycle} d'un cycle déjà présent retirée(s))`;
+  if(N>1&&N1===1){const w=`⚠ « ${nm} » est réduite à 1 seule image sur ${N} : l'animation ne bouge pas. Vérifie le squelette (bras / jambes qui ne suivent pas), l'option « sur place » ou l'animation choisie.`;GENWARN.push(w);note+='\n'+w}
+  else if(N>1&&clip&&N1===N&&false){}
+  result={T,N:N1,N0:N,dirs:dirs.map(d=>d[0]),frames:fr1,pal,clip:clip?clip.name:null,label:o.label||null,model:$('#info').textContent,trim:tr?{ident:tr.ident,cycle:tr.cycle}:null,note};showResult();if(o.store)store();if(note&&N1<N)GENWARN.push(`« ${nm} » : ${N} → ${N1} images (${tr.ident} identique(s), ${tr.cycle} d'un cycle déjà présent)`);$('#prog').textContent=`${fr1.length} images ${T}×${T}, ${pal.length} couleurs.${note}`}
 $('#go').onclick=()=>generate().catch(e=>{$('#prog').textContent='Erreur : '+e.message;console.error(e)});
 
 /* ---------- affichage / export ---------- */
@@ -262,8 +282,16 @@ function rowsOf(){const rows=[];library.forEach((R,name)=>R.dirs.forEach(d=>rows
 function frameCanvas(fr,T,mag){const c=document.createElement('canvas');c.width=c.height=T;const x=c.getContext('2d');if(mag){x.fillStyle='#ff00ff';x.fillRect(0,0,T,T)}
   const t=document.createElement('canvas');t.width=t.height=T;t.getContext('2d').putImageData(new ImageData(fr.rgba,T,T),0,0);x.drawImage(t,0,0);
   if(mag){const im=x.getImageData(0,0,T,T),d=im.data;for(let j=0;j<T*T;j++)if(!fr.mask[j]){d[j*4]=255;d[j*4+1]=0;d[j*4+2]=255;d[j*4+3]=255}x.putImageData(im,0,0)}return c}
-function sheetCanvasAll(mag){const rows=rowsOf();if(!rows.length)return null;const T=rows[0].R.T,W=Math.max(...rows.map(r=>r.fs.length))*T,c=document.createElement('canvas');c.width=W;c.height=rows.length*T;const x=c.getContext('2d');
-  if(mag){x.fillStyle='#ff00ff';x.fillRect(0,0,c.width,c.height)}rows.forEach((r,ri)=>r.fs.forEach((fr,i)=>x.drawImage(frameCanvas(fr,T,mag),i*T,ri*T)));return c}
+const labelOn=()=>{const e=document.getElementById('xlabel');return !e||e.checked};
+// case d'étiquette (T×T) : nom de l'animation (coupé aux « _ ») puis direction ; texte seuil à 2 couleurs pour rester net
+function labelCell(name,dir,T){const c=document.createElement('canvas');c.width=c.height=T;const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#202020';x.fillRect(0,0,T,T);
+  const words=String(name).split(/[_\s]+/).filter(Boolean);let fs=Math.max(6,Math.min(11,Math.round(T/6))),lines;
+  for(;fs>=6;fs--){x.font=`bold ${fs}px monospace`;lines=[];for(const w of words){let cur=w;while(x.measureText(cur).width>T-4&&cur.length>2){let k=cur.length-1;while(k>2&&x.measureText(cur.slice(0,k)).width>T-4)k--;lines.push(cur.slice(0,k));cur=cur.slice(k)}lines.push(cur)}
+    if((lines.length+1)*(fs+1)<=T-2)break}
+  x.fillStyle='#fff';x.textBaseline='top';const lh=fs+1,y0=Math.max(1,Math.floor((T-(lines.length+1)*lh)/2));lines.forEach((l,i)=>x.fillText(l,2,y0+i*lh));x.fillStyle='#ffd24a';x.fillText('→ '+dir,2,y0+lines.length*lh);
+  const im=x.getImageData(0,0,T,T),d=im.data;for(let j=0;j<T*T;j++){const on=d[j*4]+d[j*4+1]+d[j*4+2]>330;d[j*4]=on?(d[j*4+2]<120?255:255):32;d[j*4+1]=on?(d[j*4+2]<120?210:255):32;d[j*4+2]=on?(d[j*4+2]<120?74:255):32;d[j*4+3]=255}x.putImageData(im,0,0);return c}
+function sheetCanvasAll(mag){const rows=rowsOf();if(!rows.length)return null;const T=rows[0].R.T,lab=labelOn()?1:0,W=(Math.max(...rows.map(r=>r.fs.length))+lab)*T,c=document.createElement('canvas');c.width=W;c.height=rows.length*T;const x=c.getContext('2d');
+  if(mag){x.fillStyle='#ff00ff';x.fillRect(0,0,c.width,c.height)}rows.forEach((r,ri)=>{if(lab)x.drawImage(labelCell(r.name,r.d,T),0,ri*T);r.fs.forEach((fr,i)=>x.drawImage(frameCanvas(fr,T,mag),(i+lab)*T,ri*T))});return c}
 const blobOf=c=>new Promise(r=>c.toBlob(r,'image/png'));const bytesOf=async b=>new Uint8Array(await b.arrayBuffer());
 const enc=new TextEncoder();
 /* ZIP sans compression (écrit à la main : aucune bibliothèque) */
@@ -285,8 +313,8 @@ function gifBlob(fs,T,pal,scale,delayMs){const n=pal.length+1;let bits=1;while((
     w(0x21,0xF9,4,0x09);w16(Math.round(delayMs/10));w(tr,0);w(0x2C);w16(0);w16(0);w16(W);w16(W);w(0,minc);const d=lzw(px,minc);for(let i=0;i<d.length;i+=255){const c=d.slice(i,i+255);w(c.length,...c)}w(0)}
   w(0x3B);return new Blob([new Uint8Array(o)],{type:'image/gif'})}
 /* atlas JSON au format Aseprite (hash) : Godot, Unity, Phaser, LÖVE, TexturePacker... une étiquette par « animation_direction » */
-function atlasJSON(imageName,delay){const rows=rowsOf(),T=rows[0].R.T,W=Math.max(...rows.map(r=>r.fs.length))*T,frames={},tags=[];let k=0;
-  rows.forEach((r,ri)=>{const from=k;r.fs.forEach((fr,i)=>{frames[`${r.name}_${r.d}_${String(i).padStart(2,'0')}`]={frame:{x:i*T,y:ri*T,w:T,h:T},rotated:false,trimmed:false,spriteSourceSize:{x:0,y:0,w:T,h:T},sourceSize:{w:T,h:T},duration:delay};k++});tags.push({name:`${r.name}_${r.d}`,from,to:k-1,direction:'forward'})});
+function atlasJSON(imageName,delay){const rows=rowsOf(),T=rows[0].R.T,lab=labelOn()?1:0,W=(Math.max(...rows.map(r=>r.fs.length))+lab)*T,frames={},tags=[];let k=0;
+  rows.forEach((r,ri)=>{const from=k;r.fs.forEach((fr,i)=>{frames[`${r.name}_${r.d}_${String(i).padStart(2,'0')}`]={frame:{x:(i+lab)*T,y:ri*T,w:T,h:T},rotated:false,trimmed:false,spriteSourceSize:{x:0,y:0,w:T,h:T},sourceSize:{w:T,h:T},duration:delay};k++});tags.push({name:`${r.name}_${r.d}`,from,to:k-1,direction:'forward'})});
   return JSON.stringify({frames,meta:{app:'character-forge',version:'1',image:imageName,format:'RGBA8888',size:{w:W,h:rows.length*T},scale:'1',frameTags:tags,slices:[]}},null,1)}
 function metaJSON(){const rows=rowsOf(),R=rows[0].R;return JSON.stringify({model:R.model,size:R.T,directions:R.dirs,animations:[...library].map(([n,r])=>({name:n,clip:r.clip,frames:r.N,directions:r.dirs})),palette:R.pal.map(p=>'#'+p.map(v=>v.toString(16).padStart(2,'0')).join('')),transparent_rgb565:'0xF81F',transparent_png:'alpha=0',magenta_sheet:'255,0,255',format:'RGB565 little-endian, ordre animation > direction > image'},null,1)}
 function wordsOf(R){const w=new Uint16Array(R.frames.length*R.T*R.T);let o=0;R.dirs.forEach(d=>R.frames.filter(f=>f.d===d).sort((a,b)=>a.f-b.f).forEach(fr=>{for(let j=0;j<R.T*R.T;j++)w[o++]=fr.mask[j]?to565(fr.rgba[j*4],fr.rgba[j*4+1],fr.rgba[j*4+2]):0xF81F}));return w}
@@ -296,7 +324,7 @@ function readme(b){const names=[...library.keys()];return `character-forge — p
 Animations : ${names.join(', ')}  |  directions : ${[...new Set([...library.values()].flatMap(r=>r.dirs))].join(', ')}  |  ${[...library.values()][0].T}x${[...library.values()][0].T} px
 
 CONTENU
-  ${b}_planche.png           toutes les animations (une ligne par animation et direction), fond transparent
+  ${b}_planche.png           toutes les animations (une ligne par animation et direction), fond transparent${labelOn()?'\n                             1re case de chaque ligne = étiquette (nom + direction), les images commencent à la 2e case (l\'atlas en tient compte)':''}
   ${b}_planche_magenta.png   même planche sur fond magenta 255,0,255 (format des planches de jeu)
   ${b}_atlas.json            atlas au format Aseprite (frames + étiquettes « animation_direction »)
   ${b}_<animation>.raw / .h  RGB565 pour la console AKA (transparence 0xF81F)
@@ -331,8 +359,8 @@ $('#xatlas').onclick=()=>{if(!library.size)return;dl(base()+'_atlas.json',atlasJ
 $('#xgif').onclick=()=>{if(!result)return;const R=result,d=$('#adir').value||R.dirs[0],fs=R.frames.filter(f=>f.d===d).sort((a,b)=>a.f-b.f);dl(`${base()}_${safe(R.clip)}_${d}.gif`,gifBlob(fs,R.T,R.pal,Math.max(2,Math.round(256/R.T)),110));msg(`GIF animé « ${safe(R.clip)} », direction ${d}.`)};
 $('#dlpng').onclick=async()=>{if(!library.size)return;const c=sheetCanvasAll($('#xmag').checked);dl(base()+($('#xmag').checked?'_planche_magenta.png':'_planche.png'),await blobOf(c));msg(`Planche PNG : ${rowsOf().length} lignes (${library.size} animation(s) × ${result.dirs.length} direction(s)).`)};
 $('#xall').onclick=async()=>{if(!clips.length){msg('Ce modèle n\'a pas d\'animation : seule la pose est rendue.');return}const keep=$('#clip').value;$('#xall').disabled=true;
-  try{for(let i=0;i<clips.length;i++){$('#clip').value=String(i);$('#prog').textContent=`Animation ${i+1}/${clips.length} : ${clips[i].name}`;await generate();store()}}catch(e){$('#prog').textContent='Erreur : '+e.message}
-  $('#clip').value=keep;$('#xall').disabled=false;if($('#xcommon').checked)unifyPalette();msg(`${library.size} animation(s) dans la bibliothèque${$('#xcommon').checked?', palette commune de '+(result.pal.length)+' couleurs':''} : exporte le paquet ZIP.`)};
+  GENWARN.length=0;try{for(let i=0;i<clips.length;i++){$('#clip').value=String(i);$('#prog').textContent=`Animation ${i+1}/${clips.length} : ${clips[i].name}`;await generate();store()}}catch(e){$('#prog').textContent='Erreur : '+e.message}
+  $('#clip').value=keep;$('#xall').disabled=false;if($('#xcommon').checked)unifyPalette();msg(`${library.size} animation(s) dans la bibliothèque${$('#xcommon').checked?', palette commune de '+(result.pal.length)+' couleurs':''} : exporte le paquet ZIP.${GENWARN.length?'\n'+GENWARN.join('\n'):''}`)};
 /* palette commune à toute la bibliothèque : mêmes couleurs d'une animation à l'autre (une seule table RGB565 sur la console) */
 function unifyPalette(){if(!library.size)return;const Rs=[...library.values()],px=[];for(const R of Rs)for(const fr of R.frames)for(let j=0;j<R.T*R.T;j++)if(fr.mask[j])px.push([fr.C[j*3]|0,fr.C[j*3+1]|0,fr.C[j*3+2]|0]);
   const pal=medianCut(px,+$('#colors').value).map(p=>from565(to565(...p)));
@@ -939,7 +967,7 @@ async function ensureClip(src){
   if(i<0){await anAdd(AN.cat.packs.find(p=>p.id===k),[name]);i=clips.findIndex(c=>c.name===nm)}if(i<0)throw new Error(`animation « ${name} » introuvable`);return i}
 let wizBusy=false;
 $('#zgo').onclick=async()=>{if(wizBusy)return;if(!M)return zsay('Charge d\'abord un personnage (banque ou nouveau).',1);readActs();const todo=WZ.acts.filter(a=>a.on);if(!todo.length)return zsay('Coche au moins une action.',1);
-  wizBusy=true;$('#zgo').disabled=true;const errs=[];
+  wizBusy=true;$('#zgo').disabled=true;const errs=[];GENWARN.length=0;
   try{
     if(!(M.userData.rig&&M.userData.rig.length)){zsay('Pose automatique du squelette…');const r=await fetch(ADIR+'ual_standard.glb');await addSkeleton(new File([await r.blob()],'ual_standard.glb'));if(!(M.userData.rig&&M.userData.rig.length))throw new Error($('#rmsg').textContent)}
     let rr=null;try{rr=rigAnalyse(true)}catch(e){console.error(e)}
@@ -948,7 +976,7 @@ $('#zgo').onclick=async()=>{if(wizBusy)return;if(!M)return zsay('Charge d\'abord
     for(const a of todo){k++;zsay(`(${k}/${todo.length}) ${a.label}…`);
       try{const ci=await ensureClip(a.src);await generate({clipIndex:ci,dirs:DIRSET[a.dir],N:a.N,pitch,fixed:true,ref,label:slug(a.label),store:true,tmax:a.tmax})}catch(e){errs.push(`${a.label} : ${e.message}`)}}
     if($('#xcommon').checked&&library.size)unifyPalette();
-    zsay(`${library.size} action(s) générée(s) : ${[...library.keys()].join(', ')}.${errs.length?'\nÉchecs : '+errs.join(' ; '):''}${rr?'\n'+rigReport(rr,true):''}\nExporte le paquet (carte « Exporter ») ; tu peux ajouter d'autres actions et relancer sans vider.`,errs.length&&!library.size)}
+    zsay(`${library.size} action(s) générée(s) : ${[...library.keys()].join(', ')}.${GENWARN.length?'\n'+GENWARN.join('\n'):''}${errs.length?'\nÉchecs : '+errs.join(' ; '):''}${rr?'\n'+rigReport(rr,true):''}\nExporte le paquet (carte « Exporter ») ; tu peux ajouter d'autres actions et relancer sans vider.`,(errs.length&&!library.size)||GENWARN.some(w=>w[0]==='⚠'))}
   catch(e){zsay('Échec : '+e.message,1);console.error(e)}
   wizBusy=false;$('#zgo').disabled=false};
 bankInit();drawActs();
@@ -1056,7 +1084,7 @@ $('#ccard').onchange=async e=>{cloudRead();if(e.target.id==='con'||e.target.id==
 $('#ctest').onclick=async()=>{cloudRead();CLOUD.cfg.on=true;$('#con').checked=true;CLOUD.save();try{const a=await CLOUD.list('pieces'),b=await CLOUD.list('chars');const rr=await fetch(`https://api.github.com/repos/${CLOUD.cfg.owner}/${CLOUD.cfg.repo}`,{headers:CLOUD.hdr()});if(!rr.ok)throw new Error(rr.status===404?'dépôt introuvable (ou privé sans jeton)':'GitHub '+rr.status);const j=await rr.json();
   cmsg(`Dépôt trouvé (${j.private?'privé':'public'}) : ${a.length} pièce(s), ${b.length} personnage(s). Écriture : ${CLOUD.cfg.token?(j.permissions&&j.permissions.push===false?'jeton SANS droit d\'écriture':'jeton présent'):'pas de jeton (lecture seule)'}.`);await wdMineLoad();await bankInit()}catch(e){cmsg('Échec : '+e.message,1)}};
 $('#csync').onclick=async()=>{cloudRead();if(!CLOUD.cfg.token)return cmsg('Colle d\'abord un jeton GitHub.',1);CLOUD.cfg.on=true;try{const loc=(await IDB.tx('readonly',s=>s.getAllKeys())||[]).map(String);await STORE.keys();let n=0;for(const k of loc){if(CLOUD.idx.has(k))continue;const b=await IDB.tx('readonly',s=>s.get(k));if(b){await CLOUD.put(cpath(k),b,'ajoute '+cpath(k));n++}}cmsg(n?`${n} élément(s) envoyé(s) dans le dépôt.`:'Tout est déjà dans le dépôt.');await wdMineLoad()}catch(e){cmsg('Échec : '+e.message,1)}};
-window._test={zipImport,zipReport,MYA,anPackSelect,STORE,CLOUD,wdPanel,wdSavePiece,get WO(){return WO},wdMineLoad,closeGeometry,closeModel,closeReport,rigAnalyse,rigReport,setClipTime:(i,t)=>{$("#clip").value=String(i);play(i);playing=false;mixer.setTime(t)},exportGLB:()=>$('#bglb').onclick(),anAdd,AN,wdAdd,get WD(){return WD},generate,get result(){return result},setup,loadFile,addAnims,addSkeleton,get clips(){return clips},get M(){return M},get library(){return library}};
+window._test={sheetCanvasAll,atlasJSON,zipImport,zipReport,MYA,anPackSelect,STORE,CLOUD,wdPanel,wdSavePiece,get WO(){return WO},wdMineLoad,closeGeometry,closeModel,closeReport,rigAnalyse,rigReport,setClipTime:(i,t)=>{$("#clip").value=String(i);play(i);playing=false;mixer.setTime(t)},exportGLB:()=>$('#bglb').onclick(),anAdd,AN,wdAdd,get WD(){return WD},generate,get result(){return result},setup,loadFile,addAnims,addSkeleton,get clips(){return clips},get M(){return M},get library(){return library}};
 </script>
 </body>
 </html>
