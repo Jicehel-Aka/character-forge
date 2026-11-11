@@ -353,3 +353,9 @@ mode de transparence opaque / découpé / fondu avec opacité, double face. « C
 (cause des visages qui clignotent et des dessous visibles à travers une jupe : tri par objet des matériaux BLEND). « Banque » range la pièce
 (GLB squelette + maillage) dans le navigateur (IndexedDB, onglet « Ma banque ») pour l'enfiler sur un autre personnage ; les réglages sont
 écrits dans le GLB exporté. Test : `tests/ui_modele_clothes.py`.
+
+## Banque permanente (GitHub)
+
+La banque (personnages et pièces de vêtements) est copiée en local (IndexedDB) et, si activé dans la carte « Stockage permanent », dans un dépôt
+GitHub dédié (`chars/nom.glb`, `pieces/<catégorie>__nom.glb`) via l'API Contents. Lecture sans identifiant (dépôt public), écriture avec un jeton
+fine-grained limité au dépôt, gardé dans le localStorage du navigateur. Test avec API simulée : `tests/ui_modele_cloud.py`.
