@@ -351,6 +351,7 @@ function restState(root){            // état de repos de chaque os, exprimé da
   const seen=new Set();
   return bonesOf(root).map(b=>{const dup=seen.has(b.name);seen.add(b.name);const p=new THREE.Vector3(),q=new THREE.Quaternion(),s=new THREE.Vector3();rsMat(inv,b).decompose(p,q,s);
     const par=b.parent,pm=par?rsMat(inv,par):new THREE.Matrix4(),pq=new THREE.Quaternion();pm.decompose(new THREE.Vector3(),pq,new THREE.Vector3());
+    if(!b.userData.rq){b.userData.rp=b.position.clone();b.userData.rq=b.quaternion.clone()}   // pose de repos locale, pour l'export
     return{b,dup,sc:s.x||1,key:canon(b.name),p,q,lq:b.quaternion.clone(),pBone:par&&par.isBone?par:null,pq,pInv:pm.clone().invert()}})}
 function frameOf(rs){const g=k=>rs.find(r=>r.key===k),h=g('hips'),hd=g('head'),l=g('Lthigh'),r=g('Rthigh');
   if(!(h&&hd&&l&&r))return null;const up=hd.p.clone().sub(h.p).normalize(),lat=r.p.clone().sub(l.p);lat.addScaledVector(up,-lat.dot(up)).normalize();
@@ -453,6 +454,7 @@ async function addSkeleton(f){
     const si=new Uint16Array(n0*4),sw=new Float32Array(n0*4);for(let v=0;v<n0;v++){const u=wid[v];for(let q=0;q<4;q++){si[4*v+q]=su[4*u+q];sw[4*v+q]=wu[4*u+q]}}
     total+=n0;
     g.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(si,4));g.setAttribute('skinWeight',new THREE.Float32BufferAttribute(sw,4));done.push(g)}
+  bs.forEach(b=>{delete b.userData.rq;delete b.userData.rp});   // le repos est celui d'après l'ajustement aux articulations
   const G=new THREE.Group();G.add(holder);G.updateMatrixWorld(true);const skel=new THREE.Skeleton(bs);
   meshes.forEach((m,i)=>{const sm=new THREE.SkinnedMesh(done[i],m.material);sm.name=m.name;sm.frustumCulled=false;G.add(sm);sm.updateMatrixWorld(true);sm.bind(skel,new THREE.Matrix4())});
   const prev=M.userData.name||'modèle';setup(G,[],prev+' + squelette');
@@ -566,16 +568,48 @@ $('#aall').onclick=()=>{const names=anShown().map(c=>c.name);if(!names.length)re
 anInit();
 
 // ---- export du modèle (squelette ajouté, vêtements, animations) en GLB ----
+// La scène de travail a des échelles étranges (squelette Mixamo en cm réduit par un parent, normalisation de la vue) : on reconstruit
+// un squelette « propre » (positions et rotations monde, échelle 1) et des maillages liés à ce squelette, sinon le GLB s'ouvre vide.
+function bakeForExport(root,clipsIn){
+  root.updateMatrixWorld(true);const sms=[],rigid=[],allB=new Set();
+  root.traverse(o=>{if(o.isBone)allB.add(o);if(!o.visible&&o!==root)return;if(o.isSkinnedMesh){let v=true,a=o;while(a){if(!a.visible)v=false;a=a.parent}if(v)sms.push(o)}else if(o.isMesh){let v=true,a=o;while(a){if(!a.visible)v=false;a=a.parent}if(v)rigid.push(o)}});
+  sms.forEach(m=>m.skeleton.bones.forEach(b=>allB.add(b)));
+  const E=new THREE.Group(),nb=new Map(),wt=new Map();   // wt : repère monde (position, rotation) de chaque nouvel os
+  const mk=b=>{if(nb.has(b))return nb.get(b);const p=new THREE.Vector3(),q=new THREE.Quaternion(),sc=new THREE.Vector3();b.matrixWorld.decompose(p,q,sc);
+    const n=new THREE.Bone();n.name=b.name;const par=b.parent&&allB.has(b.parent)?mk(b.parent):null;
+    if(par){const pw=wt.get(par);n.position.copy(p).sub(pw.p).applyQuaternion(pw.q.clone().invert());n.quaternion.copy(pw.q).invert().multiply(q);par.add(n)}else{n.position.copy(p);n.quaternion.copy(q);E.add(n)}
+    n.scale.set(1,1,1);nb.set(b,n);wt.set(n,{p,q});return n};
+  allB.forEach(mk);E.updateMatrixWorld(true);
+  const worldOf=n=>new THREE.Matrix4().compose(wt.get(n).p,wt.get(n).q,new THREE.Vector3(1,1,1));
+  for(const m of sms){const bones=m.skeleton.bones.map(b=>mk(b));
+    // sommets cuits en pose de repos, dans le repère monde : indépendant des conventions de liaison (bindMatrix, échelles) du fichier d'origine
+    m.skeleton.update();const g=m.geometry.clone(),P=m.geometry.attributes.position,N=m.geometry.attributes.normal,n=P.count,pa=new Float32Array(n*3),na=N?new Float32Array(n*3):null;
+    const v=new THREE.Vector3(),w=new THREE.Vector3(),nm3=new THREE.Matrix3().getNormalMatrix(m.matrixWorld);g.computeBoundingSphere();const eps=(g.boundingSphere?g.boundingSphere.radius:1)*1e-3;
+    for(let i=0;i<n;i++){v.fromBufferAttribute(P,i);const p0=v.clone();m.applyBoneTransform(i,v);v.applyMatrix4(m.matrixWorld);pa[3*i]=v.x;pa[3*i+1]=v.y;pa[3*i+2]=v.z;
+      if(na){w.fromBufferAttribute(N,i).multiplyScalar(eps).add(p0);m.applyBoneTransform(i,w);w.applyMatrix4(m.matrixWorld).sub(v).normalize();na[3*i]=w.x;na[3*i+1]=w.y;na[3*i+2]=w.z}}
+    g.setAttribute('position',new THREE.BufferAttribute(pa,3));if(na)g.setAttribute('normal',new THREE.BufferAttribute(na,3));g.computeBoundingBox();g.computeBoundingSphere();
+    const inv=bones.map(nb_=>new THREE.Matrix4().copy(worldOf(nb_)).invert());
+    const ns=new THREE.SkinnedMesh(g,m.material);ns.name=m.name;ns.frustumCulled=false;E.add(ns);ns.bind(new THREE.Skeleton(bones,inv),new THREE.Matrix4())}
+  for(const m of rigid){let a=m.parent,bone=null;while(a){if(a.isBone){bone=a;break}a=a.parent}
+    const nm=new THREE.Mesh(m.geometry,m.material);nm.name=m.name;const L=new THREE.Matrix4();
+    if(bone&&nb.has(bone)){L.copy(worldOf(nb.get(bone))).invert().multiply(m.matrixWorld);nb.get(bone).add(nm)}else{L.copy(m.matrixWorld);E.add(nm)}
+    L.decompose(nm.position,nm.quaternion,nm.scale)}
+  const byName=new Map();allB.forEach(b=>{if(!byName.has(b.name))byName.set(b.name,b)});
+  const anims=clipsIn.map(c=>{const k=c.clone();k.tracks=k.tracks.filter(t=>/\.(position|quaternion)$/.test(t.name)).map(t=>{
+      if(!t.name.endsWith('.position'))return t;const b=byName.get(t.name.slice(0,t.name.lastIndexOf('.')));if(!b||!b.parent)return t;
+      const sc=new THREE.Vector3();b.parent.matrixWorld.decompose(new THREE.Vector3(),new THREE.Quaternion(),sc);const f=sc.x||1,v=Float32Array.from(t.values,x=>x*f);
+      return new THREE.VectorKeyframeTrack(t.name,Array.from(t.times),Array.from(v))});return k});
+  return{E,anims}}
 $('#bglb').onclick=async()=>{
   if(!M)return rmsg('Ouvre d\'abord un modèle.',1);if(!(M.userData.rig&&M.userData.rig.length))return rmsg('Ce modèle n\'a pas de squelette : rien à exporter de plus que le fichier d\'origine. Ajoute un squelette d\'abord.',1);
   try{rmsg('Écriture du GLB…');const{GLTFExporter}=await import('three/addons/exporters/GLTFExporter.js');
-    if(mixer)mixer.stopAllAction();M.traverse(o=>{if(o.isSkinnedMesh&&o.skeleton)o.skeleton.pose()});M.updateMatrixWorld(true);
-    const anims=$('#bglba').checked?clips.map(c=>{const k=c.clone();k.tracks=k.tracks.filter(t=>/\.(position|quaternion|scale)$/.test(t.name));return k}):[];
-    const buf=await new Promise((ok,ko)=>new GLTFExporter().parse(M,ok,ko,{binary:true,animations:anims,onlyVisible:true,maxTextureSize:2048}));
+    const t0=clips.length?+$('#clip').value:null;if(mixer)mixer.stopAllAction();M.traverse(o=>{if(o.isBone&&o.userData.rq){o.position.copy(o.userData.rp);o.quaternion.copy(o.userData.rq)}});M.updateMatrixWorld(true);
+    const{E,anims}=bakeForExport(M,$('#bglba').checked?clips:[]);
+    const buf=await new Promise((ok,ko)=>new GLTFExporter().parse(E,ok,ko,{binary:true,animations:anims,onlyVisible:false,maxTextureSize:2048}));
     const name=(M.userData.name||'modele').replace(/\.[^.]+$/,'').replace(/[^\w.-]+/g,'_')+'_squelette.glb';dl(name,buf,'model/gltf-binary');
     rmsg(`${name} : ${(buf.byteLength/1048576).toFixed(1)} Mo, ${anims.length} animation(s). Rouvre-le dans « Ouvrir le modèle » : les animations apparaissent dans la liste.`);
-    if(action){const i=$('#clip').value;if(i!=='')play(+i)}}
-  catch(e){rmsg('Échec de l\'export : '+e.message,1)}};
+    const i=$('#clip').value;if(i!=='')play(+i)}
+  catch(e){rmsg('Échec de l\'export : '+e.message,1);console.error(e)}};
 window._test={exportGLB:()=>$('#bglb').onclick(),anAdd,AN,wdAdd,get WD(){return WD},generate,get result(){return result},setup,loadFile,addAnims,addSkeleton,get clips(){return clips},get M(){return M},get library(){return library}};
 </script>
 </body>
