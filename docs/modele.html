@@ -36,7 +36,7 @@ code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding
   </div>
   <div class="card" id="zcard"><h2>Assistant sprites</h2>
     <p class="mute" style="margin:0 0 6px">1. Choisis le personnage · 2. le type de jeu · 3. les actions (cochées = générées ; tu peux en ajouter) · 4. génère, puis exporte.</p>
-    <div class="row"><label style="margin:0">Personnage</label><select id="zchar" style="max-width:300px"></select><button id="zload">Charger</button><button id="znew" title="Meshy, Mixamo, tout GLB / FBX / OBJ : un squelette lui sera posé automatiquement s'il n'en a pas">Nouveau : ouvrir un fichier…</button><button id="zsave" title="le garde dans ce navigateur (squelette compris)">Enregistrer dans « Mes personnages »</button></div>
+    <div class="row"><label style="margin:0">Personnage</label><select id="zchar" style="max-width:300px"></select><button id="zload">Charger</button><button id="znew" title="Meshy, Mixamo, tout GLB / FBX / OBJ : un squelette lui sera posé automatiquement s'il n'en a pas">Nouveau : ouvrir un fichier…</button><select id="zvis" title="🔒 privé : licence, usage personnel, contenu sensible — jamais dans le dépôt public. 🌐 public : libre d'utilisation."><option value="private">🔒 privé</option><option value="public">🌐 public (libre)</option></select><button id="zvisb" title="bascule public / privé le personnage choisi dans « Mes personnages »">🔒⇄🌐</button><button id="zsave" title="le garde dans ce navigateur (squelette compris)">Enregistrer dans « Mes personnages »</button></div>
     <div class="row"><label style="margin:0">Type de sortie</label><select id="ztype"><option value="plat">Jeu de plateforme (vue de côté)</option><option value="adv">Jeu d'aventure (vue du dessus, 4 directions)</option></select><label style="margin:0">Caméra (°)</label><input type="number" id="zpitch" value="0" min="0" max="60" style="width:60px"></div>
     <div id="zacts"></div>
     <div class="row"><button id="zaddact">＋ Ajouter une action</button><label class="chip" style="margin:0"><input type="checkbox" id="zclear" checked> vider la bibliothèque avant</label><button class="primary" id="zgo">Générer les actions cochées</button></div>
@@ -53,7 +53,7 @@ code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding
   </div>
   <div class="card" id="acard"><h2>Bibliothèque d'animations (CC0)</h2>
     <p class="mute" style="margin:0 0 6px">Animations libres de droits, déjà prêtes : choisis-en une ou plusieurs, elles sont reciblées sur le squelette du modèle (il faut donc un modèle avec squelette). Pas besoin d'ouvrir de fichier.</p>
-    <div class="row"><button id="azip" title="un ou plusieurs .zip contenant des FBX / GLB d'animation (Mixamo, packs achetés…) : doublons écartés, rangés par catégorie, conservés dans ce navigateur">Importer des packs (.zip)…</button><input type="file" id="fzip" accept=".zip" multiple hidden><button id="adel" title="retire de « Mes animations » les animations sélectionnées (ou tout si aucune n'est sélectionnée)" hidden>Retirer de Mes animations</button></div>
+    <div class="row"><select id="avis" title="visibilité des animations importées"><option value="private">🔒 privé</option><option value="public">🌐 public (libre)</option></select><button id="azip" title="un ou plusieurs .zip contenant des FBX / GLB d'animation (Mixamo, packs achetés…) : doublons écartés, rangés par catégorie, conservés dans ce navigateur">Importer des packs (.zip)…</button><input type="file" id="fzip" accept=".zip" multiple hidden><button id="avisb" title="bascule public / privé les animations sélectionnées (ou toutes si aucune)" hidden>Public ⇄ privé</button><button id="adel" title="retire de « Mes animations » les animations sélectionnées (ou tout si aucune n'est sélectionnée)" hidden>Retirer de Mes animations</button></div>
     <div class="row"><select id="apack"></select><input id="aq" placeholder="filtrer (ex. attack, walk)" style="width:150px"><label class="chip" style="margin:0"><input type="checkbox" id="ainpl" checked> sur place</label></div>
     <div class="row" id="acats"></div>
     <div id="alist" style="max-height:210px;overflow:auto;border:1px solid var(--line,#ddd);border-radius:6px;padding:4px;display:flex;flex-wrap:wrap;gap:4px"></div>
@@ -70,8 +70,8 @@ code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding
   </div>
   <div class="card" id="ccard"><h2>Stockage permanent de la banque (GitHub, gratuit)</h2>
     <p class="mute" style="margin:0 0 6px">Sans ça, la banque reste dans ce navigateur seulement. Avec un dépôt GitHub dédié, tes personnages et vêtements sont conservés, versionnés et disponibles sur tous tes appareils. Lecture sans identifiant si le dépôt est public ; l'écriture demande un jeton limité à ce seul dépôt, gardé dans ce navigateur uniquement.</p>
-    <div class="row"><label class="chip" style="margin:0"><input type="checkbox" id="con"> activer</label><input id="cown" size="14" placeholder="compte" title="compte ou organisation GitHub"> / <input id="crepo" size="20" placeholder="dépôt"><input id="cbr" size="8" placeholder="branche"></div>
-    <div class="row"><input id="ctok" type="password" size="38" placeholder="jeton GitHub (github_pat_…) pour enregistrer" autocomplete="off"><button id="ctest">Tester</button><button id="csync" title="envoie dans le dépôt ce qui n'existe qu'en local">Envoyer ce qui est local</button></div>
+    <div class="row"><label class="chip" style="margin:0"><input type="checkbox" id="con"> activer</label><input id="cown" size="14" placeholder="compte" title="compte ou organisation GitHub"> / <input id="crepo" size="20" placeholder="dépôt public" title="éléments 🌐 publics"><input id="cprepo" size="20" placeholder="dépôt privé" title="éléments 🔒 privés : doit être un dépôt PRIVÉ (vérifié), même jeton"><input id="cbr" size="8" placeholder="branche"></div>
+    <div class="row"><input id="ctok" type="password" size="38" placeholder="jeton GitHub (github_pat_…) pour enregistrer" autocomplete="off"><button id="ctest">Tester</button><button id="csync" class="primary" title="envoie dans le dépôt tout ce qui n'existe qu'en local : personnages, vêtements, animations importées">Tout sauvegarder dans le dépôt</button></div>
     <details class="mute"><summary>Comment créer le dépôt et le jeton (2 minutes)</summary><ol style="margin:4px 0 0 18px;padding:0"><li>github.com → New repository → nom <code>character-forge-bank</code>, <b>Public</b>, coche « Add a README ».</li><li>Settings → Developer settings → Personal access tokens → <b>Fine-grained tokens</b> → Generate : « Only select repositories » → ce dépôt ; Permissions → Repository → <b>Contents : Read and write</b>.</li><li>Colle le jeton ci-dessus, coche « activer », clique « Tester ».</li></ol></details>
     <p class="mute" id="cmsg" style="margin:6px 0 0"></p>
   </div>
@@ -621,9 +621,9 @@ const wfrac=(id,d)=>/dagger|wand/.test(id)?(/wand/.test(id)?.2:.18):/spear/.test
 fetch(WDIR+'catalog.json').then(r=>r.json()).then(c=>{WD.CAT=c;wdTabs();wdMineLoad()}).catch(()=>{$('#wmsg').textContent='Catalogue de la garde-robe introuvable.'});
 function wdList(tab){if(tab==='mes')return WD.mine;const t=WTABS.find(x=>x[0]===tab),c=WD.CAT;if(!c)return[];return(t[2]!=='part'?c.items.filter(i=>i.cat===tab&&!/arrow/.test(i.id)).map(i=>({...i,kind:'item'})):[]).concat(t[2]!=='item'?c.parts.filter(p=>p.slot===tab).map(p=>({...p,kind:'part',cat:p.slot})):[])}
 function wdTabs(){$('#wtabs').innerHTML=WTABS.map(t=>`<button data-tab="${t[0]}" class="${t[0]===WD.tab?'primary':''}">${t[1]}</button>`).join('');
-  $('#wgrid').innerHTML=wdList(WD.tab).map(e=>`<button class="wdi" data-id="${e.id}" data-kind="${e.kind}" title="${e.name} · ${e.source}" style="padding:2px;display:flex;flex-direction:column;align-items:center;font-size:11px;line-height:1.1">${e.idb?`<span style="width:72px;height:72px;background:#8a8a8a;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:20px">👕</span><span>${e.name}</span><span class="mute">${SLOTL[e.slot]||e.slot}</span><span data-del="${e.idb}" title="supprimer de la banque" style="cursor:pointer">✕</span>`:`<img src="${WDIR}thumbs/${e.id}.png" width="72" height="72" loading="lazy" alt="" style="background:#8a8a8a;border-radius:4px"><span>${e.name}</span>`}</button>`).join('')}
+  $('#wgrid').innerHTML=wdList(WD.tab).map(e=>`<button class="wdi" data-id="${e.id}" data-kind="${e.kind}" title="${e.name} · ${e.source}" style="padding:2px;display:flex;flex-direction:column;align-items:center;font-size:11px;line-height:1.1">${e.idb?`<span style="width:72px;height:72px;background:#8a8a8a;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:20px">👕</span><span>${e.name}</span><span class="mute">${SLOTL[e.slot]||e.slot}</span><span data-vis="${e.idb}" title="bascule privé / public" style="cursor:pointer">${visIcon(e.vis)}</span><span data-del="${e.idb}" title="supprimer de la banque" style="cursor:pointer">✕</span>`:`<img src="${WDIR}thumbs/${e.id}.png" width="72" height="72" loading="lazy" alt="" style="background:#8a8a8a;border-radius:4px"><span>${e.name}</span>`}</button>`).join('')}
 $('#wtabs').onclick=e=>{const b=e.target.closest('[data-tab]');if(b){WD.tab=b.dataset.tab;wdTabs()}};
-$('#wgrid').onclick=e=>{const d=e.target.dataset&&e.target.dataset.del;if(d){STORE.del(d).then(wdMineLoad,er=>wmsg('Suppression : '+er.message,1));return}const b=e.target.closest('.wdi');if(!b)return;const en=wdList(WD.tab).find(x=>x.id===b.dataset.id);wdAdd(en).catch(er=>wmsg('Échec : '+er.message,1))};
+$('#wgrid').onclick=e=>{const dv=e.target.dataset&&e.target.dataset.vis;if(dv){STORE.setVis(dv,VIS.of(dv)==='public'?'private':'public').then(wdMineLoad,er=>wmsg('Échec : '+er.message,1));return}const d=e.target.dataset&&e.target.dataset.del;if(d){STORE.del(d).then(wdMineLoad,er=>wmsg('Suppression : '+er.message,1));return}const b=e.target.closest('.wdi');if(!b)return;const en=wdList(WD.tab).find(x=>x.id===b.dataset.id);wdAdd(en).catch(er=>wmsg('Échec : '+er.message,1))};
 function wmsg(t,bad){const e=$('#wmsg');e.textContent=t;e.classList.toggle('bad',!!bad)}
 async function wdLoad(file){let g=WD.cache.get(file);if(!g){g=await new GLTFLoader().loadAsync(WDIR+file);WD.cache.set(file,g)}return g}
 const firstSkinned=r=>{let s=null;r.traverse(o=>{if(!s&&o.isSkinnedMesh&&o.visible)s=o});return s};
@@ -675,7 +675,7 @@ function wdPanel(){const box=$('#wown');if(!box)return;WO.list=[];
       <input type="color" data-a="col" value="${hex}" title="couleur"><label class="chip" style="margin:0" title="remplace la texture par cette couleur unie"><input type="checkbox" data-a="solid"> unie</label><button data-a="tex" title="applique une image comme texture">Texture…</button><button data-a="rtex" title="rétablit la texture et la couleur d'origine">↺</button>
       <select data-a="mode" title="transparence : opaque, découpé (bords nets, sans tri), fondu (translucide)">${opt([['opaque','opaque'],['mask','découpé'],['blend','fondu']],wdModeOf(mt))}</select><label class="mute" style="margin:0">opacité <input type="range" data-a="op" min="0" max="100" value="${Math.round((mt.opacity??1)*100)}" style="width:70px"></label>
       <label class="chip" style="margin:0"><input type="checkbox" data-a="dbl" ${mt.side===THREE.DoubleSide?'checked':''}> double face</label>
-      <select data-a="slot">${opt(SLOTS.map(x=>[x,SLOTL[x]||x]),'haut')}</select><button data-a="bank" title="range cette pièce dans Ma banque">Banque</button></div>`}).join('')+`</div>
+      <select data-a="slot">${opt(SLOTS.map(x=>[x,SLOTL[x]||x]),'haut')}</select><select data-a="pvis" title="🔒 privé : jamais dans le dépôt public"><option value="private">🔒 privé</option><option value="public">🌐 public</option></select><button data-a="bank" title="range cette pièce dans Ma banque">Banque</button></div>`}).join('')+`</div>
   <div class="row" style="margin-top:4px"><button id="wfixalpha" title="passe les matériaux translucides en « découpé » : règle les visages / dessous qui apparaissent par transparence">Corriger la transparence</button><button id="wshowall">Tout remettre</button></div>`}
 $('#wown').oninput=$('#wown').onchange=$('#wown').onclick=e=>{const t=e.target,a=t.dataset&&t.dataset.a;
   if(t.id==='wfixalpha'&&e.type==='click'){let n=0;WO.list.forEach(m=>{if(wmats(m).some(x=>x.transparent)){wdEdit(m,x=>{if(x.transparent)wdMode(x,'mask',1)});n++}});wdPanel();return wmsg(n?`${n} pièce(s) passée(s) en « découpé » (bords nets, plus de tri aléatoire).`:'Aucun matériau translucide.')}
@@ -688,18 +688,18 @@ $('#wown').oninput=$('#wown').onchange=$('#wown').onclick=e=>{const t=e.target,a
   else if(a==='rtex'){wdEdit(m,x=>{x.map=m.userData.orig.map;if(x.color&&m.userData.orig.color)x.color.copy(m.userData.orig.color)});q('solid').checked=false;if(m.userData.orig.color)q('col').value='#'+m.userData.orig.color.getHexString()}
   else if(a==='mode'||a==='op'){const mode=q('mode').value,op=q('op').value/100;wdEdit(m,x=>wdMode(x,a==='op'&&mode!=='blend'?'blend':mode,op));if(a==='op'&&mode!=='blend')q('mode').value='blend'}
   else if(a==='dbl')wdEdit(m,x=>{x.side=t.checked?THREE.DoubleSide:THREE.FrontSide});
-  else if(a==='bank')wdSavePiece(m,q('slot').value).catch(er=>wmsg('Échec : '+er.message,1))};
+  else if(a==='bank')wdSavePiece(m,q('slot').value,q('pvis').value).catch(er=>wmsg('Échec : '+er.message,1))};
 $('#wtexin').onchange=async e=>{const f=e.target.files[0];e.target.value='';const m=WO.list[WO.cur];if(!f||!m)return;
   const url=URL.createObjectURL(f);try{const tx=await new THREE.TextureLoader().loadAsync(url);tx.flipY=false;tx.colorSpace=THREE.SRGBColorSpace;tx.wrapS=tx.wrapT=THREE.RepeatWrapping;
     wdEdit(m,x=>{x.map=tx;if(x.color)x.color.set(0xffffff)});wdPanel();wmsg(`Texture « ${f.name} » appliquée à « ${m.name||'pièce'} » (suit les UV du modèle).`)}catch(er){wmsg('Image illisible : '+er.message,1)}finally{URL.revokeObjectURL(url)}};
-async function wdSavePiece(m,slot){
+async function wdSavePiece(m,slot,pvis='private'){
   if(!(M.userData.rig&&M.userData.rig.length))throw new Error('pose d\'abord un squelette');if(!m.isSkinnedMesh)throw new Error('cette pièce n\'est pas liée au squelette (pose le squelette, il lie toutes les pièces)');
   const nm=safeName(prompt('Nom de la pièce ?',m.name||'pièce'));if(!nm)return;const{GLTFExporter}=await import('three/addons/exporters/GLTFExporter.js');
   if(mixer)mixer.stopAllAction();M.traverse(o=>{if(o.isBone&&o.userData.rq){o.position.copy(o.userData.rp);o.quaternion.copy(o.userData.rq)}});M.updateMatrixWorld(true);
   const vis=[];M.traverse(o=>{if(o.isMesh){vis.push([o,o.visible]);o.visible=o===m}});let E;try{E=bakeForExport(M,[]).E}finally{vis.forEach(([o,v])=>o.visible=v)}
   const buf=await new Promise((ok,ko)=>new GLTFExporter().parse(E,ok,ko,{binary:true,onlyVisible:false,maxTextureSize:1024}));
-  await STORE.put('piece:'+slot+':'+nm,buf);await wdMineLoad();WD.tab='mes';wdTabs();wmsg(`« ${nm} » (${SLOTL[slot]||slot}) rangé dans Ma banque (${(buf.byteLength/1048576).toFixed(1)} Mo). Pour l'enfiler : choisis un autre personnage, onglet « Ma banque ».${CLOUD.msg?' '+CLOUD.msg:CLOUD.cfg.on?' Copié aussi dans le dépôt GitHub.':''}`)}
-async function wdMineLoad(){try{const ks=await STORE.keys();if(CLOUD.msg)wmsg(CLOUD.msg,1);WD.mine=ks.filter(k=>String(k).startsWith('piece:')).map(k=>{const[,sl,...r]=String(k).split(':');return{id:k,idb:k,name:r.join(':'),slot:sl,cat:sl,kind:'part',source:'ma banque'}})}catch(e){WD.mine=[]}wdTabs()}
+  await STORE.put('piece:'+slot+':'+nm,buf,pvis);await wdMineLoad();WD.tab='mes';wdTabs();wmsg(`« ${nm} » (${SLOTL[slot]||slot}, ${visIcon(pvis)} ${pvis==='public'?'public':'privé'}) rangé dans Ma banque (${(buf.byteLength/1048576).toFixed(1)} Mo). Pour l'enfiler : choisis un autre personnage, onglet « Ma banque ».${CLOUD.msg?' '+CLOUD.msg:CLOUD.cfg.on?' Copié aussi dans le dépôt GitHub.':''}`)}
+async function wdMineLoad(){try{const ks=await STORE.keys();if(CLOUD.msg)wmsg(CLOUD.msg,1);WD.mine=ks.filter(k=>String(k).startsWith('piece:')).map(k=>{const[,sl,...r]=String(k).split(':');return{id:k,idb:k,name:r.join(':'),slot:sl,cat:sl,kind:'part',source:'ma banque',vis:VIS.of(k)}})}catch(e){WD.mine=[]}wdTabs()}
 async function wdLoadIdb(k){const buf=await STORE.get(k);if(!buf)throw new Error('pièce introuvable');return new Promise((ok,ko)=>new GLTFLoader().parse(buf,'',ok,ko))}
 function wdReset(){WD.eq=[];wdRows();wdPanel()}
 $('#wclear').onclick=()=>{for(const it of [...WD.eq])wdRemove(it);wmsg('Garde-robe vidée.')};
@@ -740,8 +740,8 @@ function anPackSelect(id){const ps=anPacks();$('#apack').innerHTML=ps.map(p=>`<o
 function anShown(){const q=AN.q.toLowerCase();return AN.pack.clips.filter(c=>(!AN.c||c.cat===AN.c)&&(!q||c.name.toLowerCase().includes(q)))}
 function anDraw(){const P=AN.pack,cats=[...new Set(P.clips.map(c=>c.cat))];
   $('#acats').innerHTML=['',...cats].map(c=>`<button data-c="${c}" class="${AN.c===c?'primary':''}" style="padding:2px 8px">${c||'Tout'}</button>`).join('');
-  $('#alist').innerHTML=anShown().map(c=>`<button class="aci ${AN.sel.has(P.id+'|'+c.name)?'primary':''}" data-n="${c.name}" title="${c.cat} · ${c.dur} s" style="padding:2px 8px;font-size:12px">${c.name.replace(/_/g,' ')} <span class="mute">${c.dur}s</span></button>`).join('')||'<span class="mute">Aucune animation.</span>';
-  $('#aadd').textContent=`Ajouter la sélection (${AN.sel.size})`;$('#adel').hidden=P.id!=='mine'}
+  $('#alist').innerHTML=anShown().map(c=>`<button class="aci ${AN.sel.has(P.id+'|'+c.name)?'primary':''}" data-n="${c.name}" title="${c.cat} · ${c.dur} s" style="padding:2px 8px;font-size:12px">${P.id==='mine'?visIcon(c.vis)+' ':''}${c.name.replace(/_/g,' ')} <span class="mute">${c.dur}s</span></button>`).join('')||'<span class="mute">Aucune animation.</span>';
+  $('#aadd').textContent=`Ajouter la sélection (${AN.sel.size})`;$('#adel').hidden=P.id!=='mine';$('#avisb').hidden=P.id!=='mine'}
 async function anAdd(pack,names){
   if(!M||!M.userData.rig||!M.userData.rig.length)return amsg('Ce modèle n\'a pas de squelette : ajoute d\'abord un squelette (carte du dessus), ou ouvre un modèle animé.',1);
   if(pack.id==='mine')return mineAdd(names);
@@ -768,9 +768,25 @@ const animCat=n=>{n=n.toLowerCase();if(/death|die|dead|mort|dying/.test(n))retur
   if(/jump|fall|land|leap|hop/.test(n))return'Sauts';if(/walk|run|jog|sprint|strafe|crouch|swim|climb|push|driving|step|march|crawl|ladder|rope/.test(n))return'Déplacements';if(/idle|pose|stand|breath|wait/.test(n))return'Repos';return'Divers'};
 const animNorm=(n,d)=>String(n).toLowerCase().replace(/\.[^.]+$/,'').replace(/^[0-9a-f]{8}-/,'').replace(/[ _-]*(copy|copie)( ?\(?\d+\)?)?$/,'').replace(/ ?\(\d+\)$/,'').replace(/[^a-z0-9]+/g,'')+'|'+Math.round(d*20);
 const sha256=async b=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',b))].map(x=>x.toString(16).padStart(2,'0')).join('');
-async function mineLoad(){try{const x=await IDB.tx('readonly',st=>st.get('animidx'));MYA.clips=(x&&x.clips)||[];MYA.hashes=new Set((x&&x.hashes)||[])}catch(e){MYA.clips=[];MYA.hashes=new Set()}}
-const mineSave=()=>IDB.tx('readwrite',st=>st.put({clips:MYA.clips,hashes:[...MYA.hashes]},'animidx'));
-async function zipImport(files){
+async function mineLoad(){let ch=false;try{const x=await IDB.tx('readonly',st=>st.get('animidx'));MYA.clips=((x&&x.clips)||[]).map(c=>({vis:'private',...c}));MYA.hashes=new Set((x&&x.hashes)||[])}catch(e){MYA.clips=[];MYA.hashes=new Set()}
+  if(CLOUD.cfg.on){const have=new Set(MYA.clips.map(c=>c.key+'|'+c.name));
+    for(const pv of(CLOUD.cfg.token&&CLOUD.cfg.prepo)?[false,true]:[false])try{const r=JSON.parse(new TextDecoder().decode(await CLOUD.get('anims/index.json',pv)));
+      for(const c of r.clips||[])if(!have.has(c.key+'|'+c.name)){MYA.clips.push({...c,vis:pv?'private':'public'});have.add(c.key+'|'+c.name);ch=true}for(const h of r.hashes||[])MYA.hashes.add(h)}catch(e){}
+    if(ch){MYA.clips.sort((a,b)=>a.cat.localeCompare(b.cat)||a.name.localeCompare(b.name));await mineSave(false)}}
+  for(const c of MYA.clips)VIS.m[c.key]=VIS.m[c.key]||c.vis}
+const mineSave=async(push=true)=>{await IDB.tx('readwrite',st=>st.put({clips:MYA.clips,hashes:[...MYA.hashes]},'animidx'));
+  if(push&&CLOUD.cfg.on&&CLOUD.cfg.token){for(const pv of[false,true]){if(pv&&!CLOUD.cfg.prepo)continue;const cl=MYA.clips.filter(c=>(c.vis==='private')===pv);
+    try{if(cl.length||CLOUD.idx.has('animidx|'+pv))await CLOUD.put('anims/index.json',new TextEncoder().encode(JSON.stringify({clips:cl.map(({vis,...c})=>c),hashes:[...new Set(cl.map(c=>c.hash).filter(Boolean))]})),'met à jour l\'index des animations',pv)}catch(e){cmsg('Index des animations ('+(pv?'privé':'public')+') non sauvegardé : '+e.message,1)}}}};
+// sauvegarde complète : tout ce qui est local et absent du dépôt correspondant à sa visibilité (public -> dépôt public, privé -> dépôt privé ; sans dépôt privé, rien ne sort du navigateur)
+async function cloudBackup(){if(!CLOUD.cfg.token)throw new Error('colle d\'abord un jeton GitHub');CLOUD.cfg.on=true;await STORE.keys();
+  for(const c of MYA.clips)if(!VIS.m[c.key])VIS.m[c.key]=c.vis;
+  const loc=((await IDB.tx('readonly',st=>st.getAllKeys()))||[]).map(String).filter(k=>!HIDDEN.test(k)),fail=[];let n=0,keep=0,already=0;
+  const todo=loc.filter(k=>{const v=VIS.of(k),e=CLOUD.idx.get(k),pv=v==='private';if(pv&&!CLOUD.cfg.prepo){keep++;return false}if(e&&e.pv===pv){already++;return false}return true});
+  for(const k of todo){const pv=VIS.of(k)==='private';cmsg(`Sauvegarde ${n+1}/${todo.length} (${pv?'privé':'public'}) : ${cpath(k)}…`);try{const b=await IDB.tx('readonly',st=>st.get(k));if(b){await CLOUD.put(cpath(k),b,'ajoute '+cpath(k),pv);CLOUD.idx.set(k,{pv});
+      const other=CLOUD.idx.get(k);n++}}catch(e){fail.push(`${cpath(k)} (${e.message})`)}}
+  if(MYA.clips.length)try{await mineSave(true)}catch(e){fail.push('index des animations')}
+  const r={sent:n,already,keep,fail};cmsg(`${n} fichier(s) envoyé(s), ${already} déjà présent(s)${keep?`, ${keep} privé(s) gardé(s) dans ce navigateur (aucun dépôt privé configuré)`:''}.${fail.length?' Échecs : '+fail.join(' ; '):''}`,!!fail.length);return r}
+async function zipImport(files,vis='private'){
   const{unzipSync}=await import('three/addons/libs/fflate.module.js');const rep={files:0,added:0,dupFile:0,dupClip:[],noAnim:[],bad:[]};
   const seen=new Set([...MYA.clips.map(c=>animNorm(c.name,c.dur)),...AN.cat.packs.flatMap(p=>p.clips.map(c=>animNorm(c.name,c.dur)))]);
   for(const z of files){let ent;try{ent=unzipSync(new Uint8Array(await z.arrayBuffer()))}catch(e){rep.bad.push(`${z.name} : ${e.message}`);continue}
@@ -779,30 +795,32 @@ async function zipImport(files){
     for(const n of names){rep.files++;amsg(`${z.name} : ${n.split('/').pop()} (${rep.files})…`);await new Promise(r=>setTimeout(r));
       const u8=ent[n],buf=u8.buffer.slice(u8.byteOffset,u8.byteOffset+u8.byteLength),h=await sha256(buf);
       if(MYA.hashes.has(h)){rep.dupFile++;continue}
-      const base0=n.split('/').pop(),disp=base0.replace(/^[0-9a-f]{8}-/,''),base=disp.replace(/\.[^.]+$/,'');let anims;
+      const base0=n.split('/').pop(),disp=base0.replace(/^[0-9a-f]{8}-/,''),dispK=disp.replace(/[^\p{L}\p{N}._ -]+/gu,'_'),base=disp.replace(/\.[^.]+$/,'');let anims;
       try{({anims}=await readRig(new File([buf],disp)))}catch(e){rep.bad.push(`${n} : ${e.message}`);continue}
       const useful=anims.filter(c=>c.duration>=.15&&c.tracks.some(t=>/\.(position|quaternion)$/.test(t.name)));
       if(!useful.length){rep.noAnim.push(base);MYA.hashes.add(h);continue}
       let kept=0;useful.forEach((c,i)=>{const nm=!c.name||GENERIC.test(c.name)?(useful.length>1?base+'_'+(i+1):base):(useful.length>1?c.name:base),k=animNorm(nm,c.duration);
         if(seen.has(k)){rep.dupClip.push(nm);return}seen.add(k);kept++;
-        MYA.clips.push({name:nm,dur:+c.duration.toFixed(2),cat:animCat(nm),key:'anim:'+h.slice(0,12)+':'+disp,orig:c.name,src:zn})});
-      MYA.hashes.add(h);if(kept){await IDB.tx('readwrite',st=>st.put(buf,'anim:'+h.slice(0,12)+':'+disp));rep.added+=kept}}}
-  MYA.clips.sort((a,b)=>a.cat.localeCompare(b.cat)||a.name.localeCompare(b.name));await mineSave();anPackSelect('mine');return rep}
+        MYA.clips.push({name:nm,dur:+c.duration.toFixed(2),cat:animCat(nm),key:'anim:'+h.slice(0,12)+':'+dispK,orig:c.name,src:zn,vis,hash:h.slice(0,12)})});VIS.m[ 'anim:'+h.slice(0,12)+':'+dispK ]=vis
+      MYA.hashes.add(h);await VIS.save();if(kept){await IDB.tx('readwrite',st=>st.put(buf,'anim:'+h.slice(0,12)+':'+dispK));rep.added+=kept}}}
+  MYA.clips.sort((a,b)=>a.cat.localeCompare(b.cat)||a.name.localeCompare(b.name));await mineSave(false);anPackSelect('mine');return rep}
 function zipReport(r){const L=[`${r.added} animation(s) ajoutée(s) à « Mes animations » (${r.files} fichier(s) lu(s)).`];
   if(r.dupFile)L.push(`${r.dupFile} fichier(s) déjà importé(s) (identiques) ignoré(s).`);if(r.dupClip.length)L.push(`${r.dupClip.length} doublon(s) de nom et de durée ignoré(s) : ${r.dupClip.slice(0,8).join(', ')}${r.dupClip.length>8?'…':''}.`);
   if(r.noAnim.length)L.push(`Sans animation (maillage seul, T-pose) : ${r.noAnim.slice(0,6).join(', ')}.`);r.bad.forEach(b=>L.push('✗ '+b));return L.join('\n')}
 async function mineAdd(names){
   const sel=MYA.clips.filter(c=>names.includes(c.name)),by=new Map();sel.forEach(c=>{if(!by.has(c.key))by.set(c.key,[]);by.get(c.key).push(c)});
   $('#rinplace').checked=$('#ainpl').checked;const out=[];
-  for(const[key,cl]of by){const buf=await IDB.tx('readonly',st=>st.get(key));if(!buf){out.push(`✗ ${cl[0].name} : fichier introuvable (supprime-la de Mes animations et réimporte)`);continue}
+  for(const[key,cl]of by){let buf=null;try{buf=await STORE.get(key)}catch(e){}if(!buf){out.push(`✗ ${cl[0].name} : fichier introuvable (supprime-la de Mes animations et réimporte)`);continue}
     const o=await addAnims([new File([buf],key.split(':').slice(2).join(':'))],{only:new Set(cl.map(c=>c.orig)),rename:new Map(cl.map(c=>[c.orig,c.name]))});if(Array.isArray(o))out.push(...o)}
   amsg(out.join('\n'),!out.some(l=>l[0]==='✓'||l[0]==='≈'));return out}
 $('#azip').onclick=()=>$('#fzip').click();
-$('#fzip').onchange=async e=>{const fl=[...e.target.files];e.target.value='';if(!fl.length)return;try{const r=await zipImport(fl);amsg(zipReport(r),!r.added&&!r.dupFile&&!r.dupClip.length)}catch(er){amsg('Échec : '+er.message,1)}};
+$('#fzip').onchange=async e=>{const fl=[...e.target.files];e.target.value='';if(!fl.length)return;try{const r=await zipImport(fl,$('#avis').value);amsg(zipReport(r),!r.added&&!r.dupFile&&!r.dupClip.length);if(r.added&&CLOUD.cfg.on&&CLOUD.cfg.token){const b=await cloudBackup();amsg(zipReport(r)+`\nDépôt GitHub : ${b.sent} fichier(s) sauvegardé(s)${b.fail.length?', échecs : '+b.fail.join(' ; '):''}.`,!!b.fail.length)}else if(r.added)amsg(zipReport(r)+'\n(Conservé dans ce navigateur seulement : active le stockage GitHub pour le sauvegarder.)')}catch(er){amsg('Échec : '+er.message,1)}};
+$('#avisb').onclick=async()=>{const names=[...AN.sel].filter(k=>k.startsWith('mine|')).map(k=>k.slice(5)),all=!names.length,tgt=MYA.clips.filter(c=>all||names.includes(c.name));if(!tgt.length)return;const to=tgt.every(c=>c.vis==='public')?'private':'public';
+  try{for(const k of new Set(tgt.map(c=>c.key)))await STORE.setVis(k,to);tgt.forEach(c=>c.vis=to);await mineSave(true);anDraw();amsg(`${tgt.length} animation(s) passée(s) en ${to==='public'?'🌐 public (libre d\'utilisation)':'🔒 privé'}.${CLOUD.msg?' '+CLOUD.msg:''}`)}catch(e){amsg('Échec : '+e.message,1)}};
 $('#adel').onclick=async()=>{const names=[...AN.sel].filter(k=>k.startsWith('mine|')).map(k=>k.slice(5)),all=!names.length;
   if(all&&!confirm('Retirer TOUTES les animations importées ?'))return;const gone=MYA.clips.filter(c=>all||names.includes(c.name));MYA.clips=MYA.clips.filter(c=>!gone.includes(c));
-  const still=new Set(MYA.clips.map(c=>c.key));for(const k of new Set(gone.map(c=>c.key)))if(!still.has(k))await IDB.tx('readwrite',st=>st.delete(k));
-  if(all)MYA.hashes=new Set();await mineSave();AN.sel.clear();anPackSelect(MYA.clips.length?'mine':AN.cat.packs[0].id);amsg(`${gone.length} animation(s) retirée(s).`)};
+  const still=new Set(MYA.clips.map(c=>c.key));for(const k of new Set(gone.map(c=>c.key)))if(!still.has(k))try{await STORE.del(k)}catch(e){}
+  if(all)MYA.hashes=new Set();await mineSave(true);AN.sel.clear();anPackSelect(MYA.clips.length?'mine':AN.cat.packs[0].id);amsg(`${gone.length} animation(s) retirée(s).`)};
 anInit();
 
 // ---- export du modèle (squelette ajouté, vêtements, animations) en GLB ----
@@ -923,40 +941,62 @@ const IDB={db:null,open(){return this.db||(this.db=new Promise((ok,ko)=>{const r
    Lecture : dépôt public, sans identifiant. Écriture : jeton GitHub « fine-grained » limité à CE dépôt (Contents : lecture/écriture), gardé
    uniquement dans ce navigateur (localStorage), jamais dans le code. Rien n'est envoyé tant que le stockage n'est pas activé. */
 const safeName=n=>String(n||'').replace(/[^\p{L}\p{N}._ -]+/gu,'_').trim().slice(0,60);
-const CLOUD={cfg:{on:false,owner:'Jicehel-Aka',repo:'character-forge-bank',branch:'main',token:''},idx:new Map(),msg:'',
+/* Visibilité : chaque personnage, pièce et pack d'animations est « public » (libre d'utilisation : peut aller dans le dépôt public) ou « privé »
+   (licence, contenu sensible, usage personnel : jamais dans le dépôt public ; dépôt PRIVÉ séparé si tu en configures un, sinon ce navigateur seulement).
+   Par défaut tout est privé. Un élément privé n'est écrit que dans un dépôt dont GitHub confirme qu'il est privé. */
+const CLOUD={cfg:{on:false,owner:'Jicehel-Aka',repo:'character-forge-bank',prepo:'character-forge-private',branch:'main',token:''},idx:new Map(),msg:'',privOk:null,
   load(){try{Object.assign(this.cfg,JSON.parse(localStorage.getItem('cf-cloud')||'{}'))}catch(e){}},save(){try{localStorage.setItem('cf-cloud',JSON.stringify(this.cfg))}catch(e){}},
-  url(p){const c=this.cfg;return `https://api.github.com/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}/contents/${p}`},
+  name(pv){return pv?this.cfg.prepo:this.cfg.repo},
+  url(p,pv){const c=this.cfg;return `https://api.github.com/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(this.name(pv))}/contents/${p}`},
   hdr(raw){const h={Accept:raw?'application/vnd.github.raw+json':'application/vnd.github+json'};if(this.cfg.token)h.Authorization='Bearer '+this.cfg.token;return h},
-  async list(dir){const r=await fetch(this.url(dir)+'?ref='+encodeURIComponent(this.cfg.branch),{headers:this.hdr()});if(r.status===404)return[];if(!r.ok)throw new Error('GitHub '+r.status);return(await r.json()).filter(f=>f.type==='file'&&/\.glb$/i.test(f.name))},
-  async sha(path){const r=await fetch(this.url(path)+'?ref='+encodeURIComponent(this.cfg.branch),{headers:this.hdr()});return r.ok?(await r.json()).sha:null},
-  async get(path){const r=await fetch(this.url(path)+'?ref='+encodeURIComponent(this.cfg.branch),{headers:this.hdr(true)});if(!r.ok)throw new Error('GitHub '+r.status);return r.arrayBuffer()},
-  async put(path,buf,msg){if(!this.cfg.token)throw new Error('jeton GitHub manquant (écriture impossible)');const u8=new Uint8Array(buf);let b='';for(let i=0;i<u8.length;i+=32768)b+=String.fromCharCode.apply(null,u8.subarray(i,i+32768));
-    const body={message:msg,content:btoa(b),branch:this.cfg.branch},sh=await this.sha(path);if(sh)body.sha=sh;
-    const r=await fetch(this.url(path),{method:'PUT',headers:{...this.hdr(),'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw new Error('GitHub '+r.status+' '+((await r.json().catch(()=>({}))).message||''))},
-  async del(path){if(!this.cfg.token)throw new Error('jeton GitHub manquant');const sh=await this.sha(path);if(!sh)return;const r=await fetch(this.url(path),{method:'DELETE',headers:{...this.hdr(),'Content-Type':'application/json'},body:JSON.stringify({message:'supprime '+path,sha:sh,branch:this.cfg.branch})});if(!r.ok)throw new Error('GitHub '+r.status)}};
+  async meta(pv){const c=this.cfg,r=await fetch(`https://api.github.com/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(this.name(pv))}`,{headers:this.hdr()});if(!r.ok)throw new Error(r.status===404?'dépôt « '+this.name(pv)+' » introuvable (ou privé sans jeton)':'GitHub '+r.status);return r.json()},
+  async checkPriv(){if(!this.cfg.prepo)throw new Error('pas de dépôt privé configuré');if(this.privOk===true)return true;const m=await this.meta(true);if(!m.private){this.privOk=false;throw new Error('le dépôt « '+this.cfg.prepo+' » est PUBLIC : refus d\'y écrire des éléments privés')}this.privOk=true;return true},
+  async list(dir,pv){const r=await fetch(this.url(dir,pv)+'?ref='+encodeURIComponent(this.cfg.branch),{headers:this.hdr()});if(r.status===404)return[];if(!r.ok)throw new Error('GitHub '+r.status);return(await r.json()).filter(f=>f.type==='file'&&(dir==='anims'?/\.(glb|fbx|json)$/i:/\.glb$/i).test(f.name))},
+  async sha(path,pv){const r=await fetch(this.url(path,pv)+'?ref='+encodeURIComponent(this.cfg.branch),{headers:this.hdr()});return r.ok?(await r.json()).sha:null},
+  async get(path,pv){const r=await fetch(this.url(path,pv)+'?ref='+encodeURIComponent(this.cfg.branch),{headers:this.hdr(true)});if(!r.ok)throw new Error('GitHub '+r.status);return r.arrayBuffer()},
+  async put(path,buf,msg,pv){if(!this.cfg.token)throw new Error('jeton GitHub manquant (écriture impossible)');if(pv)await this.checkPriv();const u8=new Uint8Array(buf);let b='';for(let i=0;i<u8.length;i+=32768)b+=String.fromCharCode.apply(null,u8.subarray(i,i+32768));
+    const body={message:msg,content:btoa(b),branch:this.cfg.branch},sh=await this.sha(path,pv);if(sh)body.sha=sh;
+    const r=await fetch(this.url(path,pv),{method:'PUT',headers:{...this.hdr(),'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw new Error('GitHub '+r.status+' '+((await r.json().catch(()=>({}))).message||''))},
+  async del(path,pv){if(!this.cfg.token)throw new Error('jeton GitHub manquant');const sh=await this.sha(path,pv);if(!sh)return;const r=await fetch(this.url(path,pv),{method:'DELETE',headers:{...this.hdr(),'Content-Type':'application/json'},body:JSON.stringify({message:'supprime '+path,sha:sh,branch:this.cfg.branch})});if(!r.ok)throw new Error('GitHub '+r.status)}};
 CLOUD.load();
+const VIS={m:{},async load(){try{this.m=(await IDB.tx('readonly',st=>st.get('visidx')))||{}}catch(e){this.m={}}},async save(){try{await IDB.tx('readwrite',st=>st.put(this.m,'visidx'))}catch(e){}},
+  of(key){return this.m[key]||(CLOUD.idx.has(key)?(CLOUD.idx.get(key).pv?'private':'public'):'private')},async set(key,v){this.m[key]=v;await this.save()}};
+const visIcon=v=>v==='public'?'🌐':'🔒';
 // clé de la banque (« piece:haut:nom » ou « nom » pour un personnage) <-> chemin dans le dépôt (pieces/haut__nom.glb, chars/nom.glb)
-const cpath=k=>k.startsWith('piece:')?(([,sl,...r])=>`pieces/${sl}__${r.join(':')}.glb`)(k.split(':')):`chars/${k}.glb`;
-const ckey=p=>{const[d,f]=p.split('/'),n=f.replace(/\.glb$/i,'');return d==='pieces'?'piece:'+n.replace('__',':'):n};
+const cpath=k=>k==='animidx'?'anims/index.json':k.startsWith('anim:')?'anims/'+k.slice(5).replace(':','__'):k.startsWith('piece:')?(([,sl,...r])=>`pieces/${sl}__${r.join(':')}.glb`)(k.split(':')):`chars/${k}.glb`;
+const ckey=p=>{const i=p.indexOf('/'),d=p.slice(0,i),f=p.slice(i+1);if(d==='anims')return f==='index.json'?'animidx':'anim:'+f.replace('__',':');const n=f.replace(/\.glb$/i,'');return d==='pieces'?'piece:'+n.replace('__',':'):n};
+const HIDDEN=/^(animidx|visidx)$/;
 const STORE={
-  async keys(){let k=await IDB.tx('readonly',s=>s.getAllKeys())||[];k=k.map(String);if(CLOUD.cfg.on){try{CLOUD.idx.clear();for(const d of ['pieces','chars'])for(const f of await CLOUD.list(d)){const key=ckey(d+'/'+f.name);CLOUD.idx.set(key,f);if(!k.includes(key))k.push(key)}CLOUD.msg=''}catch(e){CLOUD.msg='Stockage GitHub injoignable : '+e.message+' (copie locale utilisée)'}}return k},
-  async get(key){let b=await IDB.tx('readonly',s=>s.get(key));if(b)return b;if(CLOUD.cfg.on){b=await CLOUD.get(cpath(key));try{await IDB.tx('readwrite',s=>s.put(b,key))}catch(e){}}return b},
-  async put(key,buf){await IDB.tx('readwrite',s=>s.put(buf,key));if(CLOUD.cfg.on&&CLOUD.cfg.token){await CLOUD.put(cpath(key),buf,'ajoute '+cpath(key));CLOUD.msg=''}else if(CLOUD.cfg.on)CLOUD.msg='Enregistré en local seulement : ajoute un jeton GitHub pour le stockage permanent.'},
-  async del(key){await IDB.tx('readwrite',s=>s.delete(key));if(CLOUD.cfg.on&&CLOUD.cfg.token)await CLOUD.del(cpath(key))}};
+  async keys(){let k=((await IDB.tx('readonly',s=>s.getAllKeys()))||[]).map(String).filter(x=>!HIDDEN.test(x));
+    if(CLOUD.cfg.on){CLOUD.idx.clear();CLOUD.msg='';const priv=CLOUD.cfg.token&&CLOUD.cfg.prepo;
+      for(const pv of priv?[false,true]:[false]){try{for(const d of ['pieces','chars','anims'])for(const f of await CLOUD.list(d,pv)){const key=ckey(d+'/'+f.name);if(HIDDEN.test(key))continue;CLOUD.idx.set(key,{pv,f});if(!k.includes(key))k.push(key)}}
+        catch(e){CLOUD.msg=(pv?'Dépôt privé injoignable : ':'Stockage GitHub injoignable : ')+e.message+' (copie locale utilisée)'}}}
+    return k},
+  async get(key){let b=await IDB.tx('readonly',s=>s.get(key));if(b)return b;if(CLOUD.cfg.on){const e=CLOUD.idx.get(key);const order=e?[e.pv]:[false,true];let err;for(const pv of order){try{if(pv&&!CLOUD.cfg.prepo)continue;b=await CLOUD.get(cpath(key),pv);break}catch(x){err=x}}if(!b)throw err||new Error('introuvable');try{await IDB.tx('readwrite',s=>s.put(b,key))}catch(e){}}return b},
+  async put(key,buf,vis){vis=vis||VIS.of(key);await VIS.set(key,vis);await IDB.tx('readwrite',s=>s.put(buf,key));CLOUD.msg='';
+    if(CLOUD.cfg.on){const pv=vis==='private';if(pv&&!(CLOUD.cfg.prepo&&CLOUD.cfg.token))CLOUD.msg='Privé : gardé dans ce navigateur seulement (configure un dépôt privé pour le sauvegarder).';
+      else if(!CLOUD.cfg.token)CLOUD.msg='Enregistré en local seulement : ajoute un jeton GitHub pour le stockage permanent.';
+      else{await CLOUD.put(cpath(key),buf,'ajoute '+cpath(key),pv);CLOUD.idx.set(key,{pv})}}},
+  async setVis(key,vis){const old=VIS.of(key);if(old===vis)return;const buf=await this.get(key);await this.put(key,buf,vis);
+    if(CLOUD.cfg.on&&CLOUD.cfg.token){const e=CLOUD.idx.get(key);const oldPv=old==='private';try{await CLOUD.del(cpath(key),oldPv)}catch(x){}}},
+  async del(key){await IDB.tx('readwrite',s=>s.delete(key));const e=CLOUD.idx.get(key);delete VIS.m[key];await VIS.save();
+    if(CLOUD.cfg.on&&CLOUD.cfg.token){for(const pv of e?[e.pv]:[false,true]){if(pv&&!CLOUD.cfg.prepo)continue;try{await CLOUD.del(cpath(key),pv)}catch(x){}}CLOUD.idx.delete(key)}}};
 async function bankInit(){
   try{BANK.chars=(await (await fetch('bank/catalog.json')).json()).characters}catch(e){BANK.chars=[]}
   try{BANK.mine=(await STORE.keys()).filter(k=>!/^(piece:|anim:|animidx$)/.test(k))}catch(e){BANK.mine=[]}
-  $('#zchar').innerHTML=`<optgroup label="Banque (libre de droits)">${BANK.chars.map(c=>`<option value="b:${c.id}">${c.name} · ${c.source}</option>`).join('')}</optgroup>`+(BANK.mine.length?`<optgroup label="Mes personnages">${BANK.mine.map(k=>`<option value="m:${k}">${k}</option>`).join('')}</optgroup>`:'')}
+  $('#zchar').innerHTML=`<optgroup label="Banque (libre de droits)">${BANK.chars.map(c=>`<option value="b:${c.id}">${c.name} · ${c.source}</option>`).join('')}</optgroup>`+(BANK.mine.length?`<optgroup label="Mes personnages (🔒 privé · 🌐 public)">${BANK.mine.map(k=>`<option value="m:${k}">${visIcon(VIS.of(k))} ${k}</option>`).join('')}</optgroup>`:'')}
 $('#zload').onclick=async()=>{const v=$('#zchar').value;if(!v)return;zsay('Chargement…');
   try{let f;if(v[0]==='b'){const c=BANK.chars.find(x=>x.id===v.slice(2)),r=await fetch('bank/'+c.file);if(!r.ok)throw new Error('HTTP '+r.status);f=new File([await r.blob()],c.file)}
     else{const buf=await STORE.get(v.slice(2));if(!buf)throw new Error('introuvable');f=new File([buf],v.slice(2)+'.glb')}
     await loadFile(f);zsay(`« ${f.name} » chargé : ${M.userData.rig&&M.userData.rig.length?'squelette présent':'pas de squelette (il sera posé automatiquement)'}.`)}catch(e){zsay('Échec : '+e.message,1)}};
+$('#zvisb').onclick=async()=>{const v=$('#zchar').value;if(v[0]!=='m')return zsay('Choisis un personnage de « Mes personnages ».',1);const k=v.slice(2),to=VIS.of(k)==='public'?'private':'public';
+  try{await STORE.setVis(k,to);await bankInit();$('#zchar').value=v;zsay(`« ${k} » est maintenant ${visIcon(to)} ${to==='public'?'public (libre d\'utilisation)':'privé'}.${CLOUD.msg?' '+CLOUD.msg:''}`)}catch(e){zsay('Échec : '+e.message,1)}};
 $('#znew').onclick=()=>$('#file').click();
 $('#zsave').onclick=async()=>{if(!M)return zsay('Charge d\'abord un personnage.',1);if(!(M.userData.rig&&M.userData.rig.length))return zsay('Pose d\'abord un squelette (il sera posé au moment de générer, ou carte plus bas).',1);
   const nm=safeName(prompt('Nom du personnage ?',(M.userData.name||'perso').replace(/\.[^.]+$/,'')));if(!nm)return;
   try{const{GLTFExporter}=await import('three/addons/exporters/GLTFExporter.js');if(mixer)mixer.stopAllAction();M.traverse(o=>{if(o.isBone&&o.userData.rq){o.position.copy(o.userData.rp);o.quaternion.copy(o.userData.rq)}});M.updateMatrixWorld(true);
     const{E}=bakeForExport(M,[]),buf=await new Promise((ok,ko)=>new GLTFExporter().parse(E,ok,ko,{binary:true,onlyVisible:false,maxTextureSize:1024}));
-    await STORE.put(nm,buf);await bankInit();$('#zchar').value='m:'+nm;zsay(`« ${nm} » enregistré dans ce navigateur (${(buf.byteLength/1048576).toFixed(1)} Mo) : il sera dans « Mes personnages ».`)}catch(e){zsay('Échec : '+e.message,1)}};
+    await STORE.put(nm,buf,$('#zvis').value);await bankInit();$('#zchar').value='m:'+nm;zsay(`« ${nm} » enregistré (${visIcon($('#zvis').value)} ${$('#zvis').value==='public'?'public':'privé'}, ${(buf.byteLength/1048576).toFixed(1)} Mo) : il sera dans « Mes personnages ».${CLOUD.msg?' '+CLOUD.msg:''}`)}catch(e){zsay('Échec : '+e.message,1)}};
 function restBox(){if(mixer)mixer.stopAllAction();M.traverse(o=>{if(o.isBone&&o.userData.rq){o.position.copy(o.userData.rp);o.quaternion.copy(o.userData.rq)}});const sp=M.position.clone(),sr=pivot.rotation.y;M.position.set(0,0,0);pivot.rotation.y=0;M.updateMatrixWorld(true);
   const b=new THREE.Box3().setFromObject(M,true);M.position.copy(sp);pivot.rotation.y=sr;return{box:b}}
 async function ensureClip(src){
@@ -1077,14 +1117,21 @@ function rigReport(r,fix){if(!r)return'Contrôle impossible (il faut un modèle 
 $('#rchk').onclick=()=>{try{rmsg('Contrôle en cours…');setTimeout(()=>{try{const r=rigAnalyse(true);rmsg(rigReport(r,true),!r)}catch(e){rmsg('Échec du contrôle : '+e.message,1);console.error(e)}},30)}catch(e){}};
 
 function cmsg(t,bad){const e=$('#cmsg');e.textContent=t;e.classList.toggle('bad',!!bad)}
-function cloudUI(){const c=CLOUD.cfg;$('#con').checked=c.on;$('#cown').value=c.owner;$('#crepo').value=c.repo;$('#cbr').value=c.branch;$('#ctok').value=c.token}
-function cloudRead(){const c=CLOUD.cfg;c.on=$('#con').checked;c.owner=$('#cown').value.trim();c.repo=$('#crepo').value.trim();c.branch=$('#cbr').value.trim()||'main';c.token=$('#ctok').value.trim();CLOUD.save()}
+function cloudUI(){const c=CLOUD.cfg;$('#con').checked=c.on;$('#cown').value=c.owner;$('#crepo').value=c.repo;$('#cprepo').value=c.prepo;$('#cbr').value=c.branch;$('#ctok').value=c.token}
+function cloudRead(){const c=CLOUD.cfg;c.on=$('#con').checked;c.owner=$('#cown').value.trim();c.repo=$('#crepo').value.trim();c.prepo=$('#cprepo').value.trim();CLOUD.privOk=null;c.branch=$('#cbr').value.trim()||'main';c.token=$('#ctok').value.trim();CLOUD.save()}
 cloudUI();
 $('#ccard').onchange=async e=>{cloudRead();if(e.target.id==='con'||e.target.id==='ctok'){await wdMineLoad();try{await bankInit()}catch(er){}cmsg(CLOUD.cfg.on?(CLOUD.msg||`Banque lue depuis ${CLOUD.cfg.owner}/${CLOUD.cfg.repo} : ${CLOUD.idx.size} élément(s).`):'Stockage GitHub désactivé : banque locale seulement.',!!CLOUD.msg)}};
-$('#ctest').onclick=async()=>{cloudRead();CLOUD.cfg.on=true;$('#con').checked=true;CLOUD.save();try{const a=await CLOUD.list('pieces'),b=await CLOUD.list('chars');const rr=await fetch(`https://api.github.com/repos/${CLOUD.cfg.owner}/${CLOUD.cfg.repo}`,{headers:CLOUD.hdr()});if(!rr.ok)throw new Error(rr.status===404?'dépôt introuvable (ou privé sans jeton)':'GitHub '+rr.status);const j=await rr.json();
-  cmsg(`Dépôt trouvé (${j.private?'privé':'public'}) : ${a.length} pièce(s), ${b.length} personnage(s). Écriture : ${CLOUD.cfg.token?(j.permissions&&j.permissions.push===false?'jeton SANS droit d\'écriture':'jeton présent'):'pas de jeton (lecture seule)'}.`);await wdMineLoad();await bankInit()}catch(e){cmsg('Échec : '+e.message,1)}};
-$('#csync').onclick=async()=>{cloudRead();if(!CLOUD.cfg.token)return cmsg('Colle d\'abord un jeton GitHub.',1);CLOUD.cfg.on=true;try{const loc=(await IDB.tx('readonly',s=>s.getAllKeys())||[]).map(String);await STORE.keys();let n=0;for(const k of loc){if(CLOUD.idx.has(k))continue;const b=await IDB.tx('readonly',s=>s.get(k));if(b){await CLOUD.put(cpath(k),b,'ajoute '+cpath(k));n++}}cmsg(n?`${n} élément(s) envoyé(s) dans le dépôt.`:'Tout est déjà dans le dépôt.');await wdMineLoad()}catch(e){cmsg('Échec : '+e.message,1)}};
-window._test={sheetCanvasAll,atlasJSON,zipImport,zipReport,MYA,anPackSelect,STORE,CLOUD,wdPanel,wdSavePiece,get WO(){return WO},wdMineLoad,closeGeometry,closeModel,closeReport,rigAnalyse,rigReport,setClipTime:(i,t)=>{$("#clip").value=String(i);play(i);playing=false;mixer.setTime(t)},exportGLB:()=>$('#bglb').onclick(),anAdd,AN,wdAdd,get WD(){return WD},generate,get result(){return result},setup,loadFile,addAnims,addSkeleton,get clips(){return clips},get M(){return M},get library(){return library}};
+$('#ctest').onclick=async()=>{cloudRead();CLOUD.cfg.on=true;$('#con').checked=true;CLOUD.save();const out=[];let bad=false;
+  try{for(const pv of[false,true]){if(pv&&!CLOUD.cfg.prepo)continue;const nm=pv?CLOUD.cfg.prepo:CLOUD.cfg.repo;
+    try{const rr=await fetch(`https://api.github.com/repos/${CLOUD.cfg.owner}/${nm}`,{headers:CLOUD.hdr()});if(!rr.ok)throw new Error(rr.status===404?'introuvable (ou privé sans jeton)':'GitHub '+rr.status);const j=await rr.json();
+      const n=(await CLOUD.list('pieces',pv)).length+(await CLOUD.list('chars',pv)).length+(await CLOUD.list('anims',pv)).length;
+      let t=`${pv?'🔒 privé':'🌐 public'} « ${nm} » trouvé (${j.private?'privé':'public'}), ${n} fichier(s) ; écriture : ${CLOUD.cfg.token?(j.permissions&&j.permissions.push===false?'jeton SANS droit d\'écriture':'ok'):'lecture seule'}`;
+      if(pv&&!j.private){t+=' — ⚠ ce dépôt est PUBLIC : les éléments privés ne seront PAS envoyés';bad=true}
+      if(!pv&&j.private)t+=' (privé : les éléments « publics » n\'y seront pas visibles de tous)';out.push(t)}catch(e){out.push((pv?'🔒 privé':'🌐 public')+' « '+nm+' » : '+e.message);bad=true}}
+    if(!CLOUD.cfg.prepo)out.push('Aucun dépôt privé configuré : les éléments 🔒 restent dans ce navigateur.');
+    cmsg(out.join(' | '),bad);await wdMineLoad();await bankInit()}catch(e){cmsg('Échec : '+e.message,1)}};
+$('#csync').onclick=async()=>{cloudRead();try{await cloudBackup();await wdMineLoad();await bankInit()}catch(e){cmsg('Échec : '+e.message,1)}};
+window._test={cloudBackup,mineLoad,sheetCanvasAll,atlasJSON,zipImport,zipReport,MYA,anPackSelect,STORE,CLOUD,wdPanel,wdSavePiece,get WO(){return WO},wdMineLoad,closeGeometry,closeModel,closeReport,rigAnalyse,rigReport,setClipTime:(i,t)=>{$("#clip").value=String(i);play(i);playing=false;mixer.setTime(t)},exportGLB:()=>$('#bglb').onclick(),anAdd,AN,wdAdd,get WD(){return WD},generate,get result(){return result},setup,loadFile,addAnims,addSkeleton,get clips(){return clips},get M(){return M},get library(){return library}};
 </script>
 </body>
 </html>

@@ -363,3 +363,6 @@ fine-grained limité au dépôt, gardé dans le localStorage du navigateur. Test
 ## Génération des animations : images inutiles et étiquettes
 
 À la génération, les images consécutives identiques et la fin d'une animation qui refait un cycle déjà présent plus à gauche (période p : les images p.. répètent 0..) sont retirées, uniquement si elles le sont dans toutes les directions (colonnes alignées). Case « supprimer les images identiques… » à décocher pour tout garder. Une animation réduite à 1 seule image (sur plusieurs demandées) déclenche une alerte ⚠ dans le rapport (squelette, « sur place » ou animation en cause). Les planches exportées ont en première case de chaque ligne le nom et la direction (case « case du nom à gauche », décalage d'une case répercuté dans l'atlas JSON).
+
+## Visibilité privé / public (banque pérenne)
+Chaque personnage, pièce et animation est 🔒 privé (défaut) ou 🌐 public. Public → dépôt public (`character-forge-bank`) ; privé → second dépôt, obligatoirement PRIVÉ (`character-forge-private`, même jeton, vérifié avant chaque écriture). Sans dépôt privé, les éléments privés restent dans le navigateur. Changement de visibilité : boutons 🔒⇄🌐 (personnages), badge cliquable (pièces), « Public ⇄ privé » (animations). Les animations s'importent depuis des .zip mais sont sauvegardées fichier par fichier (pas de zip).
