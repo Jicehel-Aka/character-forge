@@ -372,11 +372,19 @@ function convertClip(S,clip,o){
   const hp=pairs.find(p=>p.t.key==='hips'&&p.s),hs=hipH(Rs,fs),ht=hipH(T,ft),k=hs>0&&ht>0?ht/hs:1,upT=ft?ft.up:new THREE.Vector3(0,1,0);
   const mx=new THREE.AnimationMixer(S.root);mx.clipAction(clip).play();
   const fps=30,N=Math.max(2,Math.round(clip.duration*fps)),times=[],qv=new Map(pairs.filter(p=>p.s).map(p=>[p.t.b,[]])),pv=[],WA=new Map(),sinv=new THREE.Matrix4().copy(S.root.matrixWorld).invert();
+  // membres : si le bras (ou la jambe) du modèle ne pointe pas dans la même direction que celui de la source au repos (modèle en A, source en T),
+  // les rotations de la source sont appliquées à partir de la direction d'origine de la source (sinon les bras partent trop en arrière)
+  const CH={arm:'forearm',forearm:'hand',thigh:'calf',calf:'foot'},corr=new Map(),qI=new THREE.Quaternion();
+  for(const {t,s} of pairs){if(!s)continue;const side=t.key[0]==='L'||t.key[0]==='R'?t.key[0]:'',base=t.key.slice(side.length);
+    const cb=base==='hand'?'forearm':base,ch=CH[cb];if(!ch)continue;const tc=T.find(x=>x.key===side+ch&&!x.dup),sc=sk.get(side+ch);if(!tc||!sc)continue;
+    const dt=tc.p.clone().sub(t.p),ds=sc.p.clone().sub(s.p).applyQuaternion(qa);if(dt.lengthSq()<1e-12||ds.lengthSq()<1e-12)continue;
+    if(base==='hand'){const pr=pairs.find(x=>x.t.key===side+'forearm');if(pr&&corr.has(pr.t))corr.set(t,corr.get(pr.t));continue}
+    corr.set(t,new THREE.Quaternion().setFromUnitVectors(dt.normalize(),ds.normalize()))}
   const prev=new Map();
   for(let i=0;i<=N;i++){const tm=Math.min(clip.duration,i/fps);times.push(tm);mx.setTime(tm);S.root.updateMatrixWorld(true);
     const cur=new Map();for(const p of pairs)if(p.s){const pp=new THREE.Vector3(),q=new THREE.Quaternion();rsMat(sinv,p.s.b).decompose(pp,q,new THREE.Vector3());cur.set(p.s,{p:pp,q})}
     for(const {t,s} of pairs){const pw=t.pBone?WA.get(t.pBone):t.pq;let W;
-      if(s){const c=cur.get(s),D=c.q.clone().multiply(s.q.clone().invert()),Dp=qa.clone().multiply(D).multiply(qa.clone().invert());W=Dp.multiply(t.q);
+      if(s){const c=cur.get(s),D=c.q.clone().multiply(s.q.clone().invert()),Dp=qa.clone().multiply(D).multiply(qa.clone().invert());W=Dp.multiply(corr.has(t)?corr.get(t).clone().multiply(t.q):t.q);
         const loc=pw.clone().invert().multiply(W),pr=prev.get(t.b);if(pr&&pr.dot(loc)<0){loc.x*=-1;loc.y*=-1;loc.z*=-1;loc.w*=-1}prev.set(t.b,loc);qv.get(t.b).push(loc.x,loc.y,loc.z,loc.w)}
       else W=pw.clone().multiply(t.lq);
       WA.set(t.b,W)}
@@ -420,13 +428,23 @@ async function addSkeleton(f){
     const med=a=>{if(a.length<12)return null;a.sort((p,q)=>p-q);return a[a.length>>1]},wp=b=>new THREE.Vector3().setFromMatrixPosition(b.matrixWorld);
     const move=(b,x,y,z)=>{const w=wp(b);if(x!=null)w.x=x;if(y!=null)w.y=y;if(z!=null)w.z=z;b.parent.updateWorldMatrix(true,false);b.parent.worldToLocal(w);b.position.copy(w);b.updateMatrixWorld(true)};
     const hip=key.get('hips'),cx=hip?wp(hip).x:cm.x,H=Hm;
+    for(const sd of['L','R']){const t2=key.get(sd+'thigh'),c2=key.get(sd+'calf'),f2=key.get(sd+'foot');if(t2&&c2&&f2){const a=wp(t2),f=wp(f2);move(c2,null,f.y+.5*(a.y-f.y),null);move(f2,null,f.y,null)}}   // genou à mi-hauteur entre hanche et cheville (proportions humaines)
     for(const sd of['L','R']){const sg=sd==='L'?1:-1;      // gauche du personnage = x>0 si le rig est de face (+Z) ; on teste les deux côtés par la position du pied
       const th=key.get(sd+'thigh'),ca=key.get(sd+'calf'),ft=key.get(sd+'foot');if(!(th&&ca&&ft))continue;const side=wp(ft).x>=cx?1:-1;
       for(const b of[th,ca,ft]){const w=wp(b),xs=[],zs=[];for(let i=0;i<vs.length;i+=3)if(Math.abs(vs[i+1]-w.y)<.02*H&&side*(vs[i]-cx)>.01*H&&Math.abs(vs[i]-w.x)<.14*H){xs.push(vs[i]);zs.push(vs[i+2])}
         const mx=med(xs),mz=med(zs);if(mx!=null)move(b,mx,null,mz)}
       const sh=key.get(sd+'arm'),fa=key.get(sd+'forearm'),hd=key.get(sd+'hand');
-      if(sh&&fa&&hd){for(const b of[sh,fa,hd]){const w=wp(b),ys=[],zs=[];for(let i=0;i<vs.length;i+=3)if(Math.abs(vs[i]-w.x)<.025*H&&Math.abs(vs[i+1]-w.y)<.07*H&&side*(vs[i]-cx)>.1*H){ys.push(vs[i+1]);zs.push(vs[i+2])}
-          const my=med(ys),mz=med(zs);if(my!=null)move(b,null,my,mz)}}}
+      if(sh&&fa&&hd){   // bras : on suit le bras du maillage (pas forcément horizontal) de l'épaule jusqu'au bout de la main
+        const A0=wp(sh),Af=wp(fa),Ah=wp(hd),l1=A0.distanceTo(Af),l2=Af.distanceTo(Ah),Lsk=l1+l2,P=[];
+        for(let i=0;i<vs.length;i+=3)if(side*(vs[i]-cx)>.05*H&&vs[i+1]>bb.min.y+.5*H)P.push(new THREE.Vector3(vs[i],vs[i+1],vs[i+2]));
+        let far=null,fd=0;for(const q of P){const d=q.distanceTo(A0);if(d>fd){fd=d;far=q}}
+        if(far&&fd>.6*Lsk&&fd<1.5*Lsk){const tip=new THREE.Vector3();let nt=0;for(const q of P)if(q.distanceTo(far)<.05*H){tip.add(q);nt++}tip.divideScalar(nt);
+          const dir=tip.clone().sub(A0),L=dir.length();dir.divideScalar(L);const fw=.92,fe=fw*l1/Lsk;
+          const at=f=>{const c=A0.clone().addScaledVector(dir,f*L),acc=new THREE.Vector3();let n=0;
+            for(const q of P){const t=q.clone().sub(A0),u=t.dot(dir);if(Math.abs(u-f*L)<.05*H&&t.addScaledVector(dir,-u).length()<.1*H){acc.add(q);n++}}
+            return n>=3?acc.divideScalar(n):c};
+          const E=at(fe),Wr=at(fw);move(sh,null,null,Math.min(Math.max(E.z,Math.min(A0.z,E.z)),Math.max(A0.z,E.z)));move(fa,E.x,E.y,E.z);move(hd,Wr.x,Wr.y,Wr.z)}}}
+    for(const k of['hips','spine','spine1','spine2','neck','head']){const b=key.get(k);if(!b)continue;const w=wp(b),zs=[];for(let i=0;i<vs.length;i+=3)if(Math.abs(vs[i+1]-w.y)<.03*H&&Math.abs(vs[i]-cx)<.2*H)zs.push(vs[i+2]);const mz=med(zs);if(mz!=null)move(b,null,null,mz)}
     holder.updateMatrixWorld(true)}
   const bs=bonesOf(S),P=bs.map(b=>new THREE.Vector3().setFromMatrixPosition(b.matrixWorld)),idx=new Map(bs.map((b,i)=>[b,i])),E=[];
   bs.forEach((b,i)=>{const ch=b.children.filter(c=>c.isBone);if(ch.length)ch.forEach(c=>E.push([i,P[i],P[idx.get(c)]]));
