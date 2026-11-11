@@ -49,6 +49,7 @@ code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding
     <div class="row"><button id="bglb" title="écrit le modèle avec son squelette (celui du fichier ou celui qui vient d'être ajouté), la garde-robe habillée et, si coché, les animations de la liste">Télécharger le modèle avec squelette (GLB)</button><label class="chip" style="margin:0"><input type="checkbox" id="bglba" checked> avec les animations</label></div>
     <div class="row"><button id="bclose" title="soude les sommets, retire les facettes flottantes et comble les trous : surface fermée, nécessaire à la pose du squelette">Fermer le maillage</button><label class="chip" style="margin:0"><input type="checkbox" id="closeauto" checked> automatiquement avant la pose du squelette</label></div>
     <div class="row"><button id="rchk" title="mesure la symétrie, les proportions et l'étirement du maillage dans des poses extrêmes, puis lisse les poids des sommets qui se déchirent">Contrôler et réparer le squelette</button><label class="chip" style="margin:0"><input type="checkbox" id="rchkauto" checked> automatiquement après la pose du squelette</label></div>
+    <div class="row"><button id="bskin" title="pieds rigides, fin des poids qui fuient (mollet sur le pied, autre jambe, os lointains) et mêmes poids pour les sommets quasi confondus ; mesure l'étirement avant/après sur les animations du modèle">Nettoyer les poids de peau</button><label class="chip" style="margin:0"><input type="checkbox" id="skinauto" checked> automatiquement au chargement (si ça réduit l'étirement)</label></div>
     <p class="mute" id="rmsg" style="white-space:pre-line;margin:6px 0 0">Les animations sont reciblées sur les os du modèle (appariés par nom : Mixamo, Bip01, Blender…). Elles rejoignent la liste « Animation » et « Générer toutes les animations ».</p>
   </div>
   <div class="card" id="acard"><h2>Bibliothèque d'animations (CC0)</h2>
@@ -139,7 +140,8 @@ async function loadFile(f){
     else if(ext==='obj'){root=await new OBJLoader().loadAsync(url)}
     else throw new Error('format non géré');
   }catch(e){$('#info').textContent='Lecture impossible : '+e.message;$('#info').classList.add('bad');return}
-  URL.revokeObjectURL(url);$('#info').classList.remove('bad');setup(root,an,f.name)}
+  URL.revokeObjectURL(url);$('#info').classList.remove('bad');setup(root,an,f.name);
+  if($('#skinauto')&&$('#skinauto').checked&&clips.length&&skinMeshes(M).length)setTimeout(()=>{try{const r=skinFix(M,false);M.__skinRep=r.msg;rmsg(r.msg,!r.ok)}catch(e){console.error(e)}},50)}
 $('#file').onchange=e=>{if(e.target.files[0])loadFile(e.target.files[0]);e.target.value=''};
 addEventListener('dragover',e=>e.preventDefault());addEventListener('drop',e=>{e.preventDefault();if(e.dataTransfer.files[0])loadFile(e.dataTransfer.files[0])});
 
@@ -1027,6 +1029,86 @@ bankInit();drawActs();
    3. épreuve en poses extrêmes (jambe en avant / en arrière, genou plié, jambe écartée, bras levé / en avant / plié / en arrière) :
       on mesure l'étirement de chaque arête du maillage ; une arête étirée ou écrasée = déchirure ou « voile » ;
    4. réparation : les poids des sommets fautifs sont lissés avec leurs voisins, jusqu'à ce que les déchirures disparaissent. */
+/* ---- nettoyage des poids de peau d'un modèle abîmé (pieds en pointe, rubans, coutures qui s'ouvrent) ----
+   Règles appliquées sur tous les maillages à la fois : pieds rigides (orteils fondus dans le pied), poids du mollet sous la cheville rendus au pied,
+   plus d'os de l'autre jambe/bras, plus d'os trop éloignés du sommet, puis mêmes poids pour les sommets quasi confondus (fissures entre pièces).
+   Mesure avant/après l'étirement des arêtes sur les poses des animations du modèle : n'est gardé que s'il y a un gain net. */
+function skinMeshes(root){const a=[];root.traverse(o=>{if(o.isSkinnedMesh&&o.skeleton&&o.geometry.attributes.skinIndex&&o.geometry.attributes.skinWeight)a.push(o)});return a}
+function skinData(sms){
+  const gb=[],gi=new Map(),bp=[],bi=[];
+  for(const m of sms)m.skeleton.bones.forEach((b,i)=>{if(!gi.has(b)){gi.set(b,gb.length);gb.push(b);const inv=m.skeleton.boneInverses[i];bi.push(inv);bp.push(new THREE.Vector3().setFromMatrixPosition(new THREE.Matrix4().copy(inv).invert()))}});
+  const nb=gb.length,off=[0];let nv=0;for(const m of sms){nv+=m.geometry.attributes.position.count;off.push(nv)}
+  const Pw=new Float32Array(nv*3),Wd=new Float32Array(nv*nb),v=new THREE.Vector3(),loc=[];
+  sms.forEach((m,mi)=>{const g=m.geometry,P=g.attributes.position,si=g.attributes.skinIndex,sw=g.attributes.skinWeight,map=m.skeleton.bones.map(b=>gi.get(b));
+    const l=new Int32Array(nb).fill(-1);map.forEach((gj,i)=>{if(l[gj]<0)l[gj]=i});loc.push(l);
+    for(let i=0;i<P.count;i++){v.fromBufferAttribute(P,i).applyMatrix4(m.bindMatrix);const o=off[mi]+i;Pw[3*o]=v.x;Pw[3*o+1]=v.y;Pw[3*o+2]=v.z;
+      for(let c=0;c<4;c++){const w=sw.getComponent(i,c);if(w>0)Wd[o*nb+map[si.getComponent(i,c)]]+=w}}});
+  const keys=gb.map(b=>canon(b.name)),par=gb.map(b=>gi.has(b.parent)?gi.get(b.parent):-1);
+  let H=0;{let lo=1e9,hi=-1e9;for(let i=0;i<nv;i++){lo=Math.min(lo,Pw[3*i+1]);hi=Math.max(hi,Pw[3*i+1])}H=hi-lo||1}
+  return{sms,gb,gi,bp,bi,nb,off,nv,Pw,Wd,loc,keys,par,H}}
+const skinSparse=(D,W)=>{const{nv,nb}=D,si=new Uint16Array(nv*4),sw=new Float32Array(nv*4);
+  for(let u=0;u<nv;u++){const top=[-1,-1,-1,-1],tv=[0,0,0,0];for(let k=0;k<nb;k++){const w=W[u*nb+k];if(w<=0)continue;for(let q=0;q<4;q++)if(w>tv[q]){for(let r=3;r>q;r--){tv[r]=tv[r-1];top[r]=top[r-1]}tv[q]=w;top[q]=k;break}}
+    const sm=tv[0]+tv[1]+tv[2]+tv[3]||1;for(let q=0;q<4;q++){si[4*u+q]=Math.max(top[q],0);sw[4*u+q]=top[q]<0?0:tv[q]/sm}}
+  return{si,sw}};
+/* étirement des arêtes dans les poses des animations : renvoie les sommets dont une arête devient > 3 fois plus longue (et > 1,2 % de la taille) */
+function skinStretch(root,D,W,poses){
+  const{nv,nb,Pw,H,gb,bi,sms}=D,sp=skinSparse(D,W),ed=new Set(),EA=[],EB=[];
+  sms.forEach((m,mi)=>{const g=m.geometry,ix=g.index?g.index.array:null,n=g.attributes.position.count,nt=ix?ix.length:n,o=D.off[mi];
+    for(let t=0;t<nt;t+=3){const a=[ix?ix[t]:t,ix?ix[t+1]:t+1,ix?ix[t+2]:t+2];for(let e=0;e<3;e++){const x=o+a[e],y=o+a[(e+1)%3];if(x===y)continue;const k=x<y?x*nv+y:y*nv+x;if(ed.has(k))continue;ed.add(k);EA.push(x);EB.push(y)}}});
+  const ne=EA.length,L0=new Float32Array(ne);for(let e=0;e<ne;e++){const a=EA[e],b=EB[e];L0[e]=Math.hypot(Pw[3*a]-Pw[3*b],Pw[3*a+1]-Pw[3*b+1],Pw[3*a+2]-Pw[3*b+2])}
+  const pairs=[],mx=new THREE.AnimationMixer(root),bad=new Uint8Array(nv),X=new Float32Array(nv*3),Mj=gb.map(()=>new THREE.Matrix4());let flagged=0;
+  try{for(const[clip,t]of poses){mx.stopAllAction();const a=mx.clipAction(clip);a.play();mx.setTime(t);root.updateMatrixWorld(true);
+    for(let j=0;j<nb;j++)Mj[j].multiplyMatrices(gb[j].matrixWorld,bi[j]);
+    for(let u=0;u<nv;u++){const x=Pw[3*u],y=Pw[3*u+1],z=Pw[3*u+2];let px=0,py=0,pz=0;for(let q=0;q<4;q++){const w=sp.sw[4*u+q];if(!w)continue;const e=Mj[sp.si[4*u+q]].elements;
+        px+=w*(e[0]*x+e[4]*y+e[8]*z+e[12]);py+=w*(e[1]*x+e[5]*y+e[9]*z+e[13]);pz+=w*(e[2]*x+e[6]*y+e[10]*z+e[14])}X[3*u]=px;X[3*u+1]=py;X[3*u+2]=pz}
+    for(let e=0;e<ne;e++){const a2=EA[e],b2=EB[e],l=Math.hypot(X[3*a2]-X[3*b2],X[3*a2+1]-X[3*b2+1],X[3*a2+2]-X[3*b2+2]);if(l>.012*H&&l>3*Math.max(L0[e],.002*H)){bad[a2]=1;bad[b2]=1;if(pairs.length<4000)pairs.push([a2,b2,l/Math.max(L0[e],1e-9),L0[e]])}}}
+  }finally{mx.stopAllAction();mx.uncacheRoot(root)}
+  for(let u=0;u<nv;u++)flagged+=bad[u];return{n:flagged,bad,pairs}}
+function skinRules(D,opt={}){
+  const{nv,nb,Pw,H,bp,keys,par,gb}=D,W=Float32Array.from(D.Wd),rep={toes:0,ankle:0,side:0,far:0,shared:0},ix=k=>keys.indexOf(k);
+  const hips=ix('hips'),head=ix('head'),lt=ix('Lthigh'),rt=ix('Rthigh'),framed=hips>=0&&head>=0&&lt>=0&&rt>=0;
+  const up=framed?bp[head].clone().sub(bp[hips]).normalize():new THREE.Vector3(0,1,0),Rt=framed?bp[rt].clone().sub(bp[lt]).addScaledVector(up,-bp[rt].clone().sub(bp[lt]).dot(up)).normalize():new THREE.Vector3(1,0,0);
+  const isToe=keys.map(k=>/toe/.test(k)),tgt=keys.map((k,i)=>{let j=i;while(j>=0&&isToe[j])j=par[j];return j>=0?j:i});
+  const side=keys.map(k=>/^[LR]/.test(k)&&/(thigh|calf|foot|toe|arm|forearm|hand|shoulder)/.test(k)?(k[0]==='R'?1:-1):0),legB=keys.map(k=>/(thigh|calf|foot|toe)/.test(k));
+  // segments d'os (os -> chaque enfant ; os terminal : prolongement)
+  const E=[];gb.forEach((b,j)=>{const ch=[];gb.forEach((c,k)=>{if(par[k]===j)ch.push(k)});if(ch.length)ch.forEach(k=>E.push([j,bp[j],bp[k]]));else E.push([j,bp[j],par[j]>=0?bp[j].clone().addScaledVector(bp[j].clone().sub(bp[par[j]]),.5):bp[j]])});
+  const dk=new Float32Array(nb),pv=new THREE.Vector3(),sg=new THREE.Vector3(),tp=new THREE.Vector3();
+  const ank=['L','R'].map(sd=>({c:ix(sd+'calf'),f:ix(sd+'foot')})).filter(a=>a.c>=0&&a.f>=0);
+  for(let u=0;u<nv;u++){const w=W.subarray(u*nb,u*nb+nb);pv.set(Pw[3*u],Pw[3*u+1],Pw[3*u+2]);
+    for(let k=0;k<nb;k++)if(isToe[k]&&w[k]>0){w[tgt[k]]+=w[k];w[k]=0;rep.toes++}
+    for(const a of ank){const h=pv.clone().sub(bp[a.f]).dot(up);if(h<0&&w[a.c]>0){const t=Math.min(1,-h/(.025*H)),m=w[a.c]*t;w[a.c]-=m;w[a.f]+=m;if(m>1e-3)rep.ankle++}}
+    if(framed){const lat=pv.clone().sub(bp[hips]).dot(Rt);for(let k=0;k<nb;k++)if(side[k]&&w[k]>0&&side[k]*lat<-(legB[k]?.015:.04)*H){w[k]=0;rep.side++}}
+    dk.fill(1e9);let dm=1e9;for(const[k,a,b]of E){if(isToe[k])continue;sg.copy(b).sub(a);let t=pv.clone().sub(a).dot(sg)/(sg.lengthSq()+1e-12);t=t<0?0:t>1?1:t;tp.copy(a).addScaledVector(sg,t);const d=tp.distanceTo(pv);if(d<dk[k])dk[k]=d;if(d<dm)dm=d}
+    for(let k=0;k<nb;k++)if(w[k]>0&&dk[k]>dm+.07*H){w[k]=0;rep.far++}
+    if(framed&&pv.clone().sub(bp[hips]).dot(up)<-.1*H){let s0=0,bd=1e9;for(let k=0;k<nb;k++)if(legB[k]&&side[k]&&dk[k]<bd){bd=dk[k];s0=side[k]}   // sous l’entrejambe : les deux jambes sont distinctes, un sommet n'obéit qu'à la plus proche
+      if(s0)for(let k=0;k<nb;k++)if(legB[k]&&side[k]&&side[k]!==s0&&w[k]>0){w[k]=0;rep.side++}}
+    let sm=0;for(let k=0;k<nb;k++)sm+=w[k];if(sm<=1e-9){let bk=0,bd=1e9;for(let k=0;k<nb;k++)if(!isToe[k]&&dk[k]<bd){bd=dk[k];bk=k}w[bk]=1;sm=1}for(let k=0;k<nb;k++)w[k]/=sm}
+  // sommets quasi confondus (fissures entre pièces) : mêmes poids moyens
+  const r=(opt.share==null?.003:opt.share)*H,cell=new Map(),cid=(x,y,z)=>Math.floor(x/r)+','+Math.floor(y/r)+','+Math.floor(z/r);
+  for(let u=0;u<nv;u++){const k=cid(Pw[3*u],Pw[3*u+1],Pw[3*u+2]);let l=cell.get(k);if(!l){l=[];cell.set(k,l)}l.push(u)}
+  const W2=new Float32Array(W.length),r2=r*r;
+  for(let u=0;u<nv;u++){const x=Pw[3*u],y=Pw[3*u+1],z=Pw[3*u+2],cx=Math.floor(x/r),cy=Math.floor(y/r),cz=Math.floor(z/r);let cnt=0;
+    for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(let dz=-1;dz<=1;dz++){const l=cell.get((cx+dx)+','+(cy+dy)+','+(cz+dz));if(!l)continue;
+      for(const v2 of l){const ex=Pw[3*v2]-x,ey=Pw[3*v2+1]-y,ez=Pw[3*v2+2]-z;if(ex*ex+ey*ey+ez*ez<=r2){cnt++;for(let k=0;k<nb;k++)W2[u*nb+k]+=W[v2*nb+k]}}}
+    if(cnt>1)rep.shared++;for(let k=0;k<nb;k++)W2[u*nb+k]/=cnt}
+  return{W:W2,rep}}
+function skinWrite(D,W){const{sms,nb,off,loc}=D,sp=skinSparse(D,W);
+  sms.forEach((m,mi)=>{const g=m.geometry,n=g.attributes.position.count,si=new Uint16Array(n*4),sw=new Float32Array(n*4),l=loc[mi];
+    for(let i=0;i<n;i++){const u=off[mi]+i;for(let q=0;q<4;q++){const k=sp.si[4*u+q];si[4*i+q]=sp.sw[4*u+q]>0&&l[k]>=0?l[k]:0;sw[4*i+q]=l[k]>=0?sp.sw[4*u+q]:0}}
+    g.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(si,4));g.setAttribute('skinWeight',new THREE.Float32BufferAttribute(sw,4))})}
+function skinPoses(clips,max=16){const P=[];for(const c of clips)for(const f of[0,.2,.4,.6,.8])P.push([c,c.duration*f]);if(P.length<=max)return P;const st=P.length/max;return Array.from({length:max},(_,i)=>P[Math.floor(i*st)])}
+/* force = true : applique même sans gain mesuré (bouton) ; sinon seulement si l'étirement baisse nettement */
+function skinFix(root,force){
+  const sms=skinMeshes(root);if(!sms.length)return{ok:false,msg:'Aucun maillage avec squelette : rien à nettoyer.'};
+  const D=skinData(sms),poses=clips&&clips.length?skinPoses(clips):[];let before=null;
+  if(poses.length)before=skinStretch(root,D,D.Wd,poses).n;
+  const{W,rep}=skinRules(D),after=poses.length?skinStretch(root,D,W,poses).n:null;
+  const gain=before!=null&&after!=null?before-after:0,apply=force||(before!=null&&before>0&&after<=before*.7);
+  if(apply)skinWrite(D,W);
+  const how=poses.length?`${before} → ${after} sommet(s) étiré(s) sur ${poses.length} poses`:'aucune animation pour mesurer l\'étirement';
+  const msg=apply?`Poids de peau nettoyés (${how}) : ${rep.toes} orteil(s) fondu(s) dans le pied, ${rep.ankle} poids de mollet rendus au pied, ${rep.side} poids de l'autre côté et ${rep.far} poids trop lointains retirés, ${rep.shared} sommets harmonisés avec leurs voisins.`
+    :(before===0?`Poids de peau sains : aucun étirement anormal sur ${poses.length} poses.`:`Nettoyage des poids non appliqué : pas de gain net (${how}).`);
+  return{ok:true,applied:apply,before,after,rep,msg}}
 function rigAnalyse(fix){
   const T=M&&M.userData.rig;if(!T||!T.length)return null;const fr=frameOf(T);if(!fr)return null;
   const up=fr.up.clone(),Rt=new THREE.Vector3(1,0,0).applyQuaternion(fr.q).normalize(),F=new THREE.Vector3(0,0,-1).applyQuaternion(fr.q).normalize();
@@ -1114,6 +1196,7 @@ function rigReport(r,fix){if(!r)return'Contrôle impossible (il faut un modèle 
   if(fix)L.push(`Réparation : ${r.cross} sommet(s) corrigé(s) côté gauche/droite, ${r.cracks} soudure(s) harmonisée(s), ${r.iters} passe(s) de lissage → ${r.badAfter} sommet(s) encore fautif(s).`);
   return L.join('\n')}
 
+$('#bskin').onclick=()=>{rmsg('Nettoyage des poids…');setTimeout(()=>{try{const r=skinFix(M,true);rmsg(r.msg,!r.ok)}catch(e){rmsg('Échec : '+e.message,1);console.error(e)}},30)};
 $('#rchk').onclick=()=>{try{rmsg('Contrôle en cours…');setTimeout(()=>{try{const r=rigAnalyse(true);rmsg(rigReport(r,true),!r)}catch(e){rmsg('Échec du contrôle : '+e.message,1);console.error(e)}},30)}catch(e){}};
 
 function cmsg(t,bad){const e=$('#cmsg');e.textContent=t;e.classList.toggle('bad',!!bad)}
@@ -1131,7 +1214,7 @@ $('#ctest').onclick=async()=>{cloudRead();CLOUD.cfg.on=true;$('#con').checked=tr
     if(!CLOUD.cfg.prepo)out.push('Aucun dépôt privé configuré : les éléments 🔒 restent dans ce navigateur.');
     cmsg(out.join(' | '),bad);await wdMineLoad();await bankInit()}catch(e){cmsg('Échec : '+e.message,1)}};
 $('#csync').onclick=async()=>{cloudRead();try{await cloudBackup();await wdMineLoad();await bankInit()}catch(e){cmsg('Échec : '+e.message,1)}};
-window._test={cloudBackup,mineLoad,sheetCanvasAll,atlasJSON,zipImport,zipReport,MYA,anPackSelect,STORE,CLOUD,wdPanel,wdSavePiece,get WO(){return WO},wdMineLoad,closeGeometry,closeModel,closeReport,rigAnalyse,rigReport,setClipTime:(i,t)=>{$("#clip").value=String(i);play(i);playing=false;mixer.setTime(t)},exportGLB:()=>$('#bglb').onclick(),anAdd,AN,wdAdd,get WD(){return WD},generate,get result(){return result},setup,loadFile,addAnims,addSkeleton,get clips(){return clips},get M(){return M},get library(){return library}};
+window._test={skinFix,skinMeshes,skinData,skinRules,skinStretch,skinPoses,cloudBackup,mineLoad,sheetCanvasAll,atlasJSON,zipImport,zipReport,MYA,anPackSelect,STORE,CLOUD,wdPanel,wdSavePiece,get WO(){return WO},wdMineLoad,closeGeometry,closeModel,closeReport,rigAnalyse,rigReport,setClipTime:(i,t)=>{$("#clip").value=String(i);play(i);playing=false;mixer.setTime(t)},exportGLB:()=>$('#bglb').onclick(),anAdd,AN,wdAdd,get WD(){return WD},generate,get result(){return result},setup,loadFile,addAnims,addSkeleton,get clips(){return clips},get M(){return M},get library(){return library}};
 </script>
 </body>
 </html>
