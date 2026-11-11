@@ -345,3 +345,11 @@ partagée par exactement 2 triangles » → sinon repli volumique (voxels + ferm
 `forge hull` l'applique d'office (`--no-close` pour l'éviter) ; `forge close in.obj|glb out.obj|glb [--mode auto|fill|voxel]` pour un fichier ;
 dans `docs/modele.html`, case « automatiquement avant la pose du squelette » (version JS : soudure, pièces flottantes, trous en éventail,
 attributs UV/normales/matériaux conservés). Tests : `tests/test_meshclose.py`, `tests/ui_modele_close.py`.
+
+## Vêtements du modèle (modele.html, carte « Garde-robe »)
+
+Chaque maillage du modèle (un par matériau) est listé : case à décocher pour ôter le vêtement, couleur unie, texture (image au choix, suit les UV),
+mode de transparence opaque / découpé / fondu avec opacité, double face. « Corriger la transparence » passe tout le translucide en découpé
+(cause des visages qui clignotent et des dessous visibles à travers une jupe : tri par objet des matériaux BLEND). « Banque » range la pièce
+(GLB squelette + maillage) dans le navigateur (IndexedDB, onglet « Ma banque ») pour l'enfiler sur un autre personnage ; les réglages sont
+écrits dans le GLB exporté. Test : `tests/ui_modele_clothes.py`.
