@@ -22,3 +22,13 @@ Licences lues sur les pages/README des projets, à re-vérifier avant tout usage
 - Liberated Pixel Cup (LPC) sprites : CC-BY-SA 3.0 / GPL-3.0 — utilisés uniquement comme jeu de test local pour `forge voxel`, non redistribués.
 
 - SpriteKiln (MIT, Lucas Ramos) : planches 8 directions et JSON de caméra utilisés comme jeu de test pour `forge/hullcam.py`.
+
+## Garde-robe de `modele.html` (docs/wardrobe/, ajoutée en novembre 2026)
+Toutes les pièces sont **CC0 1.0** (domaine public, aucune attribution requise ; crédit volontaire ci-dessous). Récupérées via GitHub, converties en GLB par `tools/wardrobe/build.mjs`.
+| Pack | Auteur | Licence | Pièces reprises | Source |
+|---|---|---|---|---|
+| Ultimate Modular Men Pack, Ultimate Modular Women Pack | Quaternius | CC0 1.0 | 97 pièces habillables (haut, bas, chaussures, tête, cheveux, sac) découpées dans les 21 personnages | https://quaternius.com/packs/ultimatemodularcharacters.html, .../ultimatemodularwomen.html (copie : github.com/trebeljahr/quaternius-showcase, `public/glb/`) |
+| Modular Weapons Pack | Quaternius | CC0 1.0 | armes et boucliers | https://quaternius.com/packs/medievalweapons.html |
+| Ultimate RPG Pack | Quaternius | CC0 1.0 | couronnes, colliers, sacs, gant, plastrons, objets | https://quaternius.com/packs/ultimaterpg.html |
+| KayKit Character Pack : Adventurers 1.0 | Kay Lousberg | CC0 1.0 | armes, boucliers, livre, carquois | github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0 |
+Le dépôt `trebeljahr/quaternius-showcase` (visionneuse, code MIT) n'a servi que de miroir des GLB ; ses `LICENSES.md` confirme CC0 pour chaque pack.

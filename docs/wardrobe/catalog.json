@@ -1,0 +1,2067 @@
+{
+ "parts": [
+  {
+   "id": "men_adventurer_haut",
+   "slot": "haut",
+   "name": "Adventurer (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_adventurer_haut.glb",
+   "kb": 370
+  },
+  {
+   "id": "men_adventurer_bas",
+   "slot": "bas",
+   "name": "Adventurer (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_adventurer_bas.glb",
+   "kb": 99
+  },
+  {
+   "id": "men_adventurer_chaussures",
+   "slot": "chaussures",
+   "name": "Adventurer (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_adventurer_chaussures.glb",
+   "kb": 63
+  },
+  {
+   "id": "men_adventurer_tete",
+   "slot": "tete",
+   "name": "Adventurer (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_adventurer_tete.glb",
+   "kb": 65
+  },
+  {
+   "id": "men_adventurer_sac",
+   "slot": "sac",
+   "name": "Adventurer (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_adventurer_sac.glb",
+   "kb": 192
+  },
+  {
+   "id": "men_adventurer_cheveux",
+   "slot": "cheveux",
+   "name": "Adventurer (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_adventurer_cheveux.glb",
+   "kb": 332
+  },
+  {
+   "id": "men_beach_haut",
+   "slot": "haut",
+   "name": "Beach (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_beach_haut.glb",
+   "kb": 294
+  },
+  {
+   "id": "men_beach_bas",
+   "slot": "bas",
+   "name": "Beach (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_beach_bas.glb",
+   "kb": 100
+  },
+  {
+   "id": "men_beach_chaussures",
+   "slot": "chaussures",
+   "name": "Beach (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_beach_chaussures.glb",
+   "kb": 85
+  },
+  {
+   "id": "men_beach_tete",
+   "slot": "tete",
+   "name": "Beach (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_beach_tete.glb",
+   "kb": 82
+  },
+  {
+   "id": "men_beach_cheveux",
+   "slot": "cheveux",
+   "name": "Beach (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_beach_cheveux.glb",
+   "kb": 181
+  },
+  {
+   "id": "men_casual_haut",
+   "slot": "haut",
+   "name": "Casual (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_casual_haut.glb",
+   "kb": 321
+  },
+  {
+   "id": "men_casual_bas",
+   "slot": "bas",
+   "name": "Casual (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_casual_bas.glb",
+   "kb": 91
+  },
+  {
+   "id": "men_casual_chaussures",
+   "slot": "chaussures",
+   "name": "Casual (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_casual_chaussures.glb",
+   "kb": 67
+  },
+  {
+   "id": "men_casual_tete",
+   "slot": "tete",
+   "name": "Casual (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_casual_tete.glb",
+   "kb": 64
+  },
+  {
+   "id": "men_casual_cheveux",
+   "slot": "cheveux",
+   "name": "Casual (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_casual_cheveux.glb",
+   "kb": 158
+  },
+  {
+   "id": "men_casual2_haut",
+   "slot": "haut",
+   "name": "Casual2 (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_casual2_haut.glb",
+   "kb": 297
+  },
+  {
+   "id": "men_casual2_bas",
+   "slot": "bas",
+   "name": "Casual2 (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_casual2_bas.glb",
+   "kb": 112
+  },
+  {
+   "id": "men_casual2_chaussures",
+   "slot": "chaussures",
+   "name": "Casual2 (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_casual2_chaussures.glb",
+   "kb": 71
+  },
+  {
+   "id": "men_casual2_tete",
+   "slot": "tete",
+   "name": "Casual2 (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_casual2_tete.glb",
+   "kb": 66
+  },
+  {
+   "id": "men_casual2_cheveux",
+   "slot": "cheveux",
+   "name": "Casual2 (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_casual2_cheveux.glb",
+   "kb": 136
+  },
+  {
+   "id": "men_farmer_haut",
+   "slot": "haut",
+   "name": "Farmer (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_farmer_haut.glb",
+   "kb": 354
+  },
+  {
+   "id": "men_farmer_chaussures",
+   "slot": "chaussures",
+   "name": "Farmer (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_farmer_chaussures.glb",
+   "kb": 54
+  },
+  {
+   "id": "men_farmer_tete",
+   "slot": "tete",
+   "name": "Farmer (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_farmer_tete.glb",
+   "kb": 99
+  },
+  {
+   "id": "men_king_haut",
+   "slot": "haut",
+   "name": "King (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_king_haut.glb",
+   "kb": 467
+  },
+  {
+   "id": "men_king_bas",
+   "slot": "bas",
+   "name": "King (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_king_bas.glb",
+   "kb": 198
+  },
+  {
+   "id": "men_king_chaussures",
+   "slot": "chaussures",
+   "name": "King (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_king_chaussures.glb",
+   "kb": 76
+  },
+  {
+   "id": "men_king_tete",
+   "slot": "tete",
+   "name": "King (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_king_tete.glb",
+   "kb": 168
+  },
+  {
+   "id": "men_king_cheveux",
+   "slot": "cheveux",
+   "name": "King (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_king_cheveux.glb",
+   "kb": 255
+  },
+  {
+   "id": "men_punk_haut",
+   "slot": "haut",
+   "name": "Punk (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_punk_haut.glb",
+   "kb": 313
+  },
+  {
+   "id": "men_punk_bas",
+   "slot": "bas",
+   "name": "Punk (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_punk_bas.glb",
+   "kb": 89
+  },
+  {
+   "id": "men_punk_chaussures",
+   "slot": "chaussures",
+   "name": "Punk (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_punk_chaussures.glb",
+   "kb": 71
+  },
+  {
+   "id": "men_punk_tete",
+   "slot": "tete",
+   "name": "Punk (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_punk_tete.glb",
+   "kb": 144
+  },
+  {
+   "id": "men_spacesuit_haut",
+   "slot": "haut",
+   "name": "Spacesuit (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_spacesuit_haut.glb",
+   "kb": 420
+  },
+  {
+   "id": "men_spacesuit_bas",
+   "slot": "bas",
+   "name": "Spacesuit (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_spacesuit_bas.glb",
+   "kb": 128
+  },
+  {
+   "id": "men_spacesuit_chaussures",
+   "slot": "chaussures",
+   "name": "Spacesuit (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_spacesuit_chaussures.glb",
+   "kb": 72
+  },
+  {
+   "id": "men_spacesuit_tete",
+   "slot": "tete",
+   "name": "Spacesuit (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_spacesuit_tete.glb",
+   "kb": 479
+  },
+  {
+   "id": "men_suit_haut",
+   "slot": "haut",
+   "name": "Suit (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_suit_haut.glb",
+   "kb": 311
+  },
+  {
+   "id": "men_suit_bas",
+   "slot": "bas",
+   "name": "Suit (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_suit_bas.glb",
+   "kb": 112
+  },
+  {
+   "id": "men_suit_chaussures",
+   "slot": "chaussures",
+   "name": "Suit (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_suit_chaussures.glb",
+   "kb": 67
+  },
+  {
+   "id": "men_suit_tete",
+   "slot": "tete",
+   "name": "Suit (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_suit_tete.glb",
+   "kb": 65
+  },
+  {
+   "id": "men_suit_cheveux",
+   "slot": "cheveux",
+   "name": "Suit (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_suit_cheveux.glb",
+   "kb": 210
+  },
+  {
+   "id": "men_swat_haut",
+   "slot": "haut",
+   "name": "Swat (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_swat_haut.glb",
+   "kb": 328
+  },
+  {
+   "id": "men_swat_bas",
+   "slot": "bas",
+   "name": "Swat (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_swat_bas.glb",
+   "kb": 194
+  },
+  {
+   "id": "men_swat_chaussures",
+   "slot": "chaussures",
+   "name": "Swat (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_swat_chaussures.glb",
+   "kb": 70
+  },
+  {
+   "id": "men_swat_tete",
+   "slot": "tete",
+   "name": "Swat (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_swat_tete.glb",
+   "kb": 186
+  },
+  {
+   "id": "men_worker_haut",
+   "slot": "haut",
+   "name": "Worker (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_worker_haut.glb",
+   "kb": 320
+  },
+  {
+   "id": "men_worker_bas",
+   "slot": "bas",
+   "name": "Worker (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_worker_bas.glb",
+   "kb": 99
+  },
+  {
+   "id": "men_worker_chaussures",
+   "slot": "chaussures",
+   "name": "Worker (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_worker_chaussures.glb",
+   "kb": 62
+  },
+  {
+   "id": "men_worker_tete",
+   "slot": "tete",
+   "name": "Worker (homme)",
+   "gender": "men",
+   "source": "Quaternius Ultimate Modular Men Pack",
+   "file": "parts/men_worker_tete.glb",
+   "kb": 111
+  },
+  {
+   "id": "women_adventurer_haut",
+   "slot": "haut",
+   "name": "Adventurer (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_adventurer_haut.glb",
+   "kb": 416
+  },
+  {
+   "id": "women_adventurer_bas",
+   "slot": "bas",
+   "name": "Adventurer (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_adventurer_bas.glb",
+   "kb": 189
+  },
+  {
+   "id": "women_adventurer_chaussures",
+   "slot": "chaussures",
+   "name": "Adventurer (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_adventurer_chaussures.glb",
+   "kb": 94
+  },
+  {
+   "id": "women_adventurer_tete",
+   "slot": "tete",
+   "name": "Adventurer (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_adventurer_tete.glb",
+   "kb": 52
+  },
+  {
+   "id": "women_adventurer_cheveux",
+   "slot": "cheveux",
+   "name": "Adventurer (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_adventurer_cheveux.glb",
+   "kb": 43
+  },
+  {
+   "id": "women_casual_haut",
+   "slot": "haut",
+   "name": "Casual (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_casual_haut.glb",
+   "kb": 279
+  },
+  {
+   "id": "women_casual_bas",
+   "slot": "bas",
+   "name": "Casual (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_casual_bas.glb",
+   "kb": 86
+  },
+  {
+   "id": "women_casual_chaussures",
+   "slot": "chaussures",
+   "name": "Casual (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_casual_chaussures.glb",
+   "kb": 70
+  },
+  {
+   "id": "women_casual_tete",
+   "slot": "tete",
+   "name": "Casual (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_casual_tete.glb",
+   "kb": 52
+  },
+  {
+   "id": "women_casual_cheveux",
+   "slot": "cheveux",
+   "name": "Casual (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_casual_cheveux.glb",
+   "kb": 235
+  },
+  {
+   "id": "women_formal_haut",
+   "slot": "haut",
+   "name": "Formal (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_formal_haut.glb",
+   "kb": 279
+  },
+  {
+   "id": "women_formal_bas",
+   "slot": "bas",
+   "name": "Formal (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_formal_bas.glb",
+   "kb": 64
+  },
+  {
+   "id": "women_formal_chaussures",
+   "slot": "chaussures",
+   "name": "Formal (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_formal_chaussures.glb",
+   "kb": 65
+  },
+  {
+   "id": "women_formal_tete",
+   "slot": "tete",
+   "name": "Formal (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_formal_tete.glb",
+   "kb": 271
+  },
+  {
+   "id": "women_medieval_haut",
+   "slot": "haut",
+   "name": "Medieval (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_medieval_haut.glb",
+   "kb": 341
+  },
+  {
+   "id": "women_medieval_bas",
+   "slot": "bas",
+   "name": "Medieval (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_medieval_bas.glb",
+   "kb": 75
+  },
+  {
+   "id": "women_medieval_chaussures",
+   "slot": "chaussures",
+   "name": "Medieval (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_medieval_chaussures.glb",
+   "kb": 73
+  },
+  {
+   "id": "women_medieval_tete",
+   "slot": "tete",
+   "name": "Medieval (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_medieval_tete.glb",
+   "kb": 222
+  },
+  {
+   "id": "women_punk_haut",
+   "slot": "haut",
+   "name": "Punk (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_punk_haut.glb",
+   "kb": 322
+  },
+  {
+   "id": "women_punk_bas",
+   "slot": "bas",
+   "name": "Punk (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_punk_bas.glb",
+   "kb": 96
+  },
+  {
+   "id": "women_punk_chaussures",
+   "slot": "chaussures",
+   "name": "Punk (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_punk_chaussures.glb",
+   "kb": 88
+  },
+  {
+   "id": "women_punk_tete",
+   "slot": "tete",
+   "name": "Punk (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_punk_tete.glb",
+   "kb": 151
+  },
+  {
+   "id": "women_punk_cheveux",
+   "slot": "cheveux",
+   "name": "Punk (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_punk_cheveux.glb",
+   "kb": 19
+  },
+  {
+   "id": "women_scifi_haut",
+   "slot": "haut",
+   "name": "SciFi (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_scifi_haut.glb",
+   "kb": 343
+  },
+  {
+   "id": "women_scifi_bas",
+   "slot": "bas",
+   "name": "SciFi (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_scifi_bas.glb",
+   "kb": 71
+  },
+  {
+   "id": "women_scifi_chaussures",
+   "slot": "chaussures",
+   "name": "SciFi (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_scifi_chaussures.glb",
+   "kb": 80
+  },
+  {
+   "id": "women_scifi_tete",
+   "slot": "tete",
+   "name": "SciFi (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_scifi_tete.glb",
+   "kb": 72
+  },
+  {
+   "id": "women_scifi_cheveux",
+   "slot": "cheveux",
+   "name": "SciFi (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_scifi_cheveux.glb",
+   "kb": 220
+  },
+  {
+   "id": "women_soldier_haut",
+   "slot": "haut",
+   "name": "Soldier (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_soldier_haut.glb",
+   "kb": 288
+  },
+  {
+   "id": "women_soldier_bas",
+   "slot": "bas",
+   "name": "Soldier (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_soldier_bas.glb",
+   "kb": 146
+  },
+  {
+   "id": "women_soldier_chaussures",
+   "slot": "chaussures",
+   "name": "Soldier (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_soldier_chaussures.glb",
+   "kb": 120
+  },
+  {
+   "id": "women_soldier_tete",
+   "slot": "tete",
+   "name": "Soldier (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_soldier_tete.glb",
+   "kb": 52
+  },
+  {
+   "id": "women_soldier_cheveux",
+   "slot": "cheveux",
+   "name": "Soldier (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_soldier_cheveux.glb",
+   "kb": 262
+  },
+  {
+   "id": "women_suit_haut",
+   "slot": "haut",
+   "name": "Suit (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_suit_haut.glb",
+   "kb": 291
+  },
+  {
+   "id": "women_suit_bas",
+   "slot": "bas",
+   "name": "Suit (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_suit_bas.glb",
+   "kb": 84
+  },
+  {
+   "id": "women_suit_chaussures",
+   "slot": "chaussures",
+   "name": "Suit (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_suit_chaussures.glb",
+   "kb": 68
+  },
+  {
+   "id": "women_suit_tete",
+   "slot": "tete",
+   "name": "Suit (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_suit_tete.glb",
+   "kb": 52
+  },
+  {
+   "id": "women_suit_cheveux",
+   "slot": "cheveux",
+   "name": "Suit (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_suit_cheveux.glb",
+   "kb": 235
+  },
+  {
+   "id": "women_witch_haut",
+   "slot": "haut",
+   "name": "Witch (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_witch_haut.glb",
+   "kb": 299
+  },
+  {
+   "id": "women_witch_bas",
+   "slot": "bas",
+   "name": "Witch (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_witch_bas.glb",
+   "kb": 73
+  },
+  {
+   "id": "women_witch_chaussures",
+   "slot": "chaussures",
+   "name": "Witch (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_witch_chaussures.glb",
+   "kb": 74
+  },
+  {
+   "id": "women_witch_tete",
+   "slot": "tete",
+   "name": "Witch (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_witch_tete.glb",
+   "kb": 81
+  },
+  {
+   "id": "women_witch_cheveux",
+   "slot": "cheveux",
+   "name": "Witch (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_witch_cheveux.glb",
+   "kb": 248
+  },
+  {
+   "id": "women_worker_haut",
+   "slot": "haut",
+   "name": "Worker (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_worker_haut.glb",
+   "kb": 278
+  },
+  {
+   "id": "women_worker_bas",
+   "slot": "bas",
+   "name": "Worker (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_worker_bas.glb",
+   "kb": 98
+  },
+  {
+   "id": "women_worker_chaussures",
+   "slot": "chaussures",
+   "name": "Worker (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_worker_chaussures.glb",
+   "kb": 68
+  },
+  {
+   "id": "women_worker_tete",
+   "slot": "tete",
+   "name": "Worker (femme)",
+   "gender": "women",
+   "source": "Quaternius Ultimate Modular Women Pack",
+   "file": "parts/women_worker_tete.glb",
+   "kb": 235
+  }
+ ],
+ "items": [
+  {
+   "id": "q_arrow",
+   "cat": "arme",
+   "name": "Arrow",
+   "source": "Quaternius Modular Weapons Pack",
+   "file": "items/q_arrow.glb",
+   "min": [
+    -0.1375,
+    -0.0852,
+    -0.0422
+   ],
+   "max": [
+    0.1366,
+    0.1531,
+    2.6916
+   ],
+   "kb": 15
+  },
+  {
+   "id": "q_axe",
+   "cat": "arme",
+   "name": "Axe",
+   "source": "Quaternius Modular Weapons Pack",
+   "file": "items/q_axe.glb",
+   "min": [
+    -0.1367,
+    -1.7199,
+    -0.1241
+   ],
+   "max": [
+    1.0341,
+    3.54,
+    0.1241
+   ],
+   "kb": 61
+  },
+  {
+   "id": "q_axe_double",
+   "cat": "arme",
+   "name": "Axe Double",
+   "source": "Quaternius Modular Weapons Pack",
+   "file": "items/q_axe_double.glb",
+   "min": [
+    -0.4231,
+    -3.1766,
+    -0.1304
+   ],
+   "max": [
+    1.6392,
+    3.1766,
+    0.1304
+   ],
+   "kb": 98
+  },
+  {
+   "id": "q_axe_small",
+   "cat": "arme",
+   "name": "Axe Small",
+   "source": "Quaternius Modular Weapons Pack",
+   "file": "items/q_axe_small.glb",
+   "min": [
+    -0.1367,
+    -1.2309,
+    -0.1241
+   ],
+   "max": [
+    1.0341,
+    1.7255,
+    0.1241
+   ],
+   "kb": 52
+  },
+  {
+   "id": "q_bow_evil",
+   "cat": "arme",
+   "name": "Bow Evil",
+   "source": "Quaternius Modular Weapons Pack",
+   "file": "items/q_bow_evil.glb",
+   "min": [
+    -0.448,
+    -2.8446,
+    -0.1154
+   ],
+   "max": [
+    1.1082,
+    2.8446,
+    0.1154
+   ],
+   "kb": 43
+  },
+  {
+   "id": "q_bow_golden",
+   "cat": "arme",
+   "name": "Bow Golden",
+   "source": "Quaternius Modular Weapons Pack",
+   "file": "items/q_bow_golden.glb",
+   "min": [
+    -0.4801,
+    -2.7183,
+    -0.1217
+   ],
+   "max": [
+    1.1,
+    2.7183,
+    0.1217
+   ],
+   "kb": 44
+  },
+  {
+   "id": "q_bow_wooden",
+   "cat": "arme",
+   "name": "Bow Wooden",
+   "source": "Quaternius Modular Weapons Pack",
+   "file": "items/q_bow_wooden.glb",
+   "min": [
+    -0.3845,
+    -2.7183,
+    -0.1217
+   ],
+   "max": [
+    1.0834,
+    2.7183,
+    0.1217
+   ],
+   "kb": 41
+  },
+  {
+   "id": "q_bow_wooden2",
+   "cat": "arme",
+   "name": "Bow Wooden 2",
+   "source": "Quaternius Modular Weapons Pack",
+   "file": "items/q_bow_wooden2.glb",
+   "min": [
+    -0.3576,
+    -2.7183,
+    -0.1217
+   ],
+   "max": [
+    1.1103,
+    2.7183,
+    0.1217
+   ],
+   "kb": 38
+  },
+  {
+   "id": "q_claymore",
+   "cat": "arme",
+   "name": "Claymore",
+   "source": "Quaternius Modular Weapons Pack",
+   "file": "items/q_claymore.glb",
+   "min": [
+    -0.489,
+    -0.3217,
+    -0.1356
+   ],
+   "max": [
+    0.489,
+    6.2729,
+    0.1356
+   ],
+   "kb": 52
+  },
+  {
+   "id": "q_dagger",
+   "cat": "arme",
+   "name": "Dagger",
+   "source": "Quaternius Modular Weapons Pack",
+   "file": "items/q_dagger.glb",
+   "min": [
+    -0.2835,
+    -0.5813,
+    -0.1041
+   ],
+   "max": [
+    0.2745,
+    2.0271,
+    0.1041
+   ],
+   "kb": 41
+  },
+  {
+   "id": "q_dagger_2",
+   "cat": "arme",
+   "name": "Dagger 2",
+   "source": "Quaternius Modular Weapons Pack",
+   "file": "items/q_dagger_2.glb",
+   "min": [
+    -0.322,
+    -0.6748,
+    -0.1282
+   ],
+   "max": [
+    0.322,
+    2.4308,
+    0.1282
+   ],
+   "kb": 38
+  },
+  {
+   "id": "q_hammer_double",
+   "cat": "arme",
+   "name": "Hammer Double",
+   "source": "Quaternius Modular Weapons Pack",
+   "file": "items/q_hammer_double.glb",
+   "min": [
+    -1.0881,
+    -1.7773,
+    -0.4024
+   ],
+   "max": [
+    1.129,
+    3.1937,
+    0.4033
+   ],
+   "kb": 102
+  },
+  {
+   "id": "q_hammer_small",
+   "cat": "arme",
+   "name": "Hammer Small",
+   "source": "Quaternius Modular Weapons Pack",
+   "file": "items/q_hammer_small.glb",
+   "min": [
+    -0.3781,
+    -1.1794,
+    -0.4024
+   ],
+   "max": [
+    1.1085,
+    3.1503,
+    0.4033
+   ],
+   "kb": 79
+  },
+  {
+   "id": "q_scythe",
+   "cat": "arme",
+   "name": "Scythe",
+   "source": "Quaternius Modular Weapons Pack",
+   "file": "items/q_scythe.glb",
+   "min": [
+    -0.5634,
+    -2.2155,
+    -0.1385
+   ],
+   "max": [
+    2.4653,
+    3.3664,
+    0.1385
+   ],
+   "kb": 72
+  },
+  {
+   "id": "q_shield_celtic_golden",
+   "cat": "bouclier",
+   "name": "Shield Celtic Golden",
+   "source": "Quaternius Modular Weapons Pack",
+   "file": "items/q_shield_celtic_golden.glb",
+   "min": [
+    -1.0493,
+    -2.2672,
+    -0.7064
+   ],
+   "max": [
+    1.0493,
+    2.013,
+    0.7064
+   ],
+   "kb": 45
+  },
+  {
+   "id": "q_shield_heater",
+   "cat": "bouclier",
+   "name": "Shield Heater",
+   "source": "Quaternius Modular Weapons Pack",
+   "file": "items/q_shield_heater.glb",
+   "min": [
+    -1.0025,
+    -1.3025,
+    -0.2937
+   ],
+   "max": [
+    1.0025,
+    1.2612,
+    0.3033
+   ],
+   "kb": 94
+  },
+  {
+   "id": "q_shield_heater_2",
+   "cat": "bouclier",
+   "name": "Shield Heater 2",
+   "source": "Quaternius Modular Weapons Pack",
+   "file": "items/q_shield_heater_2.glb",
+   "min": [
+    -1.0025,
+    -1.4998,
+    -0.1507
+   ],
+   "max": [
+    1.0025,
+    1.064,
+    0.4479
+   ],
+   "kb": 61
+  },
+  {
+   "id": "q_shield_round",
+   "cat": "bouclier",
+   "name": "Shield Round",
+   "source": "Quaternius Modular Weapons Pack",
+   "file": "items/q_shield_round.glb",
+   "min": [
+    -1,
+    -1,
+    -0.3724
+   ],
+   "max": [
+    1,
+    1,
+    0.2312
+   ],
+   "kb": 58
+  },
+  {
+   "id": "q_shield_round_2",
+   "cat": "bouclier",
+   "name": "Shield Round 2",
+   "source": "Quaternius Modular Weapons Pack",
+   "file": "items/q_shield_round_2.glb",
+   "min": [
+    -1,
+    -1,
+    -0.3724
+   ],
+   "max": [
+    1,
+    1,
+    0.2312
+   ],
+   "kb": 66
+  },
+  {
+   "id": "q_spear",
+   "cat": "arme",
+   "name": "Spear",
+   "source": "Quaternius Modular Weapons Pack",
+   "file": "items/q_spear.glb",
+   "min": [
+    -0.2195,
+    -2.1552,
+    -0.1624
+   ],
+   "max": [
+    0.3106,
+    7.5619,
+    0.1624
+   ],
+   "kb": 67
+  },
+  {
+   "id": "q_sword",
+   "cat": "arme",
+   "name": "Sword",
+   "source": "Quaternius Modular Weapons Pack",
+   "file": "items/q_sword.glb",
+   "min": [
+    -0.5712,
+    -0.8188,
+    -0.1306
+   ],
+   "max": [
+    0.5712,
+    4.634,
+    0.1306
+   ],
+   "kb": 46
+  },
+  {
+   "id": "q_sword_2",
+   "cat": "arme",
+   "name": "Sword 2",
+   "source": "Quaternius Modular Weapons Pack",
+   "file": "items/q_sword_2.glb",
+   "min": [
+    -0.6085,
+    -0.8405,
+    -0.1552
+   ],
+   "max": [
+    0.6091,
+    4.5201,
+    0.1552
+   ],
+   "kb": 52
+  },
+  {
+   "id": "q_sword_big",
+   "cat": "arme",
+   "name": "Sword Big",
+   "source": "Quaternius Modular Weapons Pack",
+   "file": "items/q_sword_big.glb",
+   "min": [
+    -0.5102,
+    -0.3546,
+    -0.1193
+   ],
+   "max": [
+    0.5102,
+    6.0881,
+    0.1193
+   ],
+   "kb": 48
+  },
+  {
+   "id": "q_sword_golden",
+   "cat": "arme",
+   "name": "Sword Golden",
+   "source": "Quaternius Modular Weapons Pack",
+   "file": "items/q_sword_golden.glb",
+   "min": [
+    -0.6074,
+    -0.6202,
+    -0.1193
+   ],
+   "max": [
+    0.6074,
+    5.3461,
+    0.1193
+   ],
+   "kb": 55
+  },
+  {
+   "id": "r_crown",
+   "cat": "couronne",
+   "name": "Crown",
+   "source": "Quaternius Ultimate RPG Pack",
+   "file": "items/r_crown.glb",
+   "min": [
+    -0.4158,
+    -0.1276,
+    -0.4158
+   ],
+   "max": [
+    0.4158,
+    0.3644,
+    0.4158
+   ],
+   "kb": 32
+  },
+  {
+   "id": "r_crown2",
+   "cat": "couronne",
+   "name": "Crown 2",
+   "source": "Quaternius Ultimate RPG Pack",
+   "file": "items/r_crown2.glb",
+   "min": [
+    -0.4431,
+    -0.1276,
+    -0.4431
+   ],
+   "max": [
+    0.4431,
+    0.4574,
+    0.4431
+   ],
+   "kb": 46
+  },
+  {
+   "id": "r_necklace1",
+   "cat": "collier",
+   "name": "Necklace 1",
+   "source": "Quaternius Ultimate RPG Pack",
+   "file": "items/r_necklace1.glb",
+   "min": [
+    -0.4687,
+    -0.1299,
+    -0.8562
+   ],
+   "max": [
+    0.4047,
+    0.7468,
+    0.1068
+   ],
+   "kb": 45
+  },
+  {
+   "id": "r_necklace2",
+   "cat": "collier",
+   "name": "Necklace 2",
+   "source": "Quaternius Ultimate RPG Pack",
+   "file": "items/r_necklace2.glb",
+   "min": [
+    -0.471,
+    -0.2426,
+    -0.8548
+   ],
+   "max": [
+    0.439,
+    0.7589,
+    0.1511
+   ],
+   "kb": 46
+  },
+  {
+   "id": "r_necklace3",
+   "cat": "collier",
+   "name": "Necklace 3",
+   "source": "Quaternius Ultimate RPG Pack",
+   "file": "items/r_necklace3.glb",
+   "min": [
+    -0.3903,
+    -0.2512,
+    -0.8332
+   ],
+   "max": [
+    0.4634,
+    0.7629,
+    0.1661
+   ],
+   "kb": 46
+  },
+  {
+   "id": "r_backpack",
+   "cat": "sac",
+   "name": "Backpack",
+   "source": "Quaternius Ultimate RPG Pack",
+   "file": "items/r_backpack.glb",
+   "min": [
+    -0.5336,
+    -0.4753,
+    -0.4019
+   ],
+   "max": [
+    0.5336,
+    0.4753,
+    0.4019
+   ],
+   "kb": 211
+  },
+  {
+   "id": "r_bag",
+   "cat": "sac",
+   "name": "Bag",
+   "source": "Quaternius Ultimate RPG Pack",
+   "file": "items/r_bag.glb",
+   "min": [
+    -0.4009,
+    -0.3137,
+    -0.2433
+   ],
+   "max": [
+    0.4009,
+    0.3137,
+    0.2433
+   ],
+   "kb": 68
+  },
+  {
+   "id": "r_pouch",
+   "cat": "sac",
+   "name": "Pouch",
+   "source": "Quaternius Ultimate RPG Pack",
+   "file": "items/r_pouch.glb",
+   "min": [
+    -0.2347,
+    -0.0095,
+    -0.2352
+   ],
+   "max": [
+    0.2357,
+    0.5382,
+    0.2352
+   ],
+   "kb": 24
+  },
+  {
+   "id": "r_glove",
+   "cat": "gant",
+   "name": "Glove",
+   "source": "Quaternius Ultimate RPG Pack",
+   "file": "items/r_glove.glb",
+   "min": [
+    -0.2837,
+    -0.0803,
+    -0.4753
+   ],
+   "max": [
+    0.3145,
+    0.1879,
+    0.4805
+   ],
+   "kb": 25
+  },
+  {
+   "id": "r_armor_leather",
+   "cat": "plastron",
+   "name": "Armor Leather",
+   "source": "Quaternius Ultimate RPG Pack",
+   "file": "items/r_armor_leather.glb",
+   "min": [
+    -0.4877,
+    -0.4281,
+    -0.3352
+   ],
+   "max": [
+    0.4877,
+    0.3935,
+    0.3352
+   ],
+   "kb": 17
+  },
+  {
+   "id": "r_armor_metal",
+   "cat": "plastron",
+   "name": "Armor Metal",
+   "source": "Quaternius Ultimate RPG Pack",
+   "file": "items/r_armor_metal.glb",
+   "min": [
+    -0.7156,
+    -0.5115,
+    -0.3352
+   ],
+   "max": [
+    0.7156,
+    0.431,
+    0.4243
+   ],
+   "kb": 32
+  },
+  {
+   "id": "r_armor_golden",
+   "cat": "plastron",
+   "name": "Armor Golden",
+   "source": "Quaternius Ultimate RPG Pack",
+   "file": "items/r_armor_golden.glb",
+   "min": [
+    -0.7699,
+    -0.5632,
+    -0.3352
+   ],
+   "max": [
+    0.7699,
+    0.6386,
+    0.4243
+   ],
+   "kb": 56
+  },
+  {
+   "id": "r_armor_black",
+   "cat": "plastron",
+   "name": "Armor Black",
+   "source": "Quaternius Ultimate RPG Pack",
+   "file": "items/r_armor_black.glb",
+   "min": [
+    -0.7699,
+    -0.5632,
+    -0.3352
+   ],
+   "max": [
+    0.7699,
+    0.6386,
+    0.4243
+   ],
+   "kb": 57
+  },
+  {
+   "id": "r_book1_closed",
+   "cat": "objet",
+   "name": "Book 1 Closed",
+   "source": "Quaternius Ultimate RPG Pack",
+   "file": "items/r_book1_closed.glb",
+   "min": [
+    -0.0897,
+    -0.4071,
+    -0.2871
+   ],
+   "max": [
+    0.0897,
+    0.3949,
+    0.3121
+   ],
+   "kb": 16
+  },
+  {
+   "id": "r_book3_closed",
+   "cat": "objet",
+   "name": "Book 3 Closed",
+   "source": "Quaternius Ultimate RPG Pack",
+   "file": "items/r_book3_closed.glb",
+   "min": [
+    -0.184,
+    -0.4071,
+    -0.3163
+   ],
+   "max": [
+    0.1289,
+    0.3997,
+    0.3542
+   ],
+   "kb": 59
+  },
+  {
+   "id": "r_potion1_filled",
+   "cat": "objet",
+   "name": "Potion 1 Filled",
+   "source": "Quaternius Ultimate RPG Pack",
+   "file": "items/r_potion1_filled.glb",
+   "min": [
+    -0.3342,
+    -0.0093,
+    -0.3342
+   ],
+   "max": [
+    0.3342,
+    0.9537,
+    0.3342
+   ],
+   "kb": 29
+  },
+  {
+   "id": "r_potion5_filled",
+   "cat": "objet",
+   "name": "Potion 5 Filled",
+   "source": "Quaternius Ultimate RPG Pack",
+   "file": "items/r_potion5_filled.glb",
+   "min": [
+    -0.3541,
+    -0.0116,
+    -0.3541
+   ],
+   "max": [
+    0.3541,
+    1.2222,
+    0.3541
+   ],
+   "kb": 41
+  },
+  {
+   "id": "r_chalice",
+   "cat": "objet",
+   "name": "Chalice",
+   "source": "Quaternius Ultimate RPG Pack",
+   "file": "items/r_chalice.glb",
+   "min": [
+    -0.2461,
+    -0.0044,
+    -0.2428
+   ],
+   "max": [
+    0.2396,
+    0.7424,
+    0.2428
+   ],
+   "kb": 21
+  },
+  {
+   "id": "r_skull",
+   "cat": "objet",
+   "name": "Skull",
+   "source": "Quaternius Ultimate RPG Pack",
+   "file": "items/r_skull.glb",
+   "min": [
+    -0.2915,
+    -0.3798,
+    -0.29
+   ],
+   "max": [
+    0.2915,
+    0.3798,
+    0.29
+   ],
+   "kb": 20
+  },
+  {
+   "id": "r_scroll",
+   "cat": "objet",
+   "name": "Scroll",
+   "source": "Quaternius Ultimate RPG Pack",
+   "file": "items/r_scroll.glb",
+   "min": [
+    -0.7388,
+    -0.1192,
+    -0.1253
+   ],
+   "max": [
+    0.7388,
+    0.1192,
+    0.1253
+   ],
+   "kb": 52
+  },
+  {
+   "id": "r_key1",
+   "cat": "objet",
+   "name": "Key 1",
+   "source": "Quaternius Ultimate RPG Pack",
+   "file": "items/r_key1.glb",
+   "min": [
+    -0.1455,
+    -0.0453,
+    -0.3938
+   ],
+   "max": [
+    0.1466,
+    0.05,
+    0.4728
+   ],
+   "kb": 16
+  },
+  {
+   "id": "r_axe_small_golden",
+   "cat": "arme",
+   "name": "Axe small Golden",
+   "source": "Quaternius Ultimate RPG Pack",
+   "file": "items/r_axe_small_golden.glb",
+   "min": [
+    -0.0728,
+    -0.6555,
+    -0.0661
+   ],
+   "max": [
+    0.5507,
+    0.919,
+    0.0661
+   ],
+   "kb": 52
+  },
+  {
+   "id": "r_hammer_double_golden",
+   "cat": "arme",
+   "name": "Hammer Double Golden",
+   "source": "Quaternius Ultimate RPG Pack",
+   "file": "items/r_hammer_double_golden.glb",
+   "min": [
+    -0.5795,
+    -0.8262,
+    -0.2143
+   ],
+   "max": [
+    0.6013,
+    1.7009,
+    0.2148
+   ],
+   "kb": 102
+  },
+  {
+   "id": "r_sword_big_golden",
+   "cat": "arme",
+   "name": "Sword big Golden",
+   "source": "Quaternius Ultimate RPG Pack",
+   "file": "items/r_sword_big_golden.glb",
+   "min": [
+    -0.2166,
+    -0.1505,
+    -0.0506
+   ],
+   "max": [
+    0.2166,
+    2.5841,
+    0.0506
+   ],
+   "kb": 48
+  },
+  {
+   "id": "r_dagger_golden",
+   "cat": "arme",
+   "name": "Dagger Golden",
+   "source": "Quaternius Ultimate RPG Pack",
+   "file": "items/r_dagger_golden.glb",
+   "min": [
+    -0.151,
+    -0.3096,
+    -0.0555
+   ],
+   "max": [
+    0.1462,
+    1.0796,
+    0.0555
+   ],
+   "kb": 40
+  },
+  {
+   "id": "r_bow_golden",
+   "cat": "arme",
+   "name": "Bow Golden",
+   "source": "Quaternius Ultimate RPG Pack",
+   "file": "items/r_bow_golden.glb",
+   "min": [
+    -0.192,
+    -1.0871,
+    -0.0487
+   ],
+   "max": [
+    0.4399,
+    1.0871,
+    0.0487
+   ],
+   "kb": 44
+  },
+  {
+   "id": "k_axe_1handed",
+   "cat": "arme",
+   "name": "axe 1handed",
+   "source": "KayKit Adventurers (Kay Lousberg)",
+   "file": "items/k_axe_1handed.glb",
+   "min": [
+    -0.5889,
+    -0.273,
+    -0.0925
+   ],
+   "max": [
+    0.1255,
+    0.9714,
+    0.0925
+   ],
+   "kb": 28
+  },
+  {
+   "id": "k_axe_2handed",
+   "cat": "arme",
+   "name": "axe 2handed",
+   "source": "KayKit Adventurers (Kay Lousberg)",
+   "file": "items/k_axe_2handed.glb",
+   "min": [
+    -0.6198,
+    -0.433,
+    -0.1309
+   ],
+   "max": [
+    0.6198,
+    1.2916,
+    0.1309
+   ],
+   "kb": 38
+  },
+  {
+   "id": "k_crossbow_1handed",
+   "cat": "arme",
+   "name": "crossbow 1handed",
+   "source": "KayKit Adventurers (Kay Lousberg)",
+   "file": "items/k_crossbow_1handed.glb",
+   "min": [
+    -0.4545,
+    -0.1712,
+    -0.2777
+   ],
+   "max": [
+    0.457,
+    0.2346,
+    0.9442
+   ],
+   "kb": 42
+  },
+  {
+   "id": "k_crossbow_2handed",
+   "cat": "arme",
+   "name": "crossbow 2handed",
+   "source": "KayKit Adventurers (Kay Lousberg)",
+   "file": "items/k_crossbow_2handed.glb",
+   "min": [
+    -0.6116,
+    -0.1712,
+    -0.2777
+   ],
+   "max": [
+    0.6116,
+    0.308,
+    1.1632
+   ],
+   "kb": 52
+  },
+  {
+   "id": "k_dagger",
+   "cat": "arme",
+   "name": "dagger",
+   "source": "KayKit Adventurers (Kay Lousberg)",
+   "file": "items/k_dagger.glb",
+   "min": [
+    -0.1202,
+    -0.2249,
+    -0.0759
+   ],
+   "max": [
+    0.1391,
+    0.981,
+    0.0759
+   ],
+   "kb": 25
+  },
+  {
+   "id": "k_quiver",
+   "cat": "objet",
+   "name": "quiver",
+   "source": "KayKit Adventurers (Kay Lousberg)",
+   "file": "items/k_quiver.glb",
+   "min": [
+    -0.1527,
+    -0.5086,
+    -0.073
+   ],
+   "max": [
+    0.1527,
+    0.4208,
+    0.1215
+   ],
+   "kb": 31
+  },
+  {
+   "id": "k_shield_badge",
+   "cat": "bouclier",
+   "name": "shield badge",
+   "source": "KayKit Adventurers (Kay Lousberg)",
+   "file": "items/k_shield_badge.glb",
+   "min": [
+    -0.4413,
+    -0.5401,
+    -0.1448
+   ],
+   "max": [
+    0.4413,
+    0.4814,
+    0.1011
+   ],
+   "kb": 26
+  },
+  {
+   "id": "k_shield_round",
+   "cat": "bouclier",
+   "name": "shield round",
+   "source": "KayKit Adventurers (Kay Lousberg)",
+   "file": "items/k_shield_round.glb",
+   "min": [
+    -0.4413,
+    -0.4413,
+    -0.1448
+   ],
+   "max": [
+    0.4413,
+    0.4413,
+    0.1872
+   ],
+   "kb": 27
+  },
+  {
+   "id": "k_shield_round_barbarian",
+   "cat": "bouclier",
+   "name": "shield round barbarian",
+   "source": "KayKit Adventurers (Kay Lousberg)",
+   "file": "items/k_shield_round_barbarian.glb",
+   "min": [
+    -0.4413,
+    -0.4413,
+    -0.1448
+   ],
+   "max": [
+    0.4413,
+    0.4413,
+    0.1872
+   ],
+   "kb": 28
+  },
+  {
+   "id": "k_shield_spikes",
+   "cat": "bouclier",
+   "name": "shield spikes",
+   "source": "KayKit Adventurers (Kay Lousberg)",
+   "file": "items/k_shield_spikes.glb",
+   "min": [
+    -0.5035,
+    -0.5555,
+    -0.1448
+   ],
+   "max": [
+    0.5035,
+    0.4814,
+    0.315
+   ],
+   "kb": 36
+  },
+  {
+   "id": "k_shield_square",
+   "cat": "bouclier",
+   "name": "shield square",
+   "source": "KayKit Adventurers (Kay Lousberg)",
+   "file": "items/k_shield_square.glb",
+   "min": [
+    -0.4413,
+    -0.5964,
+    -0.1448
+   ],
+   "max": [
+    0.4413,
+    0.5964,
+    0.1563
+   ],
+   "kb": 26
+  },
+  {
+   "id": "k_spellbook_closed",
+   "cat": "objet",
+   "name": "spellbook closed",
+   "source": "KayKit Adventurers (Kay Lousberg)",
+   "file": "items/k_spellbook_closed.glb",
+   "min": [
+    -0.1465,
+    -0.2875,
+    -0.2115
+   ],
+   "max": [
+    0.1465,
+    0.2875,
+    0.2157
+   ],
+   "kb": 31
+  },
+  {
+   "id": "k_staff",
+   "cat": "arme",
+   "name": "staff",
+   "source": "KayKit Adventurers (Kay Lousberg)",
+   "file": "items/k_staff.glb",
+   "min": [
+    -0.2454,
+    -0.9004,
+    -0.1462
+   ],
+   "max": [
+    0.3308,
+    1.2543,
+    0.1462
+   ],
+   "kb": 35
+  },
+  {
+   "id": "k_sword_1handed",
+   "cat": "arme",
+   "name": "sword 1handed",
+   "source": "KayKit Adventurers (Kay Lousberg)",
+   "file": "items/k_sword_1handed.glb",
+   "min": [
+    -0.2517,
+    -0.3658,
+    -0.0653
+   ],
+   "max": [
+    0.2517,
+    1.4095,
+    0.0653
+   ],
+   "kb": 28
+  },
+  {
+   "id": "k_sword_2handed",
+   "cat": "arme",
+   "name": "sword 2handed",
+   "source": "KayKit Adventurers (Kay Lousberg)",
+   "file": "items/k_sword_2handed.glb",
+   "min": [
+    -0.4195,
+    -0.4014,
+    -0.124
+   ],
+   "max": [
+    0.4195,
+    1.9644,
+    0.124
+   ],
+   "kb": 35
+  },
+  {
+   "id": "k_wand",
+   "cat": "arme",
+   "name": "wand",
+   "source": "KayKit Adventurers (Kay Lousberg)",
+   "file": "items/k_wand.glb",
+   "min": [
+    -0.0803,
+    -0.2657,
+    -0.0803
+   ],
+   "max": [
+    0.0803,
+    0.7004,
+    0.0803
+   ],
+   "kb": 23
+  }
+ ]
+}

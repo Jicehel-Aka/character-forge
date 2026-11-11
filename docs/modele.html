@@ -40,6 +40,14 @@ code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding
     <div class="row"><button id="bskel" title="pour un modèle sans squelette (maillage seul) : pose un squelette pris dans un autre fichier, à l'échelle du modèle">Ajouter un squelette… (modèle sans os)</button></div>
     <p class="mute" id="rmsg" style="white-space:pre-line;margin:6px 0 0">Les animations sont reciblées sur les os du modèle (appariés par nom : Mixamo, Bip01, Blender…). Elles rejoignent la liste « Animation » et « Générer toutes les animations ».</p>
   </div>
+  <div class="card" id="wcard"><h2>Garde-robe : cheveux, armes, vêtements, chaussures, accessoires</h2>
+    <p class="mute" style="margin:0 0 6px">Pièces libres de droits (CC0 : Quaternius, KayKit). Les accessoires se fixent à un os et suivent les animations ; les vêtements et cheveux sont ajustés au squelette du modèle (proportions humaines).</p>
+    <div class="row" id="wtabs"></div>
+    <div id="wgrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:6px;max-height:270px;overflow:auto;margin:6px 0"></div>
+    <div id="weq"></div><div class="row" id="wown"></div>
+    <div class="row"><button id="wclear" disabled>Tout retirer</button></div>
+    <p class="mute" id="wmsg" style="margin:6px 0 0"></p>
+  </div>
   <div class="card"><h2>Résultat</h2>
     <div class="row"><label style="margin:0">Direction</label><select id="adir"></select><canvas id="anim" width="64" height="64"></canvas><span class="mute" id="ainfo"></span></div>
     <canvas id="sheet" width="64" height="64"></canvas>
@@ -86,6 +94,7 @@ import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {FBXLoader} from 'three/addons/loaders/FBXLoader.js';
 import {OBJLoader} from 'three/addons/loaders/OBJLoader.js';
+import {clone as cloneSk} from 'three/addons/utils/SkeletonUtils.js';
 const $=s=>document.querySelector(s);
 const DIRS=[["s",0],["se",45],["e",90],["ne",135],["n",180],["nw",-135],["w",-90],["sw",-45]];
 let M=null,clips=[],mixer=null,action=null,playing=true,result=null;
@@ -128,7 +137,7 @@ view.addEventListener('pointerup',()=>orbit.drag=null);view.addEventListener('wh
 function setup(root,an,name){
   if(M)pivot.remove(M);M=root;clips=an.map(c=>{c.tracks=c.tracks.filter(t=>/\.(position|quaternion)$/.test(t.name)&&!Array.from(t.values).some(x=>!isFinite(x)));return c}).filter(c=>c.tracks.length);
   const n=normalise(root);root.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(root,true);root.position.set(-(b.min.x+b.max.x)/2,-b.min.y,-(b.min.z+b.max.z)/2);pivot.add(root);
-  root.userData.name=name;root.userData.rig=restState(root);
+  root.userData.name=name;root.userData.rig=restState(root);wdReset();
   mixer=new THREE.AnimationMixer(root);action=null;const sel=$('#clip');sel.innerHTML='<option value="">(pose seule)</option>'+clips.map((c,i)=>`<option value="${i}">${c.name||'clip '+i} (${c.duration.toFixed(2)} s)</option>`).join('');
   if(clips.length){sel.value='0';play(0)}
   let tris=0;root.traverse(o=>{if(o.isMesh){const g=o.geometry;tris+=(g.index?g.index.count:g.attributes.position.count)/3}});
@@ -331,7 +340,7 @@ function restState(root){            // état de repos de chaque os, exprimé da
   const seen=new Set();
   return bonesOf(root).map(b=>{const dup=seen.has(b.name);seen.add(b.name);const p=new THREE.Vector3(),q=new THREE.Quaternion(),s=new THREE.Vector3();rsMat(inv,b).decompose(p,q,s);
     const par=b.parent,pm=par?rsMat(inv,par):new THREE.Matrix4(),pq=new THREE.Quaternion();pm.decompose(new THREE.Vector3(),pq,new THREE.Vector3());
-    return{b,dup,key:canon(b.name),p,q,lq:b.quaternion.clone(),pBone:par&&par.isBone?par:null,pq,pInv:pm.clone().invert()}})}
+    return{b,dup,sc:s.x||1,key:canon(b.name),p,q,lq:b.quaternion.clone(),pBone:par&&par.isBone?par:null,pq,pInv:pm.clone().invert()}})}
 function frameOf(rs){const g=k=>rs.find(r=>r.key===k),h=g('hips'),hd=g('head'),l=g('Lthigh'),r=g('Rthigh');
   if(!(h&&hd&&l&&r))return null;const up=hd.p.clone().sub(h.p).normalize(),lat=r.p.clone().sub(l.p);lat.addScaledVector(up,-lat.dot(up)).normalize();
   const fw=new THREE.Vector3().crossVectors(lat,up);return{up,q:new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(lat,up,fw))}}
@@ -440,7 +449,84 @@ $('#banim').onclick=()=>$('#fanim').click();$('#bskel').onclick=()=>$('#fskel').
 $('#fanim').onchange=async e=>{const fl=[...e.target.files];e.target.value='';if(fl.length)await addAnims(fl)};
 $('#fskel').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(f)try{await addSkeleton(f)}catch(er){rmsg('Échec : '+er.message,1)}};
 
-window._test={generate,get result(){return result},setup,loadFile,addAnims,addSkeleton,get clips(){return clips},get M(){return M},get library(){return library}};
+/* ---------- garde-robe : accessoires (fixés à un os) et pièces habillables (peau ajustée au squelette) ----------
+   Pièces CC0 (Quaternius, KayKit) dans docs/wardrobe/ ; catalogue = wardrobe/catalog.json (tools/wardrobe/build.mjs).
+   Accessoire : fixé à l'os choisi, orienté « lame vers le haut, face vers l'avant » à la pose de repos, taille = fraction de la hauteur du personnage.
+   Pièce habillable : ses sommets sont déplacés de l'os du vêtement vers l'os apparié du modèle (même position relative à l'os), puis
+   liés au squelette du modèle : elle suit donc toutes les animations ajoutées. Hypothèse : proportions humaines. */
+const WDIR='wardrobe/',WD={eq:[],cache:new Map(),tab:'arme',CAT:null};
+const WTABS=[['arme','Armes','item'],['bouclier','Boucliers','item'],['couronne','Couronnes','item'],['collier','Colliers','item'],['sac','Sacs','both'],['plastron','Plastrons','item'],['gant','Gants','item'],['objet','Objets','item'],['cheveux','Cheveux','part'],['haut','Hauts','part'],['bas','Bas','part'],['chaussures','Chaussures','part'],['tete','Têtes','part']];
+const WATT={arme:{bone:'Rhand',frac:.33,off:[0,0,0]},bouclier:{bone:'Lforearm',frac:.32,off:[0,0,.06],center:1},couronne:{bone:'head',frac:.14,axis:'x',off:[0,.085,.01],center:1},collier:{bone:'neck',frac:.15,axis:'x',off:[0,-.01,.02],center:1},
+  sac:{bone:'spine2',frac:.22,axis:'x',off:[0,.03,-.075],center:1},plastron:{bone:'spine1',frac:.28,axis:'x',off:[0,.01,.02],center:1},gant:{bone:'Lhand',frac:.11,off:[0,0,0],center:1},objet:{bone:'Rhand',frac:.12,off:[0,0,0],center:1}};
+const WBONES=[['Rhand','main droite'],['Lhand','main gauche'],['Rforearm','avant-bras droit'],['Lforearm','avant-bras gauche'],['head','tête'],['neck','cou'],['spine2','haut du dos'],['spine1','poitrine'],['hips','bassin'],['Rfoot','pied droit'],['Lfoot','pied gauche']];
+const wfrac=(id,d)=>/dagger|wand/.test(id)?(/wand/.test(id)?.2:.18):/spear/.test(id)?1:/staff/.test(id)?.85:/bow/.test(id)?.5:/claymore|sword_big|2handed|double|scythe|hammer/.test(id)?.5:/axe_small|axe_1/.test(id)?.3:d;
+fetch(WDIR+'catalog.json').then(r=>r.json()).then(c=>{WD.CAT=c;wdTabs()}).catch(()=>{$('#wmsg').textContent='Catalogue de la garde-robe introuvable.'});
+function wdList(tab){const t=WTABS.find(x=>x[0]===tab),c=WD.CAT;if(!c)return[];return(t[2]!=='part'?c.items.filter(i=>i.cat===tab&&!/arrow/.test(i.id)).map(i=>({...i,kind:'item'})):[]).concat(t[2]!=='item'?c.parts.filter(p=>p.slot===tab).map(p=>({...p,kind:'part',cat:p.slot})):[])}
+function wdTabs(){$('#wtabs').innerHTML=WTABS.map(t=>`<button data-tab="${t[0]}" class="${t[0]===WD.tab?'primary':''}">${t[1]}</button>`).join('');
+  $('#wgrid').innerHTML=wdList(WD.tab).map(e=>`<button class="wdi" data-id="${e.id}" data-kind="${e.kind}" title="${e.name} · ${e.source}" style="padding:2px;display:flex;flex-direction:column;align-items:center;font-size:11px;line-height:1.1"><img src="${WDIR}thumbs/${e.id}.png" width="72" height="72" loading="lazy" alt="" style="background:#8a8a8a;border-radius:4px"><span>${e.name}</span></button>`).join('')}
+$('#wtabs').onclick=e=>{const b=e.target.closest('[data-tab]');if(b){WD.tab=b.dataset.tab;wdTabs()}};
+$('#wgrid').onclick=e=>{const b=e.target.closest('.wdi');if(!b)return;const en=wdList(WD.tab).find(x=>x.id===b.dataset.id);wdAdd(en).catch(er=>wmsg('Échec : '+er.message,1))};
+function wmsg(t,bad){const e=$('#wmsg');e.textContent=t;e.classList.toggle('bad',!!bad)}
+async function wdLoad(file){let g=WD.cache.get(file);if(!g){g=await new GLTFLoader().loadAsync(WDIR+file);WD.cache.set(file,g)}return g}
+const firstSkinned=r=>{let s=null;r.traverse(o=>{if(!s&&o.isSkinnedMesh&&o.visible)s=o});return s};
+function charInfo(){const T=M.userData.rig.filter(r=>!r.dup),fr=frameOf(T),up=fr?fr.up.clone():new THREE.Vector3(0,1,0),hd=T.find(r=>r.key==='head'),ft=T.filter(r=>/foot$/.test(r.key));
+  let H=0;if(hd&&ft.length)H=hd.p.clone().sub(ft.reduce((a,r)=>a.add(r.p),new THREE.Vector3()).multiplyScalar(1/ft.length)).dot(up)/.83;
+  const lat=new THREE.Vector3(1,0,0);if(fr){const l=T.find(r=>r.key==='Lthigh'),r=T.find(r=>r.key==='Rthigh');lat.copy(r.p).sub(l.p);lat.addScaledVector(up,-lat.dot(up)).normalize()}
+  const front=new THREE.Vector3().crossVectors(up,lat),xi=new THREE.Vector3().crossVectors(up,front),Q=new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(xi,up,front));return{H,up,lat,front,Q}}
+async function wdAdd(en){
+  if(!M)return wmsg('Ouvre d\'abord un modèle.',1);if(!M.userData.rig||!M.userData.rig.length)return wmsg('Ce modèle n\'a pas de squelette : ajoute-en un (carte du dessus).',1);
+  if(en.kind==='part')return wdDress(en);
+  const g=await wdLoad(en.file),d=WATT[en.cat]||WATT.objet,inner=g.scene.clone(true),wrapper=new THREE.Group(),bb=new THREE.Box3().setFromObject(inner),sz=bb.getSize(new THREE.Vector3()),ctr=bb.getCenter(new THREE.Vector3());
+  if(d.center)inner.position.sub(ctr);wrapper.add(inner);
+  const ref=d.axis==='x'?sz.x:Math.max(sz.x,sz.y,sz.z),ci=charInfo(),it={kind:'item',id:en.id,name:en.name,cat:en.cat,wrapper,def:d,base:wfrac(en.id,d.frac)*ci.H/ref,p:{bone:d.bone,scale:1,off:[0,0,0],rot:new THREE.Quaternion()}};
+  WD.eq.push(it);wdPlace(it);wdRows();wmsg(`« ${en.name} » ajouté (${en.source}, CC0).`)}
+function wdPlace(it){const T=M.userData.rig,tk=k=>T.find(r=>r.key===k&&!r.dup),be=tk(it.p.bone)||tk('hips');if(!be)return;const ci=charInfo(),sc=be.sc||1;
+  if(it.wrapper.parent!==be.b)be.b.add(it.wrapper);
+  const qb=be.q.clone().invert();it.wrapper.scale.setScalar(it.base*it.p.scale/sc);it.wrapper.quaternion.copy(qb).multiply(ci.Q).multiply(it.p.rot);
+  const o=it.def.off,v=ci.lat.clone().multiplyScalar(it.p.off[0]+o[0]).addScaledVector(ci.up,it.p.off[1]+o[1]).addScaledVector(ci.front,it.p.off[2]+o[2]).multiplyScalar(ci.H);
+  it.wrapper.position.copy(v.applyQuaternion(qb)).divideScalar(sc)}
+function wdRows(){$('#weq').innerHTML=WD.eq.map((it,i)=>it.kind==='part'?`<div class="row" data-i="${i}"><b>${it.slotLabel}</b> ${it.name}<button data-act="del">✕</button></div>`:
+  `<div class="row" data-i="${i}" style="gap:4px"><b>${it.name}</b><select data-act="bone">${WBONES.map(b=>`<option value="${b[0]}" ${b[0]===it.p.bone?'selected':''}>${b[1]}</option>`).join('')}</select>
+   <label class="mute" style="margin:0">taille <input type="range" data-act="scale" min="40" max="220" value="${Math.round(it.p.scale*100)}" style="width:80px"></label>
+   <label class="mute" style="margin:0">→ <input type="range" data-act="ox" min="-30" max="30" value="${Math.round(it.p.off[0]*100)}" style="width:60px"></label><label class="mute" style="margin:0">↑ <input type="range" data-act="oy" min="-30" max="30" value="${Math.round(it.p.off[1]*100)}" style="width:60px"></label><label class="mute" style="margin:0">⇥ <input type="range" data-act="oz" min="-30" max="30" value="${Math.round(it.p.off[2]*100)}" style="width:60px"></label>
+   <button data-act="rx" title="tourner de 90° autour de X">⟲X</button><button data-act="ry" title="tourner de 90° autour de Y">⟲Y</button><button data-act="rz" title="tourner de 90° autour de Z">⟲Z</button><button data-act="del">✕</button></div>`).join('');
+  $('#wclear').disabled=!WD.eq.length}
+$('#weq').oninput=$('#weq').onchange=$('#weq').onclick=e=>{const row=e.target.closest('[data-i]'),a=e.target.dataset.act;if(!row||!a)return;if(e.type==='click'&&e.target.tagName!=='BUTTON')return;const it=WD.eq[+row.dataset.i];
+  if(a==='del'){wdRemove(it);return}if(it.kind!=='item')return;
+  if(a==='bone'){it.p.bone=e.target.value}else if(a==='scale'){it.p.scale=e.target.value/100}else if(a==='ox'||a==='oy'||a==='oz'){it.p.off['xyz'.indexOf(a[1])]=e.target.value/100}
+  else if(/^r[xyz]$/.test(a)){const ax=new THREE.Vector3(+(a[1]==='x'),+(a[1]==='y'),+(a[1]==='z'));it.p.rot.multiply(new THREE.Quaternion().setFromAxisAngle(ax,Math.PI/2))}wdPlace(it)};
+function wdRemove(it){if(it.kind==='item')it.wrapper.removeFromParent();else for(const m of it.meshes){m.removeFromParent();m.geometry.dispose()}WD.eq=WD.eq.filter(x=>x!==it);wdRows()}
+function wdReset(){WD.eq=[];wdRows();const o=$('#wown');if(o){const names=[];M&&M.traverse(m=>{if(m.isMesh&&m.name&&!names.includes(m.name))names.push(m.name)});
+  o.innerHTML=names.length?'<span class="mute">Parties d\'origine :</span>'+names.slice(0,14).map(n=>`<label class="chip" style="margin:0"><input type="checkbox" data-own="${n}" checked> ${n}</label>`).join(''):''}}
+$('#wown').onchange=e=>{const n=e.target.dataset.own;if(n==null||!M)return;M.traverse(m=>{if(m.isMesh&&m.name===n&&!m.userData.wd)m.visible=e.target.checked})};
+$('#wclear').onclick=()=>{for(const it of [...WD.eq])wdRemove(it);wmsg('Garde-robe vidée.')};
+const SLOTL={cheveux:'Cheveux',haut:'Haut',bas:'Bas',chaussures:'Chaussures',tete:'Tête',sac:'Sac'};
+async function wdDress(en){
+  const tm=firstSkinned(M);if(!tm)throw new Error('pas de maillage lié au squelette dans ce modèle');
+  const g=await wdLoad(en.file),gr=cloneSk(g.scene);gr.updateMatrixWorld(true);
+  const Gs=restState(gr),Gby=new Map(Gs.map(r=>[r.b,r])),T=M.userData.rig.filter(r=>!r.dup),Tkey=new Map();T.forEach(r=>{if(!Tkey.has(r.key))Tkey.set(r.key,r)});
+  const hOf=(rs,fr)=>{const hd=rs.find(r=>r.key==='head'),ft=rs.filter(r=>/foot$/.test(r.key));return hd&&ft.length&&fr?hd.p.clone().sub(ft.reduce((a,r)=>a.add(r.p),new THREE.Vector3()).multiplyScalar(1/ft.length)).dot(fr.up):0};
+  const hG=hOf(Gs,frameOf(Gs)),hT=hOf(T,frameOf(T));if(!(hG>0&&hT>0))throw new Error('squelette non reconnu (bassin, tête, pieds nommés comme Mixamo / Quaternius…)');
+  const S=hT/hG;const one=new THREE.Vector3(1,1,1),cm=(p,q,s)=>new THREE.Matrix4().compose(p,q,one.clone().multiplyScalar(s||1));
+  const anc=b=>{let o=b;while(o&&o.isBone){const e=Gby.get(o);if(e&&Tkey.has(e.key))return e;o=o.parent}return null};
+  const hips=Tkey.get('hips'),F=new Map(),Qf=new Map(),tIdx=new Map();
+  const sk=tm.skeleton.bones;
+  const fitOf=b=>{if(F.has(b))return F.get(b);const ga=anc(b),te=ga?Tkey.get(ga.key):hips,gg=ga||Gs.find(r=>r.key==='hips');const f=cm(te.p,te.q).multiply(cm(gg.p.clone().multiplyScalar(S),gg.q).invert());F.set(b,f);Qf.set(b,new THREE.Quaternion().setFromRotationMatrix(f));let ti=sk.indexOf(te.b);if(ti<0)ti=Math.max(0,sk.indexOf(hips.b));tIdx.set(b,ti);return f};
+  tm.updateMatrixWorld(true);const toLocal=new THREE.Matrix4().copy(tm.matrixWorld).invert().multiply(M.matrixWorld),made=[],v=new THREE.Vector3(),n=new THREE.Vector3(),acc=new THREE.Vector3(),accn=new THREE.Vector3();
+  gr.traverse(sm=>{if(!sm.isSkinnedMesh)return;const geo=sm.geometry,P=geo.attributes.position,N=geo.attributes.normal,si=geo.attributes.skinIndex,sw=geo.attributes.skinWeight;if(!si||!sw)return;
+    const gb=sm.skeleton.bones,toRoot=new THREE.Matrix4().copy(gr.matrixWorld).invert().multiply(sm.matrixWorld),nv=P.count,pos=new Float32Array(nv*3),nor=new Float32Array(nv*3),sidx=new Uint16Array(nv*4),sww=new Float32Array(nv*4);
+    for(let i=0;i<nv;i++){v.fromBufferAttribute(P,i).applyMatrix4(toRoot).multiplyScalar(S);if(N)n.fromBufferAttribute(N,i);acc.set(0,0,0);accn.set(0,0,0);
+      for(let k=0;k<4;k++){const w=[sw.getX(i),sw.getY(i),sw.getZ(i),sw.getW(i)][k],b=gb[[si.getX(i),si.getY(i),si.getZ(i),si.getW(i)][k]];if(!b||w<=0){sidx[i*4+k]=0;sww[i*4+k]=0;continue}const f=fitOf(b);acc.addScaledVector(v.clone().applyMatrix4(f),w);if(N)accn.addScaledVector(n.clone().applyQuaternion(Qf.get(b)),w);sidx[i*4+k]=tIdx.get(b);sww[i*4+k]=w}
+      acc.applyMatrix4(toLocal);pos.set([acc.x,acc.y,acc.z],i*3);if(N){accn.normalize();nor.set([accn.x,accn.y,accn.z],i*3)}}
+    const ng=new THREE.BufferGeometry();ng.setAttribute('position',new THREE.BufferAttribute(pos,3));if(N)ng.setAttribute('normal',new THREE.BufferAttribute(nor,3));if(geo.attributes.uv)ng.setAttribute('uv',geo.attributes.uv.clone());
+    ng.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(sidx,4));ng.setAttribute('skinWeight',new THREE.Float32BufferAttribute(sww,4));if(geo.index)ng.setIndex(geo.index.clone());
+    const nm=new THREE.SkinnedMesh(ng,sm.material);nm.name=en.id;nm.frustumCulled=false;nm.userData.wd=1;nm.position.copy(tm.position);nm.quaternion.copy(tm.quaternion);nm.scale.copy(tm.scale);tm.parent.add(nm);nm.updateMatrixWorld(true);nm.bind(tm.skeleton,tm.bindMatrix);made.push(nm)});
+  if(!made.length)throw new Error('pièce vide');
+  for(const o of WD.eq.filter(x=>x.kind==='part'&&x.slot===en.cat))wdRemove(o);
+  WD.eq.push({kind:'part',id:en.id,slot:en.cat,slotLabel:SLOTL[en.cat]||en.cat,name:en.name,meshes:made});wdRows();wmsg(`« ${en.name} » (${SLOTL[en.cat]||en.cat}) ajusté au squelette (échelle ×${S.toFixed(2)}). Masque la partie d'origine correspondante dans « Parties d'origine » si elle dépasse.`)}
+wdRows();
+
+window._test={wdAdd,get WD(){return WD},generate,get result(){return result},setup,loadFile,addAnims,addSkeleton,get clips(){return clips},get M(){return M},get library(){return library}};
 </script>
 </body>
 </html>

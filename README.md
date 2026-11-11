@@ -98,6 +98,13 @@ Carte **Squelette et animations d'autres fichiers**, sous la vue 3D :
 Hypothèses/limites : modèle debout, de face, en T ou en A (même pose que le squelette) ; rigs très atypiques (danseuse : os « Leg_-_HipR »…)
 n'apparient que quelques os ; aucun poids peint à la main. Test : `tests/ui_modele_rig.py` (Playwright).
 
+### Garde-robe : cheveux, armes, vêtements, chaussures, accessoires (`docs/wardrobe/`, carte « Garde-robe » de `modele.html`)
+163 pièces **CC0** (Quaternius, KayKit ; crédits dans `THIRD_PARTY.md`), avec vignettes :
+- **Accessoires** (33 armes, 10 boucliers, couronnes, colliers, sacs, gant, plastrons, objets) : fixés à l'os choisi (main, avant-bras, tête, cou, dos, pieds…), orientés « lame vers le haut, face vers l'avant » à la pose de repos, taille = fraction de la hauteur du personnage ; curseurs de taille et de décalage, rotations de 90°. Ils suivent les animations ajoutées et apparaissent dans les sprites.
+- **Pièces habillables** (21 hauts, 20 bas, 21 chaussures, 21 têtes, 13 cheveux, sac) : chaque sommet est déplacé de l'os du vêtement vers l'os apparié du modèle puis lié à son squelette, donc le vêtement suit les animations. Les cases « Parties d'origine » masquent le corps/les jambes/les pieds d'origine pour ne pas les voir à travers. Un seul objet par emplacement.
+- Limites : proportions humaines ; sur un modèle déjà habillé le vêtement d'origine dépasse tant qu'on ne le masque pas ; les hauts à capes ou épaulières larges peuvent traverser des bras très fins ; modèle sans squelette → ajouter d'abord un squelette (carte précédente).
+- Reconstruire : `node tools/wardrobe/build.mjs SRC_QUATERNIUS SRC_KAYKIT docs/wardrobe` puis `python tools/wardrobe/thumbs.py`. Test : `tests/ui_modele_wardrobe.py`.
+
 ## Contrôle qualité des frames (`qa`)
 `python -m forge qa DOSSIER_FRAMES [--max-colors 24]` : cadre coupé, poussières, alpha semi-transparent, nombre de
 couleurs, taille et ligne des pieds d'une frame à l'autre ; chaque problème donne une consigne de correction.
