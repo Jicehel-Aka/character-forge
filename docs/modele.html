@@ -38,6 +38,7 @@ code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding
     <input type="file" id="fanim" accept=".glb,.gltf,.fbx" multiple hidden><input type="file" id="fskel" accept=".glb,.gltf,.fbx" hidden>
     <div class="row"><button class="primary" id="banim" title="Mixamo, bibliothèques d'animations, autre modèle animé : plusieurs fichiers à la fois">Ajouter des animations… (FBX / GLB)</button><label class="chip" style="margin:0" title="supprime le déplacement du bassin : le personnage reste au centre"><input type="checkbox" id="rinplace" checked> sur place</label></div>
     <div class="row"><button id="bskel" title="pour un modèle sans squelette (maillage seul) : pose un squelette pris dans un autre fichier, à l'échelle du modèle">Ajouter un squelette… (modèle sans os)</button></div>
+    <div class="row"><button id="bglb" title="écrit le modèle avec son squelette (celui du fichier ou celui qui vient d'être ajouté), la garde-robe habillée et, si coché, les animations de la liste">Télécharger le modèle avec squelette (GLB)</button><label class="chip" style="margin:0"><input type="checkbox" id="bglba" checked> avec les animations</label></div>
     <p class="mute" id="rmsg" style="white-space:pre-line;margin:6px 0 0">Les animations sont reciblées sur les os du modèle (appariés par nom : Mixamo, Bip01, Blender…). Elles rejoignent la liste « Animation » et « Générer toutes les animations ».</p>
   </div>
   <div class="card" id="acard"><h2>Bibliothèque d'animations (CC0)</h2>
@@ -563,7 +564,19 @@ $('#aclr').onclick=()=>{AN.sel.clear();anDraw()};
 $('#aadd').onclick=()=>{const names=[...AN.sel].filter(k=>k.startsWith(AN.pack.id+'|')).map(k=>k.slice(AN.pack.id.length+1));if(!names.length)return amsg('Clique sur des animations pour les sélectionner.',1);anAdd(AN.pack,names).then(()=>{AN.sel.clear();anDraw()}).catch(er=>amsg('Échec : '+er.message,1))};
 $('#aall').onclick=()=>{const names=anShown().map(c=>c.name);if(!names.length)return;anAdd(AN.pack,names).catch(er=>amsg('Échec : '+er.message,1))};
 anInit();
-window._test={anAdd,AN,wdAdd,get WD(){return WD},generate,get result(){return result},setup,loadFile,addAnims,addSkeleton,get clips(){return clips},get M(){return M},get library(){return library}};
+
+// ---- export du modèle (squelette ajouté, vêtements, animations) en GLB ----
+$('#bglb').onclick=async()=>{
+  if(!M)return rmsg('Ouvre d\'abord un modèle.',1);if(!(M.userData.rig&&M.userData.rig.length))return rmsg('Ce modèle n\'a pas de squelette : rien à exporter de plus que le fichier d\'origine. Ajoute un squelette d\'abord.',1);
+  try{rmsg('Écriture du GLB…');const{GLTFExporter}=await import('three/addons/exporters/GLTFExporter.js');
+    if(mixer)mixer.stopAllAction();M.traverse(o=>{if(o.isSkinnedMesh&&o.skeleton)o.skeleton.pose()});M.updateMatrixWorld(true);
+    const anims=$('#bglba').checked?clips.map(c=>{const k=c.clone();k.tracks=k.tracks.filter(t=>/\.(position|quaternion|scale)$/.test(t.name));return k}):[];
+    const buf=await new Promise((ok,ko)=>new GLTFExporter().parse(M,ok,ko,{binary:true,animations:anims,onlyVisible:true,maxTextureSize:2048}));
+    const name=(M.userData.name||'modele').replace(/\.[^.]+$/,'').replace(/[^\w.-]+/g,'_')+'_squelette.glb';dl(name,buf,'model/gltf-binary');
+    rmsg(`${name} : ${(buf.byteLength/1048576).toFixed(1)} Mo, ${anims.length} animation(s). Rouvre-le dans « Ouvrir le modèle » : les animations apparaissent dans la liste.`);
+    if(action){const i=$('#clip').value;if(i!=='')play(+i)}}
+  catch(e){rmsg('Échec de l\'export : '+e.message,1)}};
+window._test={exportGLB:()=>$('#bglb').onclick(),anAdd,AN,wdAdd,get WD(){return WD},generate,get result(){return result},setup,loadFile,addAnims,addSkeleton,get clips(){return clips},get M(){return M},get library(){return library}};
 </script>
 </body>
 </html>

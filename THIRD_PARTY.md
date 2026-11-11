@@ -39,3 +39,6 @@ Animations **CC0 1.0** (aucune attribution requise ; crédit volontaire). Les GL
 |---|---|---|---|---|
 | Universal Animation Library (version gratuite « Standard ») | Quaternius | CC0 1.0 | 45 animations (déplacements, combat, magie, assis, nage…) | https://quaternius.com/packs/universalanimationlibrary.html (copie : github.com/j-ponzo/gltf-universal-animation-library) |
 | KayKit Character Pack : Adventurers 1.0 | Kay Lousberg | CC0 1.0 | 69 animations (mêlée 1/2 mains, tir, esquives, sauts, sorts…) du squelette `Knight.glb` | https://kaylousberg.itch.io/kaykit-character-pack-adventures |
+
+## three.js GLTFExporter / TextureUtils (docs/vendor/three/addons/)
+Copiés de three.js r160 (MIT), même version que le reste de `docs/vendor/three`, pour le bouton « Télécharger le modèle avec squelette (GLB) ».
