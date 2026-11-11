@@ -333,3 +333,15 @@ Limites : pas de doigts (hands = un seul os), pas de poids « volumétriques » 
 **Texture** (`forge hull … --uv 2048`, nécessite `pip install xatlas`) : le hull couleur-par-sommet échantillonne la photo à ~0,7 px (espacement des sommets) puis la lisse ; la texture UV (dépliage xatlas, un point de surface par texel, même
 pondération que `colorize`, repli sur la couleur des sommets pour les zones non vues, marge de 6 texels) l'échantillonne à la résolution de la photo. `forge rig` reprend la texture embarquée du GLB.
 Limites : coutures visibles par endroits (fines lignes sur les bras), le visage reste mauvais car il vient de la géométrie du hull (queue de cheval fondue dans la tête) et non de l'échantillonnage.
+
+
+## Fermeture du maillage (`forge/meshclose.py`, `forge close`, bouton « Fermer le maillage »)
+
+Un maillage issu d'une série d'images (enveloppe visuelle, photogrammétrie, IA image→3D) a presque toujours des sommets en double, des
+triangles dégénérés, des pièces flottantes (facettes non rattachées) et des trous. Chaîne appliquée, avec rapport :
+soudure des sommets → triangles dégénérés / en double / arêtes à plus de 2 triangles → suppression des pièces dont l'aire < 1 % du total
+→ orientation cohérente → comblement de chaque boucle de bord (oreilles dans le plan moyen, repli éventail) → contrôle « chaque arête
+partagée par exactement 2 triangles » → sinon repli volumique (voxels + fermeture + marching cubes) → normales vers l'extérieur.
+`forge hull` l'applique d'office (`--no-close` pour l'éviter) ; `forge close in.obj|glb out.obj|glb [--mode auto|fill|voxel]` pour un fichier ;
+dans `docs/modele.html`, case « automatiquement avant la pose du squelette » (version JS : soudure, pièces flottantes, trous en éventail,
+attributs UV/normales/matériaux conservés). Tests : `tests/test_meshclose.py`, `tests/ui_modele_close.py`.

@@ -173,7 +173,10 @@ def main(argv=None):
     s.add_argument("--vox", type=float, default=2.5, help="taille de voxel en pixels (plus petit = plus fin, plus lent)"); s.add_argument("--height", type=float, default=1.75, help="hauteur du modèle (m)")
     s.add_argument("--sign", type=int, choices=[1, -1], default=None, help="sens de rotation (auto par défaut)"); s.add_argument("--no-photo", action="store_true", help="pas d'affinage du calage par cohérence des couleurs")
     s.add_argument("--uv", type=int, default=0, metavar="N", help="texture UV cuite depuis les photos (atlas ~N px, ex. 2048 ; nécessite xatlas) au lieu des couleurs par sommet")
-    s.add_argument("--smooth-colors", type=int, default=3)
+    s.add_argument("--smooth-colors", type=int, default=3); s.add_argument("--no-close", dest="no_close", action="store_true", help="ne pas refermer le maillage (trous, pièces flottantes)")
+
+    s = sub.add_parser("close", help="ferme un maillage OBJ/GLB issu d'images : soude, retire les facettes flottantes, orienter, comble les trous (repli volumique) -> surface fermée")
+    s.add_argument("input"); s.add_argument("output"); s.add_argument("--mode", choices=["auto", "fill", "voxel"], default="auto"); s.add_argument("--min-area", type=float, default=0.01, help="pièces dont l'aire est sous cette fraction de l'aire totale = flottantes"); s.add_argument("--res", type=int, default=160, help="résolution du repli volumique")
 
     s = sub.add_parser("control", help="planche de contrôle + métriques (membres fins qui disparaissent) d'un ou plusieurs rendus forge meshy")
     s.add_argument("dirs", nargs="+"); s.add_argument("--rows", type=int, default=6)
@@ -298,6 +301,9 @@ def main(argv=None):
     elif a.cmd == "skiln-paint":
         from . import skiln_paint
         raise SystemExit(skiln_paint.cmd(a))
+    elif a.cmd == "close":
+        from . import meshclose
+        raise SystemExit(meshclose.cmd(a))
     elif a.cmd == "hull":
         from . import hull
         raise SystemExit(hull.cmd(a))

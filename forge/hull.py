@@ -192,7 +192,7 @@ def refine_photo(views, verts, normals, sg, rounds=3, n=6000, log=print):
         log(f"  tour {r + 1} : {cur:.5f}")
     return cur
 
-def build(paths, thetas=None, out="modele.glb", vox=2.5, height_m=1.75, sign=None, smooth=1.6, grow=2, photo=True, smooth_col=3, uv=0, log=print):
+def build(paths, thetas=None, out="modele.glb", vox=2.5, height_m=1.75, sign=None, smooth=1.6, grow=2, photo=True, smooth_col=3, uv=0, close=True, log=print):
     thetas = thetas or [45 * i for i in range(len(paths))]
     views = [View(p, t) for p, t in zip(paths, thetas)]
     height = max(v.bot - v.top for v in views) * 1.05; extent = max(v.w for v in views) * 0.62
@@ -222,6 +222,11 @@ def build(paths, thetas=None, out="modele.glb", vox=2.5, height_m=1.75, sign=Non
     score, sg, verts, faces, normals, colr, offs = best; colr = smooth_colors(colr, faces, iters=smooth_col); log(f"sens retenu {sg:+d} ; {len(verts)} sommets, {len(faces)} triangles")
     if os.environ.get("FORGE_HULL_DUMP"):   # mise au point des couleurs : géométrie (px), faces, vues calées
         np.savez(os.environ["FORGE_HULL_DUMP"], verts=verts, faces=faces, normals=normals, sign=sg, offs=np.array(offs), thetas=np.array(thetas), paths=np.array([str(p) for p in paths]))
+    if close:   # surface unique et fermée, sans trou ni triangle flottant (voir meshclose.py) ; rien à faire si déjà fermée
+        from . import meshclose
+        st = meshclose.stats(verts, faces)
+        if not (st["watertight"] and st["components"] == 1):
+            log("fermeture du maillage :"); verts, faces, colr, rep = meshclose.close(verts, faces, colr, log=log); normals = meshclose.vertex_normals(verts, faces); log("  " + meshclose.report_text(rep))
     mn = verts.min(0); mx = verts.max(0); k = height_m / (mx[1] - mn[1]); V = (verts - [(mn[0] + mx[0]) / 2, mn[1], (mn[2] + mx[2]) / 2]) * k
     Ns = smooth_normals(verts, faces, normals, 3)
     if uv:   # texture UV cuite depuis les photos (voir hulluv.py) : sommets dupliqués aux coutures, plus de COLOR_0
@@ -261,5 +266,5 @@ def write_glb(path, V, N, C, F, uv=None, png=None):
 
 def cmd(a):
     paths = [str(p) for p in a.images]; th = [float(t) for t in a.angles.split(",")] if a.angles else None
-    r = build(paths, th, out=a.output, vox=a.vox, height_m=a.height, sign=a.sign, photo=not a.no_photo, smooth_col=a.smooth_colors, uv=getattr(a, 'uv', 0))
+    r = build(paths, th, out=a.output, vox=a.vox, height_m=a.height, sign=a.sign, photo=not a.no_photo, smooth_col=a.smooth_colors, uv=getattr(a, 'uv', 0), close=not getattr(a, 'no_close', False))
     print(json.dumps(r, indent=1)); return 0
