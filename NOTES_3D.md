@@ -374,3 +374,11 @@ Chaque personnage, pièce et animation est 🔒 privé (défaut) ou 🌐 public.
 - Calques superposés (culotte sur la peau, gants...) : dans `skinRules`, un sommet qui a en face de lui, sur sa normale, un sommet de calque de dessus (≤ 2 % de la taille) reprend ses poids : la peau suit exactement le vêtement et ne perce plus.
 - Bras durs (`armFix`, case « automatiquement », bouton « Empêcher les bras de traverser le tronc ») : tronc = chaîne d'ellipses mesurée au repos ; à 30 images/s, les points épaule → poing sont comparés à sa surface (épaisseur du membre incluse), l'os de bras qui s'enfonce est tourné autour de son articulation (le bras reste rigide), correction élargie de 2 images puis lissée ; seules les animations touchées sont réécrites. Cammy : 2044 → 96 sommets de bras dans le ventre sur 24 poses.
 - Base locale : `index.html` et `modele.html` partagent la base IndexedDB « character-forge » ; elle est en version 2 avec les magasins `kv` et `chars` créés par les deux pages (sinon « One of the specified object stores was not found » à l'import d'un zip d'animations).
+
+## Objets du personnage (poupée customisable et animable)
+- Tout objet (cheveux, vêtements, armures, armes, accessoires) : visible/caché, recoloré, texturé, transparent, et rangeable dans « Ma banque » (🔒 privé / 🌐 public).
+- Pièce **habillée** (maillage skinné) : `wdDress`. Pièce **accrochée** (maillage rigide, ex. arme, chope) : `wdSaveAttach` stocke `userData.attach = {bone, off, rot, s}` (décalage en unités de hauteur H dans le repère du personnage) ; `wdEquipAttach` la remet sous l'os correspondant (`canon`) d'un autre personnage → elle suit les animations.
+- Bouton **Retirer** par pièce (supprime proprement, y compris les objets équipés) ; bouton **Retirer cette animation** à côté du sélecteur de clips.
+- Correction des bras (`armFix`) : prend en compte les objets tenus (échantillons des maillages rigides sous la main/avant-bras) ; `clip.__orig` garde les pistes d'origine ; `armSoon()` relance après chaque changement de visibilité/équipement.
+- Limites : collision tête/objet tenu non gérée, pas de physique des cheveux/capes, torse = chaîne d'ellipses approximative.
+- Test : `tests/ui_modele_props.py`.

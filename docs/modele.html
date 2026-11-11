@@ -32,7 +32,7 @@ code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding
   <div class="card">
     <div class="row"><input type="file" id="file" accept=".glb,.gltf,.fbx,.obj" hidden><button class="primary" onclick="file.click()">Ouvrir le modèle (GLB / FBX / OBJ)…</button><span class="mute" id="info">Glisse ici le fichier rapporté de Meshy (GLB conseillé).</span></div>
     <canvas id="view" width="900" height="675"></canvas>
-    <div class="row"><label style="margin:0">Animation</label><select id="clip"></select><button id="play">▶ / ❚❚</button><span class="mute" id="stat"></span></div>
+    <div class="row"><label style="margin:0">Animation</label><select id="clip"></select><button id="play">▶ / ❚❚</button><button id="cdel" title="retire cette animation de ce modèle (incohérente avec le personnage, à refaire…) ; elle reste disponible dans la bibliothèque">Retirer cette animation</button><span class="mute" id="stat"></span></div>
   </div>
   <div class="card" id="zcard"><h2>Assistant sprites</h2>
     <p class="mute" style="margin:0 0 6px">1. Choisis le personnage · 2. le type de jeu · 3. les actions (cochées = générées ; tu peux en ajouter) · 4. génère, puis exporte.</p>
@@ -625,7 +625,7 @@ const wfrac=(id,d)=>/dagger|wand/.test(id)?(/wand/.test(id)?.2:.18):/spear/.test
 fetch(WDIR+'catalog.json').then(r=>r.json()).then(c=>{WD.CAT=c;wdTabs();wdMineLoad()}).catch(()=>{$('#wmsg').textContent='Catalogue de la garde-robe introuvable.'});
 function wdList(tab){if(tab==='mes')return WD.mine;const t=WTABS.find(x=>x[0]===tab),c=WD.CAT;if(!c)return[];return(t[2]!=='part'?c.items.filter(i=>i.cat===tab&&!/arrow/.test(i.id)).map(i=>({...i,kind:'item'})):[]).concat(t[2]!=='item'?c.parts.filter(p=>p.slot===tab).map(p=>({...p,kind:'part',cat:p.slot})):[])}
 function wdTabs(){$('#wtabs').innerHTML=WTABS.map(t=>`<button data-tab="${t[0]}" class="${t[0]===WD.tab?'primary':''}">${t[1]}</button>`).join('');
-  $('#wgrid').innerHTML=wdList(WD.tab).map(e=>`<button class="wdi" data-id="${e.id}" data-kind="${e.kind}" title="${e.name} · ${e.source}" style="padding:2px;display:flex;flex-direction:column;align-items:center;font-size:11px;line-height:1.1">${e.idb?`<span style="width:72px;height:72px;background:#8a8a8a;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:20px">👕</span><span>${e.name}</span><span class="mute">${SLOTL[e.slot]||e.slot}</span><span data-vis="${e.idb}" title="bascule privé / public" style="cursor:pointer">${visIcon(e.vis)}</span><span data-del="${e.idb}" title="supprimer de la banque" style="cursor:pointer">✕</span>`:`<img src="${WDIR}thumbs/${e.id}.png" width="72" height="72" loading="lazy" alt="" style="background:#8a8a8a;border-radius:4px"><span>${e.name}</span>`}</button>`).join('')}
+  $('#wgrid').innerHTML=wdList(WD.tab).map(e=>`<button class="wdi" data-id="${e.id}" data-kind="${e.kind}" title="${e.name} · ${e.source}" style="padding:2px;display:flex;flex-direction:column;align-items:center;font-size:11px;line-height:1.1">${e.idb?`<span style="width:72px;height:72px;background:#8a8a8a;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:30px">${SLOTI[e.slot]||"👕"}</span><span>${e.name}</span><span class="mute">${SLOTL[e.slot]||e.slot}</span><span data-vis="${e.idb}" title="bascule privé / public" style="cursor:pointer">${visIcon(e.vis)}</span><span data-del="${e.idb}" title="supprimer de la banque" style="cursor:pointer">✕</span>`:`<img src="${WDIR}thumbs/${e.id}.png" width="72" height="72" loading="lazy" alt="" style="background:#8a8a8a;border-radius:4px"><span>${e.name}</span>`}</button>`).join('')}
 $('#wtabs').onclick=e=>{const b=e.target.closest('[data-tab]');if(b){WD.tab=b.dataset.tab;wdTabs()}};
 $('#wgrid').onclick=e=>{const dv=e.target.dataset&&e.target.dataset.vis;if(dv){STORE.setVis(dv,VIS.of(dv)==='public'?'private':'public').then(wdMineLoad,er=>wmsg('Échec : '+er.message,1));return}const d=e.target.dataset&&e.target.dataset.del;if(d){STORE.del(d).then(wdMineLoad,er=>wmsg('Suppression : '+er.message,1));return}const b=e.target.closest('.wdi');if(!b)return;const en=wdList(WD.tab).find(x=>x.id===b.dataset.id);wdAdd(en).catch(er=>wmsg('Échec : '+er.message,1))};
 function wmsg(t,bad){const e=$('#wmsg');e.textContent=t;e.classList.toggle('bad',!!bad)}
@@ -641,7 +641,7 @@ async function wdAdd(en){
   const g=await wdLoad(en.file),d=WATT[en.cat]||WATT.objet,inner=g.scene.clone(true),wrapper=new THREE.Group(),bb=new THREE.Box3().setFromObject(inner),sz=bb.getSize(new THREE.Vector3()),ctr=bb.getCenter(new THREE.Vector3());
   if(d.center)inner.position.sub(ctr);wrapper.add(inner);
   const ref=d.axis==='x'?sz.x:Math.max(sz.x,sz.y,sz.z),ci=charInfo(),it={kind:'item',id:en.id,name:en.name,cat:en.cat,wrapper,def:d,base:wfrac(en.id,d.frac)*ci.H/ref,p:{bone:d.bone,scale:1,off:[0,0,0],rot:new THREE.Quaternion()}};
-  WD.eq.push(it);wdPlace(it);wdRows();wmsg(`« ${en.name} » ajouté (${en.source}, CC0).`)}
+  WD.eq.push(it);wdPlace(it);wdRows();armSoon();wmsg(`« ${en.name} » ajouté (${en.source}, CC0).`)}
 function wdPlace(it){const T=M.userData.rig,tk=k=>T.find(r=>r.key===k&&!r.dup),be=tk(it.p.bone)||tk('hips');if(!be)return;const ci=charInfo(),sc=be.sc||1;
   if(it.wrapper.parent!==be.b)be.b.add(it.wrapper);
   const qb=be.q.clone().invert();it.wrapper.scale.setScalar(it.base*it.p.scale/sc);it.wrapper.quaternion.copy(qb).multiply(ci.Q).multiply(it.p.rot);
@@ -657,13 +657,15 @@ $('#weq').oninput=$('#weq').onchange=$('#weq').onclick=e=>{const row=e.target.cl
   if(a==='del'){wdRemove(it);return}if(it.kind!=='item')return;
   if(a==='bone'){it.p.bone=e.target.value}else if(a==='scale'){it.p.scale=e.target.value/100}else if(a==='ox'||a==='oy'||a==='oz'){it.p.off['xyz'.indexOf(a[1])]=e.target.value/100}
   else if(/^r[xyz]$/.test(a)){const ax=new THREE.Vector3(+(a[1]==='x'),+(a[1]==='y'),+(a[1]==='z'));it.p.rot.multiply(new THREE.Quaternion().setFromAxisAngle(ax,Math.PI/2))}wdPlace(it)};
-function wdRemove(it){if(it.kind==='item')it.wrapper.removeFromParent();else for(const m of it.meshes){m.removeFromParent();m.geometry.dispose()}WD.eq=WD.eq.filter(x=>x!==it);wdRows()}
+const armSoon=()=>{if(!$('#armauto')||!$('#armauto').checked||!clips.length||!M)return;clearTimeout(armSoon.t);armSoon.t=setTimeout(()=>{try{const r=armFix(M,clips);if(r.ok&&r.n)wmsg(r.msg)}catch(e){console.error(e)}},500)};   // objets tenus visibles/retirés/ajoutés : les bras sont recalculés d'après eux
+function wdRemove(it){if(it.kind==='item')it.wrapper.removeFromParent();else for(const m of it.meshes){m.removeFromParent();m.geometry.dispose()}WD.eq=WD.eq.filter(x=>x!==it);wdRows();armSoon()}
 /* ---- vêtements du modèle : ôter, recolorer, texturer, rendre transparent, ranger dans la banque ----
    Chaque maillage (un par matériau) est une « pièce » : on peut la masquer (= ôter le vêtement), lui donner une couleur unie, une texture
    (image de ton choix), un mode de transparence (opaque / découpé / fondu) avec opacité, et la ranger dans « Ma banque » (IndexedDB du
    navigateur) pour l'enfiler plus tard sur un autre personnage. Le matériau est cloné à la première modification : les autres
    maillages qui le partageaient ne changent pas. Les changements sont écrits dans le GLB exporté. */
-const WO={list:[],cur:-1},SLOTS=['haut','bas','chaussures','cheveux','tete','sac'];
+const WO={list:[],cur:-1},SLOTS=['haut','bas','chaussures','cheveux','tete','gants','armure','arme','bouclier','sac','accessoire'];
+const slotGuess=n=>/hair|cheveu|perruque|wig|coiff/i.test(n)?'cheveux':/shield|bouclier|buckler/i.test(n)?'bouclier':/axe|sword|mace|staff|bow|dagger|spear|wand|hammer|club|epee|hache|arme|blade|knife|lance|flail|scythe/i.test(n)?'arme':/hat|helm|casque|crown|couronne|cap|hood|capuche/i.test(n)?'tete':/glove|gant|gaunt/i.test(n)?'gants':/armor|armour|armure|plate|cuirass|plastron|pauldron/i.test(n)?'armure':/boot|shoe|chauss|foot/i.test(n)?'chaussures':/pant|skirt|short|jupe|bas|trouser|culotte|brief/i.test(n)?'bas':/bag|sac|backpack|quiver|carquois/i.test(n)?'sac':/cape|cloak|mug|scarf|belt|ceinture|neck|collier|ring|bijou|wing|aile|tail|queue|ear/i.test(n)?'accessoire':'haut';
 const wmats=m=>Array.isArray(m.material)?m.material:[m.material];
 function wdOwn(m){if(m.userData.ownMat)return;const mt=wmats(m)[0];m.userData.orig={map:mt.map||null,color:mt.color?mt.color.clone():null};m.material=Array.isArray(m.material)?m.material.map(x=>x.clone()):m.material.clone();m.userData.ownMat=1}
 function wdEdit(m,f){wdOwn(m);wmats(m).forEach(mt=>{f(mt);mt.needsUpdate=true})}
@@ -679,14 +681,15 @@ function wdPanel(){const box=$('#wown');if(!box)return;WO.list=[];
       <input type="color" data-a="col" value="${hex}" title="couleur"><label class="chip" style="margin:0" title="remplace la texture par cette couleur unie"><input type="checkbox" data-a="solid"> unie</label><button data-a="tex" title="applique une image comme texture">Texture…</button><button data-a="rtex" title="rétablit la texture et la couleur d'origine">↺</button>
       <select data-a="mode" title="transparence : opaque, découpé (bords nets, sans tri), fondu (translucide)">${opt([['opaque','opaque'],['mask','découpé'],['blend','fondu']],wdModeOf(mt))}</select><label class="mute" style="margin:0">opacité <input type="range" data-a="op" min="0" max="100" value="${Math.round((mt.opacity??1)*100)}" style="width:70px"></label>
       <label class="chip" style="margin:0"><input type="checkbox" data-a="dbl" ${mt.side===THREE.DoubleSide?'checked':''}> double face</label>
-      <select data-a="slot">${opt(SLOTS.map(x=>[x,SLOTL[x]||x]),'haut')}</select><select data-a="pvis" title="🔒 privé : jamais dans le dépôt public"><option value="private">🔒 privé</option><option value="public">🌐 public</option></select><button data-a="bank" title="range cette pièce dans Ma banque">Banque</button></div>`}).join('')+`</div>
+      <select data-a="slot">${opt(SLOTS.map(x=>[x,SLOTL[x]||x]),slotGuess(m.name||''))}</select><select data-a="pvis" title="🔒 privé : jamais dans le dépôt public"><option value="private">🔒 privé</option><option value="public">🌐 public</option></select><button data-a="bank" title="range cette pièce dans Ma banque (vêtement, arme, armure, cheveux, accessoire…)">Banque</button><button data-a="del" title="retire définitivement cette pièce du modèle (recharge le modèle pour la retrouver)">Retirer</button></div>`}).join('')+`</div>
   <div class="row" style="margin-top:4px"><button id="wfixalpha" title="passe les matériaux translucides en « découpé » : règle les visages / dessous qui apparaissent par transparence">Corriger la transparence</button><button id="wshowall">Tout remettre</button></div>`}
 $('#wown').oninput=$('#wown').onchange=$('#wown').onclick=e=>{const t=e.target,a=t.dataset&&t.dataset.a;
   if(t.id==='wfixalpha'&&e.type==='click'){let n=0;WO.list.forEach(m=>{if(wmats(m).some(x=>x.transparent)){wdEdit(m,x=>{if(x.transparent)wdMode(x,'mask',1)});n++}});wdPanel();return wmsg(n?`${n} pièce(s) passée(s) en « découpé » (bords nets, plus de tri aléatoire).`:'Aucun matériau translucide.')}
   if(t.id==='wshowall'&&e.type==='click'){WO.list.forEach(m=>m.visible=true);wdPanel();return}
   const row=t.closest&&t.closest('[data-m]');if(!row||!a)return;const m=WO.list[+row.dataset.m],q=x=>row.querySelector(`[data-a="${x}"]`),isBtn=t.tagName==='BUTTON';
   if(isBtn&&e.type!=='click')return;if(!isBtn&&(a==='col'||a==='op')?e.type!=='input':(!isBtn&&e.type!=='change'))return;
-  if(a==='vis')m.visible=t.checked;
+  if(a==='vis'){m.visible=t.checked;armSoon()}
+  else if(a==='del'){const it=WD.eq.find(x=>x.kind==='item'?x.wrapper&&x.wrapper.getObjectById(m.id):x.meshes&&x.meshes.includes(m));const nm=m.name||'pièce';if(it)wdRemove(it);else{m.removeFromParent();if(m.geometry)m.geometry.dispose()}wdPanel();armSoon();wmsg(`« ${nm} » retirée du modèle.`);return}
   else if(a==='col'||a==='solid'){const solid=q('solid').checked,hex=q('col').value;wdEdit(m,x=>{if(solid||a==='col'){x.map=null;if(x.color)x.color.set(hex)}else{x.map=m.userData.orig.map;if(x.color&&m.userData.orig.color)x.color.copy(m.userData.orig.color)}});if(a==='col'&&!solid)q('solid').checked=true}
   else if(a==='tex'){WO.cur=+row.dataset.m;$('#wtexin').click()}
   else if(a==='rtex'){wdEdit(m,x=>{x.map=m.userData.orig.map;if(x.color&&m.userData.orig.color)x.color.copy(m.userData.orig.color)});q('solid').checked=false;if(m.userData.orig.color)q('col').value='#'+m.userData.orig.color.getHexString()}
@@ -696,9 +699,26 @@ $('#wown').oninput=$('#wown').onchange=$('#wown').onclick=e=>{const t=e.target,a
 $('#wtexin').onchange=async e=>{const f=e.target.files[0];e.target.value='';const m=WO.list[WO.cur];if(!f||!m)return;
   const url=URL.createObjectURL(f);try{const tx=await new THREE.TextureLoader().loadAsync(url);tx.flipY=false;tx.colorSpace=THREE.SRGBColorSpace;tx.wrapS=tx.wrapT=THREE.RepeatWrapping;
     wdEdit(m,x=>{x.map=tx;if(x.color)x.color.set(0xffffff)});wdPanel();wmsg(`Texture « ${f.name} » appliquée à « ${m.name||'pièce'} » (suit les UV du modèle).`)}catch(er){wmsg('Image illisible : '+er.message,1)}finally{URL.revokeObjectURL(url)}};
+/* objet rigide (arme, bouclier, casque, cape, chope, cheveux d'un seul bloc...) : on range sa forme + où il se porte (os, décalage et orientation dans le repère du personnage, taille / hauteur)
+   -> il s'accroche à n'importe quel autre personnage et suit ses animations */
+async function wdSaveAttach(m,slot,pvis,nm){
+  const{GLTFExporter}=await import('three/addons/exporters/GLTFExporter.js');
+  if(mixer)mixer.stopAllAction();M.traverse(o=>{if(o.isBone&&o.userData.rq){o.position.copy(o.userData.rp);o.quaternion.copy(o.userData.rq)}});M.updateMatrixWorld(true);
+  const T=M.userData.rig.filter(r=>!r.dup),okk=new Set(WBONES.map(b=>b[0]));let be=null,q=m.parent;while(q&&!be){const r=T.find(x=>x.b===q);if(r&&okk.has(r.key))be=r;q=q.parent}if(!be)be=T.find(r=>r.key==='hips');if(!be)throw new Error('squelette non reconnu (bassin introuvable)');
+  const ci=charInfo();if(!(ci.H>0))throw new Error('taille du personnage inconnue (tête et pieds non reconnus)');
+  const rel=new THREE.Matrix4().copy(M.matrixWorld).invert().multiply(m.matrixWorld),pos=new THREE.Vector3(),quat=new THREE.Quaternion(),sc=new THREE.Vector3();rel.decompose(pos,quat,sc);
+  const d=pos.clone().sub(be.p),off=[d.dot(ci.lat),d.dot(ci.up),d.dot(ci.front)].map(x=>x/ci.H),rot=ci.Q.clone().invert().multiply(quat),s=Math.cbrt(Math.abs(sc.x*sc.y*sc.z))/ci.H;
+  const mat=Array.isArray(m.material)?m.material.map(x=>x.clone()):m.material.clone(),mesh=new THREE.Mesh(m.geometry.clone(),mat);mesh.name=nm;mesh.userData={attach:{bone:be.key,off,rot:rot.toArray(),s}};
+  const sc2=new THREE.Scene();sc2.add(mesh);
+  const buf=await new Promise((ok,ko)=>new GLTFExporter().parse(sc2,ok,ko,{binary:true,onlyVisible:false,maxTextureSize:1024}));
+  await STORE.put('piece:'+slot+':'+nm,buf,pvis);await wdMineLoad();WD.tab='mes';wdTabs();
+  wmsg(`« ${nm} » (${SLOTL[slot]||slot}, ${visIcon(pvis)} ${pvis==='public'?'public':'privé'}) rangé dans Ma banque : objet porté (${be.key}), il s'accrochera à un autre personnage.${CLOUD.msg?' '+CLOUD.msg:CLOUD.cfg.on?' Copié aussi dans le dépôt GitHub.':''}`)}
+const attachOf=sc=>{let a=null;sc.traverse(o=>{if(!a&&o.userData&&o.userData.attach)a=o.userData.attach});return a};
+function wdEquipAttach(en,g,at){const ci=charInfo(),inner=g.scene.clone(true),wrapper=new THREE.Group();wrapper.add(inner);inner.traverse(o=>{if(o.isMesh)o.name=o.name||en.name});
+  const it={kind:'item',id:en.id,name:en.name,cat:en.cat,wrapper,def:{bone:at.bone,off:[0,0,0]},base:at.s*ci.H,p:{bone:at.bone,scale:1,off:at.off.slice(),rot:new THREE.Quaternion().fromArray(at.rot)}};
+  WD.eq.push(it);wdPlace(it);wdRows();armSoon();wmsg(`« ${en.name} » accroché (${WBONES.find(b=>b[0]===at.bone)?.[1]||at.bone}). Tu peux le déplacer, le tourner, le recolorer, le texturer, le retirer.`)}
 async function wdSavePiece(m,slot,pvis='private'){
-  if(!(M.userData.rig&&M.userData.rig.length))throw new Error('pose d\'abord un squelette');if(!m.isSkinnedMesh)throw new Error('cette pièce n\'est pas liée au squelette (pose le squelette, il lie toutes les pièces)');
-  const nm=safeName(prompt('Nom de la pièce ?',m.name||'pièce'));if(!nm)return;const{GLTFExporter}=await import('three/addons/exporters/GLTFExporter.js');
+  if(!(M.userData.rig&&M.userData.rig.length))throw new Error('pose d\'abord un squelette');const nm=safeName(prompt('Nom de la pièce ?',m.name||'pièce'));if(!nm)return;if(!m.isSkinnedMesh)return wdSaveAttach(m,slot,pvis,nm);const{GLTFExporter}=await import('three/addons/exporters/GLTFExporter.js');
   if(mixer)mixer.stopAllAction();M.traverse(o=>{if(o.isBone&&o.userData.rq){o.position.copy(o.userData.rp);o.quaternion.copy(o.userData.rq)}});M.updateMatrixWorld(true);
   const vis=[];M.traverse(o=>{if(o.isMesh){vis.push([o,o.visible]);o.visible=o===m}});let E;try{E=bakeForExport(M,[]).E}finally{vis.forEach(([o,v])=>o.visible=v)}
   const buf=await new Promise((ok,ko)=>new GLTFExporter().parse(E,ok,ko,{binary:true,onlyVisible:false,maxTextureSize:1024}));
@@ -707,10 +727,10 @@ async function wdMineLoad(){try{const ks=await STORE.keys();if(CLOUD.msg)wmsg(CL
 async function wdLoadIdb(k){const buf=await STORE.get(k);if(!buf)throw new Error('pièce introuvable');return new Promise((ok,ko)=>new GLTFLoader().parse(buf,'',ok,ko))}
 function wdReset(){WD.eq=[];wdRows();wdPanel()}
 $('#wclear').onclick=()=>{for(const it of [...WD.eq])wdRemove(it);wmsg('Garde-robe vidée.')};
-const SLOTL={cheveux:'Cheveux',haut:'Haut',bas:'Bas',chaussures:'Chaussures',tete:'Tête',sac:'Sac'};
+const SLOTL={cheveux:'Cheveux',haut:'Haut',bas:'Bas',chaussures:'Chaussures',tete:'Tête / casque',gants:'Gants',armure:'Armure',arme:'Arme',bouclier:'Bouclier',sac:'Sac',accessoire:'Accessoire'},SLOTI={cheveux:'💇',haut:'👕',bas:'👖',chaussures:'👟',tete:'🎩',gants:'🧤',armure:'🛡️',arme:'⚔️',bouclier:'🛡️',sac:'🎒',accessoire:'🧣'};
 async function wdDress(en){
   const tm=firstSkinned(M);if(!tm)throw new Error('pas de maillage lié au squelette dans ce modèle');
-  const g=en.idb?await wdLoadIdb(en.idb):await wdLoad(en.file),gr=cloneSk(g.scene);gr.updateMatrixWorld(true);
+  const g=en.idb?await wdLoadIdb(en.idb):await wdLoad(en.file),at=attachOf(g.scene);if(at)return wdEquipAttach(en,g,at);const gr=cloneSk(g.scene);gr.updateMatrixWorld(true);
   const Gs=restState(gr),Gby=new Map(Gs.map(r=>[r.b,r])),T=M.userData.rig.filter(r=>!r.dup),Tkey=new Map();T.forEach(r=>{if(!Tkey.has(r.key))Tkey.set(r.key,r)});
   const hOf=(rs,fr)=>{const hd=rs.find(r=>r.key==='head'),ft=rs.filter(r=>/foot$/.test(r.key));return hd&&ft.length&&fr?hd.p.clone().sub(ft.reduce((a,r)=>a.add(r.p),new THREE.Vector3()).multiplyScalar(1/ft.length)).dot(fr.up):0};
   const hG=hOf(Gs,frameOf(Gs)),hT=hOf(T,frameOf(T));if(!(hG>0&&hT>0))throw new Error('squelette non reconnu (bassin, tête, pieds nommés comme Mixamo / Quaternius…)');
@@ -1036,6 +1056,7 @@ bankInit();drawActs();
    plus d'os de l'autre jambe/bras, plus d'os trop éloignés du sommet, puis mêmes poids pour les sommets quasi confondus (fissures entre pièces).
    Mesure avant/après l'étirement des arêtes sur les poses des animations du modèle : n'est gardé que s'il y a un gain net. */
 function skinMeshes(root){const a=[];root.traverse(o=>{if(o.isSkinnedMesh&&o.skeleton&&o.geometry.attributes.skinIndex&&o.geometry.attributes.skinWeight)a.push(o)});return a}
+const gcomp=(a,i,c)=>a.isInterleavedBufferAttribute?[a.getX(i),a.getY(i),a.getZ(i),a.getW(i)][c]:a.getComponent(i,c);   // attributs entrelacés (certains GLB) : pas de getComponent
 function skinData(sms){
   const gb=[],gi=new Map(),bp=[],bi=[];
   for(const m of sms)m.skeleton.bones.forEach((b,i)=>{if(!gi.has(b)){gi.set(b,gb.length);gb.push(b);const inv=m.skeleton.boneInverses[i];bi.push(inv);bp.push(new THREE.Vector3().setFromMatrixPosition(new THREE.Matrix4().copy(inv).invert()))}});
@@ -1044,7 +1065,7 @@ function skinData(sms){
   sms.forEach((m,mi)=>{const g=m.geometry,P=g.attributes.position,si=g.attributes.skinIndex,sw=g.attributes.skinWeight,map=m.skeleton.bones.map(b=>gi.get(b));
     const l=new Int32Array(nb).fill(-1);map.forEach((gj,i)=>{if(l[gj]<0)l[gj]=i});loc.push(l);
     for(let i=0;i<P.count;i++){v.fromBufferAttribute(P,i).applyMatrix4(m.bindMatrix);const o=off[mi]+i;Pw[3*o]=v.x;Pw[3*o+1]=v.y;Pw[3*o+2]=v.z;
-      for(let c=0;c<4;c++){const w=sw.getComponent(i,c);if(w>0)Wd[o*nb+map[si.getComponent(i,c)]]+=w}}});
+      for(let c=0;c<4;c++){const w=gcomp(sw,i,c);if(w>0)Wd[o*nb+map[gcomp(si,i,c)]]+=w}}});
   const keys=gb.map(b=>canon(b.name)),par=gb.map(b=>gi.has(b.parent)?gi.get(b.parent):-1);
   let H=0;{let lo=1e9,hi=-1e9;for(let i=0;i<nv;i++){lo=Math.min(lo,Pw[3*i+1]);hi=Math.max(hi,Pw[3*i+1])}H=hi-lo||1}
   return{sms,gb,gi,bp,bi,nb,off,nv,Pw,Wd,loc,keys,par,H}}
@@ -1073,7 +1094,8 @@ function skinPosed(root,D,sp,mx,clip,t,X,Mj){const{nv,Pw,gb,bi,nb}=D;mx.stopAllA
       px+=w*(e[0]*x+e[4]*y+e[8]*z+e[12]);py+=w*(e[1]*x+e[5]*y+e[9]*z+e[13]);pz+=w*(e[2]*x+e[6]*y+e[10]*z+e[14])}X[3*u]=px;X[3*u+1]=py;X[3*u+2]=pz}}
 /* tronc = chaîne d'ellipses (bassin -> cou) mesurée sur les sommets du tronc au repos : centre et demi-axes latéral / avant-arrière par segment d'os */
 function torsoModel(D){const{nv,nb,Pw,keys,bp,Wd}=D,ix=k=>keys.indexOf(k),V3=bp[0].constructor,tors=new Set(['hips','spine','spine1','spine2']);
-  const seg=[['hips','spine'],['spine','spine1'],['spine1','spine2'],['spine2','neck']].map(([a,b])=>({a:ix(a),b:ix(b)}));if(seg.some(s=>s.a<0||s.b<0))return null;
+  const chain=['hips','spine','spine1','spine2'].filter(k=>ix(k)>=0),endK=['neck','head'].find(k=>ix(k)>=0);if(chain.length<2||!endK)return null;chain.push(endK);   // rigs sans spine2/neck (KayKit : bassin, spine, chest, tête)
+  const seg=chain.slice(0,-1).map((k,i)=>({a:ix(k),b:ix(chain[i+1])}));
   const dom=u=>{let bk=0,bw=-1;for(let k=0;k<nb;k++)if(Wd[u*nb+k]>bw){bw=Wd[u*nb+k];bk=k}return bk};
   for(const sg of seg){const A=bp[sg.a],ax=bp[sg.b].clone().sub(A),L=ax.length();ax.normalize();sg.ax=ax;sg.L=L;sg.A=A;const xs=[],zs=[];
     for(let u=0;u<nv;u++){if(!tors.has(keys[dom(u)]))continue;const q=new V3(Pw[3*u],Pw[3*u+1],Pw[3*u+2]).sub(A),t=q.dot(ax)/L;if(t<0||t>1)continue;xs.push(q.x);zs.push(q.z)}
@@ -1146,30 +1168,41 @@ function armFixSetup(root){
     S.push({own:f,r:rF*1.1,p0:bp[h].clone().add(bp[h].clone().sub(bp[f]).multiplyScalar(.45))});
     sides.push({a,f,h,S})}
   if(!sides.length)return null;
+  // objets tenus ou portés par la main (hache, bouclier, chope... : maillages rigides visibles accrochés à un os de la main) : échantillons le long de leur forme
+  root.updateMatrixWorld(true);const hv=new V(),lm=new THREE.Matrix4(),tmpv=new THREE.Vector3();
+  root.traverse(o=>{if(!o.isMesh||o.isSkinnedMesh)return;let vis=true,q=o;while(q){if(q.visible===false){vis=false;break}q=q.parent}if(!vis)return;
+    let bn=null;q=o.parent;while(q&&!bn){if(q.isBone&&gb.indexOf(q)>=0)bn=q;q=q.parent}if(!bn)return;const bi0=gb.indexOf(bn);
+    let sd=null;q=bn;while(q&&!sd){const k=gb.indexOf(q);sd=sides.find(x=>x.h===k||x.f===k)||null;q=q.parent}if(!sd)return;   // os porteur (ex. handslot) -> côté dont la main/l'avant-bras le porte
+    const P=o.geometry.attributes.position;if(!P||P.count<8)return;lm.copy(bn.matrixWorld).invert().multiply(o.matrixWorld);
+    const pts=[];for(let i=0;i<P.count;i++)pts.push(tmpv.fromBufferAttribute(P,i).applyMatrix4(lm).clone());
+    // points les plus écartés (échantillonnage du plus lointain)
+    const pick=[pts.reduce((m,p)=>p.lengthSq()>m.lengthSq()?p:m,pts[0])],K=8;while(pick.length<K){let bp2=null,bd=-1;for(const p of pts){let d=1e9;for(const q2 of pick)d=Math.min(d,p.distanceToSquared(q2));if(d>bd){bd=d;bp2=p}}pick.push(bp2)}
+    const inv0=bi[bi0].clone().invert();for(const lp of pick)sd.S.push({own:sd.f,carry:bi0,r:.015*H,prop:o.name,p0:lp.clone().applyMatrix4(inv0)})});
   const clr=(s0)=>{let m=1e9;for(const sg of TM){const r=torsoRho(sg,s0.x,s0.y,s0.z);if(r===null)continue;const rv=torsoRad(sg,s0);const d=rv.len*(1-1/Math.max(r,1e-6));if(d<m)m=d}return m};
-  sides.forEach(sd=>sd.S.forEach(s=>{s.rest=clr(s.p0);s.clear=Math.min(.85*s.r,Math.max(s.rest,0))}));
+  sides.forEach(sd=>sd.S.forEach(s=>{s.rest=clr(s.p0);s.clear=s.prop?.85*s.r:Math.min(.85*s.r,Math.max(s.rest,0))}));
   return{D,TM,sides}}
 function torsoRad(sg,p){const dx=p.x-sg.A.x,dy=p.y-sg.A.y,dz=p.z-sg.A.z,t=(dx*sg.ax.x+dy*sg.ax.y+dz*sg.ax.z)/sg.L,rx=dx-t*sg.L*sg.ax.x-sg.cx,rz=dz-t*sg.L*sg.ax.z-sg.cz,len=Math.hypot(rx,rz)||1e-9;return{len,x:rx/len,z:rz/len}}
 /* corrige un clip ; renvoie le nombre d'images corrigées (0 : clip intact) */
-function armFixClip(root,AS,clip,fps=30){
-  const{D,TM,sides}=AS,{gb,bi,H}=D,T=THREE,mx=new T.AnimationMixer(root),act=mx.clipAction(clip);act.play();
+function armFixClip(root,AS,clip,fps=30,dry=false){
+  const{D,TM,sides}=AS,{gb,bi,H}=D,T=THREE;if(!dry){if(clip.__orig)clip.tracks=clip.__orig.map(t=>t.clone());else clip.__orig=clip.tracks.map(t=>t.clone())}   // repart toujours des pistes d'origine
+  const mx=new T.AnimationMixer(root),act=mx.clipAction(clip);act.play();
   const N=Math.max(2,Math.floor(clip.duration*fps)+1),times=[];for(let i=0;i<N;i++)times.push(Math.min(clip.duration,i/fps));if(times[N-1]<clip.duration-1e-3)times.push(clip.duration);
   const bonesFix=[];sides.forEach(sd=>{bonesFix.push(sd.a,sd.f)});
   const orig=bonesFix.map(()=>[]),corr=bonesFix.map(()=>[]),Mj=gb.map(()=>new T.Matrix4()),inv=TM.map(()=>new T.Matrix4()),p=new T.Vector3(),c=new T.Vector3(),n=new T.Vector3(),ax=new T.Vector3(),q=new T.Quaternion(),pq=new T.Quaternion(),wq=new T.Quaternion();
   let touched=0;
   try{for(const t of times){mx.setTime(t);root.updateMatrixWorld(true);TM.forEach((sg,i)=>inv[i].multiplyMatrices(gb[sg.a].matrixWorld,bi[sg.a]).invert());
     bonesFix.forEach((j,i)=>orig[i].push(gb[j].quaternion.clone()));let any=false;
-    const need=(s)=>{const o=gb[s.own];p.copy(s.p0).applyMatrix4(Mj[s.own].multiplyMatrices(o.matrixWorld,bi[s.own]));let best=null;
+    const need=(s)=>{const cr=s.carry!=null?s.carry:s.own,o=gb[cr];p.copy(s.p0).applyMatrix4(Mj[cr].multiplyMatrices(o.matrixWorld,bi[cr]));let best=null;
       TM.forEach((sg,i)=>{const b=p.clone().applyMatrix4(inv[i]),r=torsoRho(sg,b.x,b.y,b.z);if(r===null)return;const rv=torsoRad(sg,b),d=rv.len*(1-1/Math.max(r,1e-6));if(!best||d<best.d)best={d,sg,i,x:rv.x,z:rv.z}});
       if(!best)return null;const nd=s.clear-best.d;if(nd<=1e-4*H)return null;n.set(best.x,0,best.z).transformDirection(new T.Matrix4().multiplyMatrices(gb[best.sg.a].matrixWorld,bi[best.sg.a]));return{nd,p:p.clone(),n:n.clone()}};
     for(const sd of sides)for(const own of[sd.a,sd.f]){const mine=sd.S.filter(s=>s.own===own);
-      for(let it=0;it<4;it++){let w=null;for(const s of mine){const r=need(s);if(r&&(!w||r.nd>w.nd))w=r}if(!w)break;
+      for(let it=0;it<(dry?1:4);it++){let w=null;for(const s of mine){const r=need(s);if(r&&(!w||r.nd>w.nd))w=r}if(!w)break;if(dry){if(w.nd>.01*H)any=true;break}
         const b=gb[own];c.setFromMatrixPosition(b.matrixWorld);const lever=w.p.distanceTo(c);if(lever<1e-6)break;ax.crossVectors(p.copy(w.p).sub(c),w.n);if(ax.lengthSq()<1e-12)break;ax.normalize();
         const ang=Math.min(.5,w.nd/lever);q.setFromAxisAngle(ax,ang);b.getWorldQuaternion(wq);wq.premultiply(q);
         if(b.parent){b.parent.getWorldQuaternion(pq);b.quaternion.copy(pq.invert().multiply(wq))}else b.quaternion.copy(wq);b.updateMatrixWorld(true);any=true}}
     if(any)touched++;bonesFix.forEach((j,i)=>corr[i].push(gb[j].quaternion.clone()))}
   }finally{mx.stopAllAction();mx.uncacheRoot(root)}
-  if(!touched)return 0;
+  if(!touched||dry)return touched;
   const nT=times.length;bonesFix.forEach((j,i)=>{
     const rv=orig[i].map((o,k)=>{const d=o.clone().invert().multiply(corr[i][k]);if(d.w<0){d.x=-d.x;d.y=-d.y;d.z=-d.z;d.w=-d.w}const a=2*Math.acos(Math.min(1,d.w)),s=Math.sqrt(Math.max(0,1-d.w*d.w))||1;return[d.x/s*a,d.y/s*a,d.z/s*a]});
     const mag=v=>Math.hypot(v[0],v[1],v[2]);if(!rv.some(v=>mag(v)>1e-5))return;
@@ -1281,6 +1314,8 @@ function rigReport(r,fix){if(!r)return'Contrôle impossible (il faut un modèle 
   if(fix)L.push(`Réparation : ${r.cross} sommet(s) corrigé(s) côté gauche/droite, ${r.cracks} soudure(s) harmonisée(s), ${r.iters} passe(s) de lissage → ${r.badAfter} sommet(s) encore fautif(s).`);
   return L.join('\n')}
 
+$('#cdel').onclick=()=>{const v=$('#clip').value;if(v===''||!clips[+v])return rmsg('Choisis d\'abord une animation dans la liste.',1);const i=+v,c=clips[i];clips.splice(i,1);try{if(action){action.stop();action=null}}catch(e){}
+  refreshClips(clips.length?Math.min(i,clips.length-1):null);rmsg(`« ${c.name} » retirée de ce modèle (${clips.length} animation(s) restante(s)). Elle reste dans la bibliothèque : tu peux la rajouter.`)};
 $('#barm').onclick=()=>{rmsg('Correction des bras…');setTimeout(()=>{try{const r=armFix(M,clips);rmsg(r.msg,!r.ok);if(r.n)play($('#clip').value===''?0:+$('#clip').value)}catch(e){rmsg('Échec : '+e.message,1);console.error(e)}},30)};
 $('#bskin').onclick=()=>{rmsg('Nettoyage des poids…');setTimeout(()=>{try{const r=skinFix(M,true);rmsg(r.msg,!r.ok)}catch(e){rmsg('Échec : '+e.message,1);console.error(e)}},30)};
 $('#rchk').onclick=()=>{try{rmsg('Contrôle en cours…');setTimeout(()=>{try{const r=rigAnalyse(true);rmsg(rigReport(r,true),!r)}catch(e){rmsg('Échec du contrôle : '+e.message,1);console.error(e)}},30)}catch(e){}};
@@ -1300,7 +1335,7 @@ $('#ctest').onclick=async()=>{cloudRead();CLOUD.cfg.on=true;$('#con').checked=tr
     if(!CLOUD.cfg.prepo)out.push('Aucun dépôt privé configuré : les éléments 🔒 restent dans ce navigateur.');
     cmsg(out.join(' | '),bad);await wdMineLoad();await bankInit()}catch(e){cmsg('Échec : '+e.message,1)}};
 $('#csync').onclick=async()=>{cloudRead();try{await cloudBackup();await wdMineLoad();await bankInit()}catch(e){cmsg('Échec : '+e.message,1)}};
-window._test={armFix,armFixSetup,armFixClip,THREE,skinSparse,skinPosed,torsoModel,torsoRho,skinFix,skinMeshes,skinData,skinRules,skinStretch,skinPoses,cloudBackup,mineLoad,sheetCanvasAll,atlasJSON,zipImport,zipReport,MYA,anPackSelect,STORE,CLOUD,wdPanel,wdSavePiece,get WO(){return WO},wdMineLoad,closeGeometry,closeModel,closeReport,rigAnalyse,rigReport,setClipTime:(i,t)=>{$("#clip").value=String(i);play(i);playing=false;mixer.setTime(t)},exportGLB:()=>$('#bglb').onclick(),anAdd,AN,wdAdd,get WD(){return WD},generate,get result(){return result},setup,loadFile,addAnims,addSkeleton,get clips(){return clips},get M(){return M},get library(){return library}};
+window._test={wdSaveAttach,wdEquipAttach,armSoon,armFix,armFixSetup,armFixClip,THREE,skinSparse,skinPosed,torsoModel,torsoRho,skinFix,skinMeshes,skinData,skinRules,skinStretch,skinPoses,cloudBackup,mineLoad,sheetCanvasAll,atlasJSON,zipImport,zipReport,MYA,anPackSelect,STORE,CLOUD,wdPanel,wdSavePiece,get WO(){return WO},wdMineLoad,closeGeometry,closeModel,closeReport,rigAnalyse,rigReport,setClipTime:(i,t)=>{$("#clip").value=String(i);play(i);playing=false;mixer.setTime(t)},exportGLB:()=>$('#bglb').onclick(),anAdd,AN,wdAdd,get WD(){return WD},generate,get result(){return result},setup,loadFile,addAnims,addSkeleton,get clips(){return clips},get M(){return M},get library(){return library}};
 </script>
 </body>
 </html>
