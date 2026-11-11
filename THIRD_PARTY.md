@@ -32,3 +32,10 @@ Toutes les pièces sont **CC0 1.0** (domaine public, aucune attribution requise 
 | Ultimate RPG Pack | Quaternius | CC0 1.0 | couronnes, colliers, sacs, gant, plastrons, objets | https://quaternius.com/packs/ultimaterpg.html |
 | KayKit Character Pack : Adventurers 1.0 | Kay Lousberg | CC0 1.0 | armes, boucliers, livre, carquois | github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0 |
 Le dépôt `trebeljahr/quaternius-showcase` (visionneuse, code MIT) n'a servi que de miroir des GLB ; ses `LICENSES.md` confirme CC0 pour chaque pack.
+
+## Bibliothèque d'animations de `modele.html` (docs/anims/, novembre 2026)
+Animations **CC0 1.0** (aucune attribution requise ; crédit volontaire). Les GLB sont les fichiers d'origine dépouillés de leurs textures par `tools/anims/build.mjs`.
+| Pack | Auteur | Licence | Contenu repris | Source |
+|---|---|---|---|---|
+| Universal Animation Library (version gratuite « Standard ») | Quaternius | CC0 1.0 | 45 animations (déplacements, combat, magie, assis, nage…) | https://quaternius.com/packs/universalanimationlibrary.html (copie : github.com/j-ponzo/gltf-universal-animation-library) |
+| KayKit Character Pack : Adventurers 1.0 | Kay Lousberg | CC0 1.0 | 69 animations (mêlée 1/2 mains, tir, esquives, sauts, sorts…) du squelette `Knight.glb` | https://kaylousberg.itch.io/kaykit-character-pack-adventures |

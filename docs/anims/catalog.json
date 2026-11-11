@@ -1,0 +1,598 @@
+{
+ "packs": [
+  {
+   "id": "ual",
+   "label": "Universal Animation Library (Quaternius)",
+   "file": "ual_standard.glb",
+   "author": "Quaternius",
+   "license": "CC0 1.0",
+   "url": "https://quaternius.com/packs/universalanimationlibrary.html",
+   "mirror": "github.com/j-ponzo/gltf-universal-animation-library",
+   "kb": 2768,
+   "clips": [
+    {
+     "name": "Crouch_Fwd_Loop",
+     "dur": 2,
+     "cat": "Déplacements"
+    },
+    {
+     "name": "Crouch_Idle_Loop",
+     "dur": 2.92,
+     "cat": "Déplacements"
+    },
+    {
+     "name": "Dance_Loop",
+     "dur": 1,
+     "cat": "Divers"
+    },
+    {
+     "name": "Death01",
+     "dur": 2.38,
+     "cat": "Mort / chute"
+    },
+    {
+     "name": "Driving_Loop",
+     "dur": 1.67,
+     "cat": "Déplacements"
+    },
+    {
+     "name": "Fixing_Kneeling",
+     "dur": 5.17,
+     "cat": "Divers"
+    },
+    {
+     "name": "Hit_Chest",
+     "dur": 0.33,
+     "cat": "Esquive / coups reçus"
+    },
+    {
+     "name": "Hit_Head",
+     "dur": 0.42,
+     "cat": "Esquive / coups reçus"
+    },
+    {
+     "name": "Idle_Loop",
+     "dur": 2.5,
+     "cat": "Repos"
+    },
+    {
+     "name": "Idle_Talking_Loop",
+     "dur": 2.92,
+     "cat": "Repos"
+    },
+    {
+     "name": "Idle_Torch_Loop",
+     "dur": 1.25,
+     "cat": "Repos"
+    },
+    {
+     "name": "Interact",
+     "dur": 2,
+     "cat": "Divers"
+    },
+    {
+     "name": "Jog_Fwd_Loop",
+     "dur": 0.92,
+     "cat": "Déplacements"
+    },
+    {
+     "name": "Jump_Land",
+     "dur": 1.25,
+     "cat": "Sauts"
+    },
+    {
+     "name": "Jump_Loop",
+     "dur": 2.5,
+     "cat": "Sauts"
+    },
+    {
+     "name": "Jump_Start",
+     "dur": 1.33,
+     "cat": "Sauts"
+    },
+    {
+     "name": "PickUp_Table",
+     "dur": 0.83,
+     "cat": "Divers"
+    },
+    {
+     "name": "Pistol_Aim_Down",
+     "dur": 0.17,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "Pistol_Aim_Neutral",
+     "dur": 0.17,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "Pistol_Aim_Up",
+     "dur": 0.17,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "Pistol_Idle_Loop",
+     "dur": 1.67,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "Pistol_Reload",
+     "dur": 1.67,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "Pistol_Shoot",
+     "dur": 0.63,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "Punch_Cross",
+     "dur": 1,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "Punch_Enter",
+     "dur": 0.83,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "Punch_Jab",
+     "dur": 0.83,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "Push_Loop",
+     "dur": 2.67,
+     "cat": "Déplacements"
+    },
+    {
+     "name": "Roll",
+     "dur": 1.46,
+     "cat": "Esquive / coups reçus"
+    },
+    {
+     "name": "Roll_RM",
+     "dur": 1.46,
+     "cat": "Esquive / coups reçus"
+    },
+    {
+     "name": "Sitting_Enter",
+     "dur": 1.29,
+     "cat": "Divers"
+    },
+    {
+     "name": "Sitting_Exit",
+     "dur": 1,
+     "cat": "Divers"
+    },
+    {
+     "name": "Sitting_Idle_Loop",
+     "dur": 1.67,
+     "cat": "Repos"
+    },
+    {
+     "name": "Sitting_Talking_Loop",
+     "dur": 2.92,
+     "cat": "Divers"
+    },
+    {
+     "name": "Spell_Simple_Enter",
+     "dur": 0.5,
+     "cat": "Magie"
+    },
+    {
+     "name": "Spell_Simple_Exit",
+     "dur": 0.42,
+     "cat": "Magie"
+    },
+    {
+     "name": "Spell_Simple_Idle_Loop",
+     "dur": 2.08,
+     "cat": "Magie"
+    },
+    {
+     "name": "Spell_Simple_Shoot",
+     "dur": 0.5,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "Sprint_Loop",
+     "dur": 0.67,
+     "cat": "Déplacements"
+    },
+    {
+     "name": "Swim_Fwd_Loop",
+     "dur": 1.33,
+     "cat": "Déplacements"
+    },
+    {
+     "name": "Swim_Idle_Loop",
+     "dur": 3.33,
+     "cat": "Déplacements"
+    },
+    {
+     "name": "Sword_Attack",
+     "dur": 1.5,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "Sword_Attack_RM",
+     "dur": 1.5,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "Sword_Idle",
+     "dur": 1.67,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "Walk_Formal_Loop",
+     "dur": 1.33,
+     "cat": "Déplacements"
+    },
+    {
+     "name": "Walk_Loop",
+     "dur": 1.33,
+     "cat": "Déplacements"
+    }
+   ]
+  },
+  {
+   "id": "kaykit",
+   "label": "KayKit Character Animations (Kay Lousberg)",
+   "file": "kaykit_adventurers.glb",
+   "author": "Kay Lousberg",
+   "license": "CC0 1.0",
+   "url": "https://kaylousberg.itch.io/kaykit-character-animations",
+   "mirror": "github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0",
+   "kb": 3158,
+   "clips": [
+    {
+     "name": "1H_Melee_Attack_Chop",
+     "dur": 1.07,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "1H_Melee_Attack_Slice_Diagonal",
+     "dur": 1,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "1H_Melee_Attack_Slice_Horizontal",
+     "dur": 1.07,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "1H_Melee_Attack_Stab",
+     "dur": 1.6,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "1H_Ranged_Aiming",
+     "dur": 1.07,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "1H_Ranged_Reload",
+     "dur": 1.17,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "1H_Ranged_Shoot",
+     "dur": 1.07,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "1H_Ranged_Shooting",
+     "dur": 1.6,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "2H_Melee_Attack_Chop",
+     "dur": 1.63,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "2H_Melee_Attack_Slice",
+     "dur": 1.1,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "2H_Melee_Attack_Spin",
+     "dur": 2.4,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "2H_Melee_Attack_Spinning",
+     "dur": 0.67,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "2H_Melee_Attack_Stab",
+     "dur": 1.6,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "2H_Melee_Idle",
+     "dur": 1.07,
+     "cat": "Repos"
+    },
+    {
+     "name": "2H_Ranged_Aiming",
+     "dur": 1.6,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "2H_Ranged_Reload",
+     "dur": 1.6,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "2H_Ranged_Shoot",
+     "dur": 1.07,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "2H_Ranged_Shooting",
+     "dur": 1.07,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "Block",
+     "dur": 1.07,
+     "cat": "Esquive / coups reçus"
+    },
+    {
+     "name": "Block_Attack",
+     "dur": 1.07,
+     "cat": "Esquive / coups reçus"
+    },
+    {
+     "name": "Block_Hit",
+     "dur": 1.07,
+     "cat": "Esquive / coups reçus"
+    },
+    {
+     "name": "Blocking",
+     "dur": 1.07,
+     "cat": "Esquive / coups reçus"
+    },
+    {
+     "name": "Cheer",
+     "dur": 1.67,
+     "cat": "Divers"
+    },
+    {
+     "name": "Death_A",
+     "dur": 0.8,
+     "cat": "Mort / chute"
+    },
+    {
+     "name": "Death_B",
+     "dur": 2.63,
+     "cat": "Mort / chute"
+    },
+    {
+     "name": "Dodge_Backward",
+     "dur": 0.4,
+     "cat": "Esquive / coups reçus"
+    },
+    {
+     "name": "Dodge_Forward",
+     "dur": 0.4,
+     "cat": "Esquive / coups reçus"
+    },
+    {
+     "name": "Dodge_Left",
+     "dur": 0.4,
+     "cat": "Esquive / coups reçus"
+    },
+    {
+     "name": "Dodge_Right",
+     "dur": 0.4,
+     "cat": "Esquive / coups reçus"
+    },
+    {
+     "name": "Dualwield_Melee_Attack_Chop",
+     "dur": 1.27,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "Dualwield_Melee_Attack_Slice",
+     "dur": 1.17,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "Dualwield_Melee_Attack_Stab",
+     "dur": 1.6,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "Hit_A",
+     "dur": 0.67,
+     "cat": "Esquive / coups reçus"
+    },
+    {
+     "name": "Hit_B",
+     "dur": 0.87,
+     "cat": "Esquive / coups reçus"
+    },
+    {
+     "name": "Idle",
+     "dur": 1.07,
+     "cat": "Repos"
+    },
+    {
+     "name": "Interact",
+     "dur": 1.3,
+     "cat": "Divers"
+    },
+    {
+     "name": "Jump_Full_Long",
+     "dur": 2.33,
+     "cat": "Sauts"
+    },
+    {
+     "name": "Jump_Full_Short",
+     "dur": 1.17,
+     "cat": "Sauts"
+    },
+    {
+     "name": "Jump_Idle",
+     "dur": 1.07,
+     "cat": "Sauts"
+    },
+    {
+     "name": "Jump_Land",
+     "dur": 0.67,
+     "cat": "Sauts"
+    },
+    {
+     "name": "Jump_Start",
+     "dur": 0.6,
+     "cat": "Sauts"
+    },
+    {
+     "name": "Lie_Down",
+     "dur": 3,
+     "cat": "Divers"
+    },
+    {
+     "name": "Lie_Idle",
+     "dur": 2.67,
+     "cat": "Repos"
+    },
+    {
+     "name": "Lie_StandUp",
+     "dur": 2.33,
+     "cat": "Divers"
+    },
+    {
+     "name": "PickUp",
+     "dur": 1.3,
+     "cat": "Divers"
+    },
+    {
+     "name": "Running_A",
+     "dur": 0.8,
+     "cat": "Déplacements"
+    },
+    {
+     "name": "Running_B",
+     "dur": 1.07,
+     "cat": "Déplacements"
+    },
+    {
+     "name": "Running_Strafe_Left",
+     "dur": 0.8,
+     "cat": "Déplacements"
+    },
+    {
+     "name": "Running_Strafe_Right",
+     "dur": 0.8,
+     "cat": "Déplacements"
+    },
+    {
+     "name": "Sit_Chair_Down",
+     "dur": 0.8,
+     "cat": "Divers"
+    },
+    {
+     "name": "Sit_Chair_Idle",
+     "dur": 3.6,
+     "cat": "Repos"
+    },
+    {
+     "name": "Sit_Chair_StandUp",
+     "dur": 0.8,
+     "cat": "Divers"
+    },
+    {
+     "name": "Sit_Floor_Down",
+     "dur": 1,
+     "cat": "Divers"
+    },
+    {
+     "name": "Sit_Floor_Idle",
+     "dur": 4,
+     "cat": "Repos"
+    },
+    {
+     "name": "Sit_Floor_StandUp",
+     "dur": 1.13,
+     "cat": "Divers"
+    },
+    {
+     "name": "Spellcast_Long",
+     "dur": 2.53,
+     "cat": "Magie"
+    },
+    {
+     "name": "Spellcast_Raise",
+     "dur": 2.1,
+     "cat": "Magie"
+    },
+    {
+     "name": "Spellcast_Shoot",
+     "dur": 0.93,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "Spellcasting",
+     "dur": 0.67,
+     "cat": "Magie"
+    },
+    {
+     "name": "Throw",
+     "dur": 1.37,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "Unarmed_Idle",
+     "dur": 1.07,
+     "cat": "Repos"
+    },
+    {
+     "name": "Unarmed_Melee_Attack_Kick",
+     "dur": 0.93,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "Unarmed_Melee_Attack_Punch_A",
+     "dur": 1.47,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "Unarmed_Melee_Attack_Punch_B",
+     "dur": 1.67,
+     "cat": "Combat / armes"
+    },
+    {
+     "name": "Use_Item",
+     "dur": 1.6,
+     "cat": "Divers"
+    },
+    {
+     "name": "Walking_A",
+     "dur": 1.07,
+     "cat": "Déplacements"
+    },
+    {
+     "name": "Walking_B",
+     "dur": 1.07,
+     "cat": "Déplacements"
+    },
+    {
+     "name": "Walking_Backwards",
+     "dur": 1.07,
+     "cat": "Déplacements"
+    },
+    {
+     "name": "Walking_C",
+     "dur": 1.6,
+     "cat": "Déplacements"
+    }
+   ]
+  }
+ ]
+}

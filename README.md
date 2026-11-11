@@ -105,6 +105,9 @@ n'apparient que quelques os ; aucun poids peint à la main. Test : `tests/ui_mod
 - Limites : proportions humaines ; sur un modèle déjà habillé le vêtement d'origine dépasse tant qu'on ne le masque pas ; les hauts à capes ou épaulières larges peuvent traverser des bras très fins ; modèle sans squelette → ajouter d'abord un squelette (carte précédente).
 - Reconstruire : `node tools/wardrobe/build.mjs SRC_QUATERNIUS SRC_KAYKIT docs/wardrobe` puis `python tools/wardrobe/thumbs.py`. Test : `tests/ui_modele_wardrobe.py`.
 
+### Bibliothèque d'animations (`docs/anims/`, carte « Bibliothèque d'animations » de `modele.html`)
+114 animations **CC0** (Quaternius *Universal Animation Library* : 45 ; KayKit *Adventurers* : 69), sans ouvrir de fichier : choisis un pack, filtre par catégorie ou par nom, clique sur une ou plusieurs animations puis « Ajouter la sélection » (ou « Tout ajouter »). Elles sont reciblées sur le squelette du modèle (il faut un squelette : celui du fichier, ou un squelette ajouté), rejoignent la liste « Animation » et « Générer toutes les animations », et partagent la palette commune. Reconstruire : `node tools/anims/build.mjs UAL.gltf Knight.glb docs/anims`. Test : `tests/ui_modele_anims.py`.
+
 ## Contrôle qualité des frames (`qa`)
 `python -m forge qa DOSSIER_FRAMES [--max-colors 24]` : cadre coupé, poussières, alpha semi-transparent, nombre de
 couleurs, taille et ligne des pieds d'une frame à l'autre ; chaque problème donne une consigne de correction.

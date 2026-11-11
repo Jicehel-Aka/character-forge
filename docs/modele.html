@@ -40,6 +40,14 @@ code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding
     <div class="row"><button id="bskel" title="pour un modèle sans squelette (maillage seul) : pose un squelette pris dans un autre fichier, à l'échelle du modèle">Ajouter un squelette… (modèle sans os)</button></div>
     <p class="mute" id="rmsg" style="white-space:pre-line;margin:6px 0 0">Les animations sont reciblées sur les os du modèle (appariés par nom : Mixamo, Bip01, Blender…). Elles rejoignent la liste « Animation » et « Générer toutes les animations ».</p>
   </div>
+  <div class="card" id="acard"><h2>Bibliothèque d'animations (CC0)</h2>
+    <p class="mute" style="margin:0 0 6px">Animations libres de droits, déjà prêtes : choisis-en une ou plusieurs, elles sont reciblées sur le squelette du modèle (il faut donc un modèle avec squelette). Pas besoin d'ouvrir de fichier.</p>
+    <div class="row"><select id="apack"></select><input id="aq" placeholder="filtrer (ex. attack, walk)" style="width:150px"><label class="chip" style="margin:0"><input type="checkbox" id="ainpl" checked> sur place</label></div>
+    <div class="row" id="acats"></div>
+    <div id="alist" style="max-height:210px;overflow:auto;border:1px solid var(--line,#ddd);border-radius:6px;padding:4px;display:flex;flex-wrap:wrap;gap:4px"></div>
+    <div class="row"><button class="primary" id="aadd">Ajouter la sélection (0)</button><button id="aall">Tout ajouter (liste affichée)</button><button id="aclr">Désélectionner</button></div>
+    <p class="mute" id="amsg" style="white-space:pre-line;margin:6px 0 0"></p>
+  </div>
   <div class="card" id="wcard"><h2>Garde-robe : cheveux, armes, vêtements, chaussures, accessoires</h2>
     <p class="mute" style="margin:0 0 6px">Pièces libres de droits (CC0 : Quaternius, KayKit). Les accessoires se fixent à un os et suivent les animations ; les vêtements et cheveux sont ajustés au squelette du modèle (proportions humaines).</p>
     <div class="row" id="wtabs"></div>
@@ -329,7 +337,8 @@ const CANON={hips:'hips',hip:'hips',pelvis:'hips',upleg:'thigh',upperleg:'thigh'
   armshoulder:'shoulder',armbicep:'arm',bicep:'arm',biceps:'arm',armforearm:'forearm',leghip:'thigh',legshin:'calf',legfoot:'foot',legtoes:'toe',shoulder:'shoulder',clavicle:'shoulder',collar:'shoulder',arm:'arm',uparm:'arm',upperarm:'arm',forearm:'forearm',lowerarm:'forearm',hand:'hand',spine:'spine',spine1:'spine1',chest:'spine1',spine2:'spine2',upperchest:'spine2',neck:'neck',head:'head'};
 function canon(name){
   if(/^mixamorig/i.test(name))name=name.replace(/_\d+$/,'');   // suffixe ajouté par certains exporteurs glTF (Hips_32)
-  const s=name.split(/[:|]/).pop().replace(/^(mixamorig\d*|bip0*1|cc_base_|def-?)[_ .-]*/i,'');
+  let s=name.split(/[:|]/).pop().replace(/^(mixamorig\d*|bip0*1|cc_base_|def-?)[_ .-]*/i,'');
+  const ms=/^([a-z]+)([lr])$/.exec(s);if(ms&&CANON[ms[1]]&&!CANON[s])s=ms[1]+'_'+ms[2];   // three.js retire le point de « upperarm.l » → « upperarml »
   const tk=s.replace(/([a-z])([A-Z])/g,'$1 $2').replace(/([A-Za-z])(\d)/g,'$1 $2').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
   let side='';const rest=[];for(let t of tk){const m=/^([lr])(hand|foot|arm|forearm|thigh|leg|calf|shin|shoulder|clavicle|toe|toes|toebase|upleg|uparm|hip|elbow|knee)$/.exec(t);if(m){side=m[1]==='l'?'L':'R';t=m[2]}
     if(t==='left'||t==='l')side='L';else if(t==='right'||t==='r')side='R';else rest.push(t)}
@@ -376,18 +385,18 @@ function convertClip(S,clip,o){
   if(hp)tracks.push(new THREE.VectorKeyframeTrack(hp.t.b.name+'.position',times,pv));
   return{clip:new THREE.AnimationClip(clip.name,times[times.length-1],tracks),matched,total:T.length,hips:!!hp}}
 const GENERIC=/^(mixamo\.com|take ?\d*|armature.*|default.*|animation.*|clip ?\d*|a_?\d*)$/i;
-async function addAnims(files){
+async function addAnims(files,opt={}){
   const out=[];if(!M||!M.userData.rig||!M.userData.rig.length){return rmsg('Ce modèle n\'a pas de squelette : ajoute d\'abord un squelette (bouton de droite), puis les animations.',1)}
   for(const f of files){
     try{rmsg('Lecture de '+f.name+'…');const{root,anims}=await readRig(f);root.updateMatrixWorld(true);const bn=bonesOf(root);
-      const useful=anims.filter(c=>c.tracks.some(t=>/\.(position|quaternion)$/.test(t.name)));
+      const useful=anims.filter(c=>c.tracks.some(t=>/\.(position|quaternion)$/.test(t.name))&&(!opt.only||opt.only.has(c.name)));
       if(!bn.length){out.push(`✗ ${f.name} : pas de squelette dans ce fichier`);continue}
       if(!useful.length){out.push(`✗ ${f.name} : squelette sans animation`);continue}
       const S={root,rs:restState(root)};
       for(const c0 of useful){const c=c0.clone();c.tracks=c.tracks.filter(t=>/\.(position|quaternion)$/.test(t.name)&&!Array.from(t.values).some(x=>!isFinite(x)));
         const r=convertClip(S,c,{inplace:$('#rinplace').checked});
         if(!r.hips||r.matched<8){out.push(`✗ ${f.name} : seulement ${r.matched}/${r.total} os appariés${r.hips?'':' (pas de bassin)'} — squelettes trop différents`);continue}
-        const base=f.name.replace(/\.[^.]+$/,'').replace(/^[0-9a-f]{8}-/,'');r.clip.name=GENERIC.test(c0.name||'')||!c0.name?base:base+' · '+c0.name;
+        const base=f.name.replace(/\.[^.]+$/,'').replace(/^[0-9a-f]{8}-/,'');r.clip.name=opt.tag?opt.tag+' · '+c0.name:GENERIC.test(c0.name||'')||!c0.name?base:base+' · '+c0.name;
         clips.push(r.clip);out.push(`✓ ${r.clip.name} : ${r.matched}/${r.total} os appariés, ${r.clip.duration.toFixed(2)} s`)}
     }catch(e){out.push(`✗ ${f.name} : ${e.message}`)}}
   const added=out.filter(l=>l[0]==='✓').length;refreshClips(added?clips.length-1:null);rmsg(out.join('\n'),!added);return out}
@@ -528,7 +537,33 @@ async function wdDress(en){
   WD.eq.push({kind:'part',id:en.id,slot:en.cat,slotLabel:SLOTL[en.cat]||en.cat,name:en.name,meshes:made});wdRows();wmsg(`« ${en.name} » (${SLOTL[en.cat]||en.cat}) ajusté au squelette (échelle ×${S.toFixed(2)}). Masque la partie d'origine correspondante dans « Parties d'origine » si elle dépasse.`)}
 wdRows();
 
-window._test={wdAdd,get WD(){return WD},generate,get result(){return result},setup,loadFile,addAnims,addSkeleton,get clips(){return clips},get M(){return M},get library(){return library}};
+
+// ---- Bibliothèque d'animations (docs/anims/, packs CC0 : Quaternius UAL, KayKit) ----
+const ADIR='anims/',AN={cat:null,pack:null,sel:new Set(),files:new Map(),q:'',c:''};
+const amsg=(t,bad)=>{const e=$('#amsg');e.textContent=t;e.classList.toggle('bad',!!bad)};
+async function anInit(){try{AN.cat=await (await fetch(ADIR+'catalog.json')).json()}catch(e){return amsg('Catalogue indisponible : '+e.message,1)}
+  $('#apack').innerHTML=AN.cat.packs.map(p=>`<option value="${p.id}">${p.label} · ${p.clips.length}</option>`).join('');AN.pack=AN.cat.packs[0];anDraw()}
+function anShown(){const q=AN.q.toLowerCase();return AN.pack.clips.filter(c=>(!AN.c||c.cat===AN.c)&&(!q||c.name.toLowerCase().includes(q)))}
+function anDraw(){const P=AN.pack,cats=[...new Set(P.clips.map(c=>c.cat))];
+  $('#acats').innerHTML=['',...cats].map(c=>`<button data-c="${c}" class="${AN.c===c?'primary':''}" style="padding:2px 8px">${c||'Tout'}</button>`).join('');
+  $('#alist').innerHTML=anShown().map(c=>`<button class="aci ${AN.sel.has(P.id+'|'+c.name)?'primary':''}" data-n="${c.name}" title="${c.cat} · ${c.dur} s" style="padding:2px 8px;font-size:12px">${c.name.replace(/_/g,' ')} <span class="mute">${c.dur}s</span></button>`).join('')||'<span class="mute">Aucune animation.</span>';
+  $('#aadd').textContent=`Ajouter la sélection (${AN.sel.size})`}
+async function anAdd(pack,names){
+  if(!M||!M.userData.rig||!M.userData.rig.length)return amsg('Ce modèle n\'a pas de squelette : ajoute d\'abord un squelette (carte du dessus), ou ouvre un modèle animé.',1);
+  amsg(`Chargement de « ${pack.label} »…`);let f=AN.files.get(pack.id);
+  if(!f){const r=await fetch(ADIR+pack.file);if(!r.ok)throw new Error(`${pack.file} : HTTP ${r.status}`);f=new File([await r.blob()],pack.file);AN.files.set(pack.id,f)}
+  $('#rinplace').checked=$('#ainpl').checked;
+  const out=await addAnims([f],{only:new Set(names),tag:pack.id==='ual'?'UAL':'KayKit'});
+  amsg(Array.isArray(out)?out.join('\n'):'',!(out||[]).some(l=>l[0]==='✓'))}
+$('#apack').onchange=e=>{AN.pack=AN.cat.packs.find(p=>p.id===e.target.value);AN.c='';anDraw()};
+$('#aq').oninput=e=>{AN.q=e.target.value;anDraw()};
+$('#acats').onclick=e=>{const b=e.target.closest('button');if(!b)return;AN.c=b.dataset.c;anDraw()};
+$('#alist').onclick=e=>{const b=e.target.closest('.aci');if(!b)return;const k=AN.pack.id+'|'+b.dataset.n;AN.sel.has(k)?AN.sel.delete(k):AN.sel.add(k);anDraw()};
+$('#aclr').onclick=()=>{AN.sel.clear();anDraw()};
+$('#aadd').onclick=()=>{const names=[...AN.sel].filter(k=>k.startsWith(AN.pack.id+'|')).map(k=>k.slice(AN.pack.id.length+1));if(!names.length)return amsg('Clique sur des animations pour les sélectionner.',1);anAdd(AN.pack,names).then(()=>{AN.sel.clear();anDraw()}).catch(er=>amsg('Échec : '+er.message,1))};
+$('#aall').onclick=()=>{const names=anShown().map(c=>c.name);if(!names.length)return;anAdd(AN.pack,names).catch(er=>amsg('Échec : '+er.message,1))};
+anInit();
+window._test={anAdd,AN,wdAdd,get WD(){return WD},generate,get result(){return result},setup,loadFile,addAnims,addSkeleton,get clips(){return clips},get M(){return M},get library(){return library}};
 </script>
 </body>
 </html>
