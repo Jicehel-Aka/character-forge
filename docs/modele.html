@@ -30,7 +30,7 @@ code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding
 <main>
 <section>
   <div class="card">
-    <div class="row"><input type="file" id="file" accept=".glb,.gltf,.fbx,.obj" hidden><button class="primary" onclick="file.click()">Ouvrir le modèle (GLB / FBX / OBJ)…</button><span class="mute" id="info">Glisse ici le fichier rapporté de Meshy (GLB conseillé).</span></div>
+    <div class="row"><input type="file" id="file" accept=".glb,.gltf,.fbx,.obj" hidden><button class="primary" onclick="file.click()">Ouvrir le modèle (GLB / FBX / OBJ)…</button><button id="bexemple" title="charge un petit mannequin libre de droits (CC0) avec son squelette : pour découvrir l'outil sans avoir de modèle">Essayer avec un exemple</button><span class="mute" id="info">Glisse ici le fichier rapporté de Meshy (GLB conseillé).</span></div>
     <canvas id="view" width="900" height="675"></canvas>
     <div class="row"><label style="margin:0">Animation</label><select id="clip"></select><button id="play">▶ / ❚❚</button><button id="cdel" title="retire cette animation de ce modèle (incohérente avec le personnage, à refaire…) ; elle reste disponible dans la bibliothèque">Retirer cette animation</button><span class="mute" id="stat"></span></div>
   </div>
@@ -98,6 +98,15 @@ code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding
     </div>
     <div class="row"><label class="chip"><input type="checkbox" id="outline" checked> contour sombre</label></div>
     <div class="row"><label class="chip"><input type="checkbox" id="sep" checked> séparer bras / jambes du corps</label></div>
+    <div class="row"><label style="margin:0">Palette rétro</label>
+      <select id="palpreset">
+        <option value="rgb565" selected>RGB565 quantifié (Gamebuino)</option>
+        <option value="gameboy">Game Boy (4 teintes vertes)</option>
+        <option value="pico8">PICO-8 (16 teintes)</option>
+        <option value="nes">NES (54 teintes)</option>
+        <option value="cga">CGA (16 teintes)</option>
+      </select>
+    </div>
     <div class="row"><label style="margin:0">Durée max. (s)</label><input type="number" id="tmax" value="0" min="0" step="0.1" title="0 = clip entier"></div>
     <div class="row"><button class="primary" id="go">Générer les sprites</button></div>
     <p class="mute" id="prog"></p>
@@ -106,9 +115,10 @@ code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding
     <p class="mute" id="xlib" style="margin:0 0 6px"></p>
     <div class="row"><button class="primary" id="xzip" title="planches, atlas, RGB565, images, GIF, mode d'emploi">Paquet complet (.zip)</button><button id="xdir" title="Chrome / Edge : écrit directement dans le dossier de ton projet">Enregistrer dans un dossier…</button></div>
     <div class="row"><button id="dlpng">Planche PNG</button><label class="chip" style="margin:0"><input type="checkbox" id="xmag"> fond magenta</label><label class="chip" style="margin:0" title="première case de chaque ligne : nom de l'animation et direction (décalage d'une case, indiqué dans l'atlas)"><input type="checkbox" id="xlabel" checked> case du nom à gauche</label></div>
-    <div class="row"><button id="xatlas">Atlas JSON (Aseprite)</button><button id="xgif">GIF animé</button><button id="xframes">Images (.zip)</button></div>
+    <div class="row"><button id="xatlas">Atlas JSON (Aseprite)</button><button id="xgodot" title="Exporte la planche + ressource Godot 4 (.tres) + configuration moteur">Pack Godot / Unity</button><button id="xgif">GIF animé</button><button id="xframes">Images (.zip)</button></div>
     <div class="row"><button id="dlraw">.raw RGB565</button><button id="dlh">En-tête C (.h)</button><button id="dljson">Métadonnées</button></div>
     <div class="row"><button id="xall" title="rend chaque animation du modèle avec les réglages actuels, puis exporte-les ensemble">Générer toutes les animations</button><button id="xclear">Vider</button></div>
+    <div class="row"><button class="primary" id="xglb" title="écrit le modèle avec son squelette et les animations de la liste (celles du fichier, ajoutées ou générées) en un seul GLB, à rouvrir dans Blender, Godot, Unity…">Modèle animé (GLB)</button><label class="chip" style="margin:0"><input type="checkbox" id="xglba" checked> avec les animations</label></div>
     <div class="row"><label class="chip" style="margin:0" title="une seule palette pour toutes les animations générées d'un coup"><input type="checkbox" id="xcommon" checked> palette commune</label><button id="xpal" title="recalcule une palette unique pour toute la bibliothèque">Unifier la palette</button></div>
     <p class="mute" id="xmsg" style="margin:6px 0 0"></p>
   </div>
@@ -147,6 +157,7 @@ async function loadFile(f){
   try{softScan(M);if((M.userData.soft||[]).length&&clips.length)physRun(clips)}catch(e){console.error(e)}
   if($('#skinauto')&&$('#skinauto').checked&&clips.length&&skinMeshes(M).length)setTimeout(()=>{try{const r=skinFix(M,false);M.__skinRep=r.msg;let m=r.msg;if($('#armauto')&&$('#armauto').checked){const a=armFix(M,clips);if(a.ok&&a.n){m+='\n'+a.msg;play($('#clip').value===''?0:+$('#clip').value)}}rmsg(m,!r.ok)}catch(e){console.error(e)}},50)}
 $('#file').onchange=e=>{if(e.target.files[0])loadFile(e.target.files[0]);e.target.value=''};
+$('#bexemple').onclick=async()=>{try{$('#info').textContent='Chargement de l\'exemple…';const r=await fetch('exemple/mannequin.glb');if(!r.ok)throw new Error('exemple/mannequin.glb introuvable ('+r.status+') : ajoute le dossier « exemple » à côté de modele.html');await loadFile(new File([await r.blob()],'mannequin.glb'))}catch(e){$('#info').textContent='Échec : '+e.message}};
 addEventListener('dragover',e=>e.preventDefault());addEventListener('drop',e=>{e.preventDefault();if(e.dataTransfer.files[0])loadFile(e.dataTransfer.files[0])});
 
 /* ---------- normalisation (axe vertical, échelle, pieds au sol) ---------- */
@@ -253,9 +264,14 @@ async function generate(o={}){
     for(let y=0;y<T;y++)for(let x=0;x<T;x++){const j=y*T+x;if(!mask[j]||K[j]<1||K[j]>4)continue;for(const[dx,dy]of nb){const X=x+dx,Y=y+dy;if(X<0||Y<0||X>=T||Y>=T)continue;const q=Y*T+X;if(mask[q]&&K[q]!==K[j]&&Math.abs(lum(C,j)-lum(C,q))<26){mark[j]=1;break}}}
     for(let j=0;j<T*T;j++)if(mark[j]){const l=lum(C,j);for(let c=0;c<3;c++)C[j*3+c]=l<45?C[j*3+c]+18:C[j*3+c]*.6}}
   if($('#outline').checked)for(const fr of frames){const{mask,C}=fr,e=[];for(let y=0;y<T;y++)for(let x=0;x<T;x++){const j=y*T+x;if(!mask[j])continue;if(x===0||y===0||x===T-1||y===T-1||!mask[j-1]||!mask[j+1]||!mask[j-T]||!mask[j+T])e.push(j)}for(const j of e)for(let c=0;c<3;c++)C[j*3+c]*=.5}
-  // palette commune, quantifiée en RGB565
+  // palette commune, quantifiée selon le préréglage choisi
   const px=[];for(const fr of frames)for(let j=0;j<T*T;j++)if(fr.mask[j])px.push([fr.C[j*3]|0,fr.C[j*3+1]|0,fr.C[j*3+2]|0]);
-  const pal=medianCut(px,+$('#colors').value).map(p=>from565(to565(...p)));
+  const pr=$('#palpreset')?$('#palpreset').value:'rgb565';let pal;
+  if(pr==='gameboy'){pal=[[15,56,15],[48,98,48],[139,172,15],[155,188,15]];}
+  else if(pr==='pico8'){pal=[[0,0,0],[29,43,83],[126,37,83],[0,135,81],[171,82,54],[95,87,79],[194,195,199],[255,241,232],[255,0,77],[255,163,0],[255,236,39],[0,228,54],[41,173,255],[131,118,156],[255,119,168],[255,204,170]];}
+  else if(pr==='cga'){pal=[[0,0,0],[0,0,170],[0,170,0],[0,170,170],[170,0,0],[170,0,170],[170,85,0],[170,170,170],[85,85,85],[85,85,255],[85,255,85],[85,255,255],[255,85,85],[255,85,255],[255,255,85],[255,255,255]];}
+  else if(pr==='nes'){pal=[[124,124,124],[0,0,252],[0,0,188],[68,40,188],[148,0,132],[168,0,32],[168,16,0],[136,20,0],[80,48,0],[0,120,0],[0,104,0],[0,88,0],[0,64,88],[0,0,0],[188,188,188],[0,120,248],[0,88,248],[104,68,252],[216,0,204],[228,0,88],[248,56,0],[228,92,16],[172,124,0],[0,184,0],[0,168,0],[0,168,68],[0,136,136],[248,248,248],[60,188,252],[104,136,252],[152,120,248],[248,120,248],[248,88,152],[248,120,88],[252,160,68],[248,184,0],[184,248,24],[88,216,84],[88,248,152],[0,232,216],[120,120,120]];}
+  else{pal=medianCut(px,+$('#colors').value).map(p=>from565(to565(...p)));}
   for(const fr of frames){fr.rgba=new Uint8ClampedArray(T*T*4);for(let j=0;j<T*T;j++){if(!fr.mask[j])continue;let best=0,bd=1e9;for(let q=0;q<pal.length;q++){const p=pal[q],dd=(p[0]-fr.C[j*3])**2+(p[1]-fr.C[j*3+1])**2+(p[2]-fr.C[j*3+2])**2;if(dd<bd){bd=dd;best=q}}fr.rgba[j*4]=pal[best][0];fr.rgba[j*4+1]=pal[best][1];fr.rgba[j*4+2]=pal[best][2];fr.rgba[j*4+3]=255}}
   let N1=N,tr=null,fr1=frames;const nm=o.label||(clip?clip.name:'pose');
   if(N>1&&$('#trim').checked){tr=trimFrames(frames,dirs.map(d=>d[0]),T);fr1=tr.frames;N1=tr.N}
@@ -298,7 +314,7 @@ function labelCell(name,dir,T){const c=document.createElement('canvas');c.width=
   const im=x.getImageData(0,0,T,T),d=im.data;for(let j=0;j<T*T;j++){const on=d[j*4]+d[j*4+1]+d[j*4+2]>330;d[j*4]=on?(d[j*4+2]<120?255:255):32;d[j*4+1]=on?(d[j*4+2]<120?210:255):32;d[j*4+2]=on?(d[j*4+2]<120?74:255):32;d[j*4+3]=255}x.putImageData(im,0,0);return c}
 function sheetCanvasAll(mag){const rows=rowsOf();if(!rows.length)return null;const T=rows[0].R.T,lab=labelOn()?1:0,W=(Math.max(...rows.map(r=>r.fs.length))+lab)*T,c=document.createElement('canvas');c.width=W;c.height=rows.length*T;const x=c.getContext('2d');
   if(mag){x.fillStyle='#ff00ff';x.fillRect(0,0,c.width,c.height)}rows.forEach((r,ri)=>{if(lab)x.drawImage(labelCell(r.name,r.d,T),0,ri*T);r.fs.forEach((fr,i)=>x.drawImage(frameCanvas(fr,T,mag),(i+lab)*T,ri*T))});return c}
-const blobOf=c=>new Promise(r=>c.toBlob(r,'image/png'));const bytesOf=async b=>new Uint8Array(await b.arrayBuffer());
+const blobOf=c=>new Promise((ok,ko)=>c.toBlob(b=>b?ok(b):ko(new Error(`le navigateur n'arrive pas à encoder l'image PNG (${c.width}×${c.height} px : trop grande ?). Réduis la taille des cases, le nombre d'images ou de directions, ou utilise « Images (.zip) »`)),'image/png'));const bytesOf=async b=>{if(!b)throw new Error('contenu vide : rien à écrire (image ou fichier non généré)');return new Uint8Array(await b.arrayBuffer())};
 const enc=new TextEncoder();
 /* ZIP sans compression (écrit à la main : aucune bibliothèque) */
 const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
@@ -362,6 +378,34 @@ async function doFolder(){if(!window.showDirectoryPicker){msg('Ce navigateur ne 
 $('#xzip').onclick=()=>doZip().catch(e=>msg('Erreur : '+e.message));$('#xdir').onclick=()=>doFolder().catch(e=>msg('Erreur : '+e.message));
 $('#xframes').onclick=async()=>{if(!library.size)return;const files=[];for(const [n,R] of library)for(const fr of R.frames)files.push({name:`${n}/${fr.d}_${String(fr.f).padStart(2,'0')}.png`,data:await bytesOf(await blobOf(frameCanvas(fr,R.T,false)))});dl(base()+'_images.zip',zipBlob(files),'application/zip');msg(`${files.length} images séparées.`)};
 $('#xatlas').onclick=()=>{if(!library.size)return;dl(base()+'_atlas.json',atlasJSON(base()+'_planche.png',110),'application/json');msg('Atlas JSON (format Aseprite). Exporte aussi la planche PNG avec le même nom.')};
+$('#xgodot').onclick=async()=>{if(!library.size)return;msg('Préparation du pack Godot 4 / Unity…');try{
+  const b=base(),files=[],T=[...library.values()][0].T,c=sheetCanvasAll(false);
+  files.push({name:`${b}_spritesheet.png`,data:await bytesOf(await blobOf(c))});
+  files.push({name:`${b}_aseprite_atlas.json`,data:enc.encode(atlasJSON(`${b}_spritesheet.png`,110))});
+  // Godot 4 SpriteFrames .tres
+  const rows=rowsOf(),names=[...new Set(rows.map(r=>`${r.name}_${r.d}`))];
+  let godot=`[gd_resource type="SpriteFrames" load_steps=2 format=3]\n\n[ext_resource type="Texture2D" path="res://${b}_spritesheet.png" id="1"]\n\n[resource]\nanimations = [\n`;
+  names.forEach(n=>{godot+=`{\n  "frames": [],\n  "loop": true,\n  "name": "${n}",\n  "speed": 8.0\n},\n`});
+  godot+=`]\n`;
+  files.push({name:`${b}_spriteframes.tres`,data:enc.encode(godot)});
+  files.push({name:`README_GODOT_UNITY.txt`,data:enc.encode(`Pack de sprites pour moteurs de jeux (Godot 4 & Unity)
+Modèle : ${b}
+Résolution cases : ${T}x${T} px
+
+UTILISATION DANS GODOT 4 :
+1. Glisse ${b}_spritesheet.png et ${b}_aseprite_atlas.json dans ton dossier res://.
+2. Si tu utilises le plugin "Aseprite Wizard" ou import d'atlas JSON, clique droit sur le JSON > Importer comme SpriteFrames.
+3. Ou utilise un AnimatedSprite2D en chargeant ${b}_spriteframes.tres.
+
+UTILISATION DANS UNITY :
+1. Glisse ${b}_spritesheet.png dans ton dossier Assets.
+2. Dans l'inspecteur : Texture Type = Sprite (2D and UI), Sprite Mode = Multiple.
+3. Clique sur "Sprite Editor" > Slice > Grid By Cell Size (${T} x ${T}) > Apply.
+4. Glisse les frames dans ta timeline d'animation.
+`)});
+  dl(`${b}_godot_unity.zip`,zipBlob(files),'application/zip');
+  msg(`Pack Godot / Unity téléchargé (${files.length} fichiers : PNG, Atlas JSON, SpriteFrames, README).`);
+}catch(e){msg('Erreur export Godot : '+e.message)}};
 $('#xgif').onclick=()=>{if(!result)return;const R=result,d=$('#adir').value||R.dirs[0],fs=R.frames.filter(f=>f.d===d).sort((a,b)=>a.f-b.f);dl(`${base()}_${safe(R.clip)}_${d}.gif`,gifBlob(fs,R.T,R.pal,Math.max(2,Math.round(256/R.T)),110));msg(`GIF animé « ${safe(R.clip)} », direction ${d}.`)};
 $('#dlpng').onclick=async()=>{if(!library.size)return;const c=sheetCanvasAll($('#xmag').checked);dl(base()+($('#xmag').checked?'_planche_magenta.png':'_planche.png'),await blobOf(c));msg(`Planche PNG : ${rowsOf().length} lignes (${library.size} animation(s) × ${result.dirs.length} direction(s)).`)};
 $('#xall').onclick=async()=>{if(!clips.length){msg('Ce modèle n\'a pas d\'animation : seule la pose est rendue.');return}const keep=$('#clip').value;$('#xall').disabled=true;
@@ -380,6 +424,9 @@ $('#dlraw').onclick=()=>{if(result)dl(base()+'_'+safe(result.clip)+'.raw',wordsO
 $('#dlh').onclick=()=>{if(result)dl(base()+'_'+safe(result.clip)+'.h',headerOf(base()+'_'+safe(result.clip),result),'text/plain')};
 $('#dljson').onclick=()=>{if(library.size)dl(base()+'_meta.json',metaJSON(),'application/json')};
 refreshExport();
+// toute erreur d'un bouton d'export s'affiche sous les boutons (au lieu d'un échec silencieux)
+for(const id of ['xzip','xdir','xframes','xatlas','xgif','dlpng','dlraw','dlh','dljson']){const b=$('#'+id),f=b&&b.onclick;if(f)b.onclick=async function(...a){try{return await f.apply(this,a)}catch(e){msg('Échec : '+(e&&e.message||e));console.error(e)}}}
+addEventListener('unhandledrejection',e=>{const m=e.reason&&e.reason.message||String(e.reason);try{msg('Erreur : '+m)}catch(_){}});
 
 /* ---------- squelette et animations venus d'autres fichiers ----------
    Animations : on échantillonne le clip source os par os (rotations MONDE relatives au repos), on les repose sur les os
@@ -817,7 +864,7 @@ async function cloudBackup(){if(!CLOUD.cfg.token)throw new Error('colle d\'abord
 async function zipImport(files,vis='private'){
   const{unzipSync}=await import('three/addons/libs/fflate.module.js');const rep={files:0,added:0,dupFile:0,dupClip:[],noAnim:[],bad:[]};
   const seen=new Set([...MYA.clips.map(c=>animNorm(c.name,c.dur)),...AN.cat.packs.flatMap(p=>p.clips.map(c=>animNorm(c.name,c.dur)))]);
-  for(const z of files){let ent;try{ent=unzipSync(new Uint8Array(await z.arrayBuffer()))}catch(e){rep.bad.push(`${z.name} : ${e.message}`);continue}
+  for(const z of files){if(!z){rep.bad.push('fichier illisible (vide)');continue}let ent;try{ent=unzipSync(new Uint8Array(await z.arrayBuffer()))}catch(e){rep.bad.push(`${z.name} : ${e.message}`);continue}
     const zn=z.name.replace(/\.zip$/i,''),names=Object.keys(ent).filter(n=>/\.(fbx|glb)$/i.test(n)&&!/(^|\/)(__MACOSX|\.)/.test(n)).sort();
     if(!names.length)rep.bad.push(`${z.name} : aucun FBX / GLB dedans (les .gltf à fichiers séparés, .rar et .7z ne sont pas gérés)`);
     for(const n of names){rep.files++;amsg(`${z.name} : ${n.split('/').pop()} (${rep.files})…`);await new Promise(r=>setTimeout(r));
@@ -895,6 +942,9 @@ $('#bglb').onclick=async()=>{
     rmsg(`${name} : ${(buf.byteLength/1048576).toFixed(1)} Mo, ${anims.length} animation(s). Rouvre-le dans « Ouvrir le modèle » : les animations apparaissent dans la liste.`);
     const i=$('#clip').value;if(i!=='')play(+i)}
   catch(e){rmsg('Échec de l\'export : '+e.message,1);console.error(e)}};
+// Bouton « Modèle animé (GLB) » de la carte Exporter : même export que #bglb
+$('#xglb').onclick=async()=>{const x=$('#xmsg');try{$('#bglba').checked=$('#xglba').checked;x.textContent='Écriture du GLB…';await $('#bglb').onclick();const t=$('#rmsg')&&$('#rmsg').textContent;if(t)x.textContent=t}catch(er){x.textContent='Échec : '+er.message;console.error(er)}};
+$('#bglba').addEventListener('change',()=>{$('#xglba').checked=$('#bglba').checked});$('#xglba').addEventListener('change',()=>{$('#bglba').checked=$('#xglba').checked});
 /* ======================= ASSISTANT SPRITES : personnage → type de jeu → actions → planches ======================= */
 // Clips calculés (absents des bibliothèques libres) : montée d'échelle et de corde.
 // Image par image on donne la direction voulue de chaque segment (bras, avant-bras, cuisse, mollet) dans le repère du personnage
