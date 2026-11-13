@@ -1,185 +1,56 @@
-# forge — de l'image d'un personnage aux assets de jeu (AKA / ESP32)
+# character-forge
 
-```
-image ──► extract ──► sheet ──► persona          (2D, fiche, dialogue : tourne partout)
-              │
-              └──► gen3d ──► [CharacterGen, PC avec GPU] ──► turntable (Blender) ──► sprites
-```
+Transforme un modèle 3D de personnage (GLB / FBX / OBJ) en **planches de sprites 2D** : squelette, animations, 8 directions, palette RGB565 pour la console Gamebuino AKA ou n'importe quel moteur (Godot, Unity, Defold, Phaser...). Tout se fait dans le navigateur, sans rien installer.
 
-## Installation
-```
-pip install pillow numpy scipy rembg onnxruntime
-```
-(Python 3.9+ ; `rembg` télécharge son modèle `isnet-anime` au premier usage.)
+**Essayer tout de suite :** ouvre la page *Modèle 3D → sprites* (`modele.html`) et clique sur **Essayer avec un exemple** (petit mannequin libre de droits CC0, déjà équipé d'un squelette et des animations Idle et Walk).
 
-## Commandes (`python -m forge ...`)
+## Ce que fait l'outil
 
-| Commande | Rôle | Testé |
-|---|---|---|
-| `extract IMG... -o out [--segment] [--model isnet-general-use] [--parts parts.json]` | détourage IA (défaut : isnet-general-use), éléments, parties nommées, palette, RGB565 | oui |
-| `sheet DOSSIER` | crée `character.json` (palette + parties) et `character_sheet.html` | oui |
-| `persona character.json [--lang fr\|en]` | `persona.md` (prompt système de dialogue) + `dialogue_seed.json`, sans réseau | oui |
-| `gen3d DOSSIER` | prépare `charactergen_input.png` + `run_charactergen.bat/.sh`, détecte le GPU | oui (préparation) |
-| `turntable MODELE -o out [--angles 8 --size 128 --anim-step N]` | rend N vues (et l'animation si le modèle est rigué) via Blender | **non** (pas de Blender ici) |
-| `sprites DOSSIER_IMAGES -o out --name x [--height 64 --colors 24 --boost 0.8 --no-outline --dither ... --resample ...]` | spritesheet à palette partagée, contraste + contour, RGB565 LE, header C | oui |
-| `pipeline IMG -o out [--parts parts.json]` | enchaîne extract + sheet + persona (si fiche remplie) + gen3d | oui |
+1. **Ouvrir un modèle** : GLB (conseillé), FBX ou OBJ, par exemple rapporté de Meshy, Mixamo, ou généré depuis des photos multi-vues.
+2. **Squelette** : pose automatique d'un squelette humanoïde standard, ou reprise de celui d'un autre fichier.
+3. **Animations** : celles du fichier, des FBX/GLB Mixamo, des packs .zip, ou des animations calculées (échelle, corde).
+4. **Sprites & Palettes** : 8 directions, 48 / 64 / 96 / 128 px, palette commune ou préréglages pixel-art (Game Boy, PICO-8, NES, Gamebuino RGB565), contour sombre automatique, fond transparent ou magenta.
+5. **Exporter** : paquet .zip complet, planche PNG, atlas JSON (compatible Aseprite / Godot / Unity), GIF animé, images séparées, `.raw` RGB565, en-tête C (`.h`), et **le modèle animé en GLB** (bouton *Modèle animé (GLB)*).
 
-## Accessoires : remplacer une arme ratée
-Quand le détourage perd un arc, une flèche ou une lance, on le dit à l'outil (ou à Claude, qui écrit le JSON) :
-`python -m forge extract img.png --segment --props props_orcs.json`. Voir `props_orcs.json` pour un exemple et
-`forge/props.py` pour toutes les options : `erase` (vider les restes), `restore` (récupérer la peau perdue,
-doigts, bord du corps), `props` (arc, flèche, lance dessinés propres, derrière ou devant le personnage).
-Les coordonnées sont celles de l'image d'origine ; `python -m forge props` donne un aperçu rapide.
+## Pages & Structure du dépôt
 
-### Tailles réalistes des armes (props)
-`person.head` (hauteur de tête en px) fixe la taille du personnage (7,5 têtes). Un arc se décrit par `kind` :
-`short` 0,5 × taille, `standard` 0,75, `recurve` 0,93, `long` 1,1 ; la flèche vaut ≈ 0,43 × taille (`length:"auto"`,
-`toward` pour viser un point). `python -m forge scale-chart -o echelle_arcs.png` dessine l'échelle.
-Un arc réaliste est souvent coupé par le cadre d'un plan buste : l'outil l'indique dans la console.
-`erase` accepte aussi `{"box":[x,y,w,h],"hue":[345,15],"sat":0.55}` pour n'effacer qu'une teinte (restes rouges).
+| Fichier | Rôle |
+|---|---|
+| `index.html` | Atelier : fiche en pied, détourage, calibration des vues |
+| `modele.html` | Modèle 3D → sprites (moteur 3D, squelette, animations, exports) |
+| `3d.html` / `chaine3d.html` | Chaîne 3D complète, documentation et commandes `forge …` |
+| `exemple/mannequin.glb` | Mannequin CC0 d'exemple prêt à animer (1-clic) |
+| `LICENSE` | Licence libre MIT |
 
-## Équipements : base physique (`gear`)
-`python -m forge gear list | check OBJET... | fit OBJET... --head 215 --top 40 --center 380 --build orc`
-(ou `--file tenues_exemple.json --name archer_orque`). Le catalogue (`forge/gear.py`) décrit casque, casquette,
-lunettes, bandeau, capuche, chemise, tunique, gambison, armures, épaulières, gants, pantalon, jupe, robe, bottes,
-cape, carquois… par emplacement, couche (dessous → base → mi → armure → dessus), zones couvertes, taille en têtes,
-masse et protection. `check` refuse les tenues impossibles (robe + pantalon, casque fermé + lunettes, plastron sans
-vêtement dessous…) ; `fit` donne la boîte en pixels sur l'image. Les valeurs sont des **estimations** à ajuster.
+## Mise en ligne (GitHub Pages)
 
-## Plusieurs photos -> un seul modèle (`consolidate`)
-`python -m forge consolidate analyze manifest.json [--decisions decisions.json]` puis `... build ... -o dossier`.
-Le manifeste (voir `forge/multiview.py`) donne pour chaque image sa vue (front/back/left/right/three_quarter/face),
-la hauteur de tête `head_px` si connue, et ce qu'elle montre (`attrs` : casque, arme, tenue…). L'outil :
-- détecte les vues manquantes et **demande des images complémentaires** (dos, profils, pied) ;
-- pose des **questions** quand une vue est inconnue ou qu'un attribut diffère d'une image à l'autre
-  (tu réponds dans `decisions.json` : `{"weapon":"orc1.png"}` ou une valeur, `_primary` = image principale) ;
-- valide la tenue fusionnée avec `gear` ;
-- `build` met toutes les images à la même échelle (canevas 512x768 transparent) dans `refs/` et écrit
-  `consolidation.json` + `REPORT.md` avec l'entrée pour TRELLIS multi-image (plusieurs images) ou CharacterGen (une seule).
-Limites : les vues et attributs sont donnés par toi ou par Claude qui regarde les images (pas de reconnaissance
-automatique) ; la génération 3D elle-même reste à lancer sur un PC avec GPU (non testée ici).
+Place les fichiers HTML à la racine du dépôt, avec le dossier `exemple/` (contenant `mannequin.glb`), puis active GitHub Pages sur la branche principale (`Settings > Pages > Branch: main / root`).
 
-## Automatisation depuis un studio/IDE (`job`)
-`python -m forge job run manifest.json -o JOB [--decisions d.json] [--3d-cmd "CMD {input} {outdir}"] --json`
-Un seul appel enchaîne consolidation -> références -> GPU -> 3D -> turntable. Avec `--json`, une ligne JSON par
-événement (`step`, `question`, `request`, `result`). Code de sortie 0 = terminé, 3 = il manque des réponses
-(le studio les pose à l'utilisateur, écrit `decisions.json`, relance), 1 = erreur.
-`--3d-cmd` branche n'importe quel générateur sur TON PC (CharacterGen, TRELLIS) ; son appel sans écran n'a pas
-été vérifié, donc sans cette commande l'étape s'arrête proprement après avoir préparé les entrées.
-Depuis un programme (C#, Python...) : lancer le processus, lire stdout ligne par ligne, afficher les questions.
+## Stockage « Mes personnages » (facultatif)
 
-## Reconstituer une planche : règles, harmonisation, découpe
-Leçons complètes : `docs/LECONS_PLANCHES.md`. Trois commandes en sortent :
-- `python -m forge animrules list | check PLANCHE --cell 160x152 --kinds tools/sheet_rebuild/kinds.json` (ou `--frames DOSSIER --kind walk`) :
-  vérifie que chaque ligne FAIT son mouvement (marche = jambes qui alternent, accroupi = frames basses, chute = recul → genoux → sol…),
-  avec une consigne de correction par règle échouée.
-- `python -m forge harmonize DOSSIER --ref REF -o out --height 102 --width 1.10 --head-scale 1.30 --head-cut 0.30 --colors 28` :
-  met des sprites d'une autre source au rendu du personnage de référence (taille, tête, palette, contour 1 px).
-- `python -m forge sheetops split PLANCHE -o dossier --cell-h 152 --per-part 6` : coupe une planche trop haute en bandes de lignes.
+Par défaut, les personnages et animations enregistrés restent dans le navigateur. Pour les garder en ligne :
 
-### Récupérer le travail depuis « modèle 3D → sprites » (`docs/modele.html`)
-Panneau **Exporter** (toujours visible à droite) : **Paquet complet (.zip)** (planche transparente + planche **fond magenta**, atlas **Aseprite**
-JSON avec une étiquette par `animation_direction`, `.raw`/`.h` RGB565 par animation, images séparées, GIF animés, `LISEZ-MOI.txt`),
-**Enregistrer dans un dossier…** (Chrome/Edge : écrit directement dans le dossier du projet), planche PNG (case « fond magenta »), atlas JSON,
-GIF de la direction affichée, images `.zip`. **Générer toutes les animations** rend chaque clip du modèle avec les mêmes réglages et les
-range dans la bibliothèque, exportée d'un seul bloc. Le `LISEZ-MOI` donne les commandes pour enchaîner `forge qa`, `animrules`, `harmonize`, `atlas`.
-**Palette commune** (cochée par défaut avec « Générer toutes les animations », ou bouton **Unifier la palette**) : une seule palette RGB565 pour toute la bibliothèque, donc les mêmes couleurs d'une animation à l'autre.
+1. Crée un dépôt public `character-forge-bank`.
+2. Crée un jeton GitHub *fine-grained* limité à ce dépôt, avec **Contents : Read and write**.
+3. Colle-le dans la section « Stockage permanent de la banque » de `modele.html`, puis clique sur **Tester**.
 
-### Ajouter squelette et animations venus d'autres fichiers (`docs/modele.html`)
-Carte **Squelette et animations d'autres fichiers**, sous la vue 3D :
-- **Ajouter des animations… (FBX / GLB)** : un ou plusieurs fichiers (clips Mixamo, bibliothèques d'animations, autre modèle animé).
-  Chaque clip est **reciblé** sur le squelette du modèle : les os sont appariés par nom canonique (`mixamorig:LeftUpLeg` = `Bip01 L Thigh` =
-  `thigh_l`…), puis les rotations sont recopiées en repère monde relatif au repos (indépendant des axes locaux, des unités et du nombre d'os ;
-  les os sans équivalent gardent leur repos). Le déplacement du bassin est mis à l'échelle de la jambe, et supprimé si « sur place » est coché.
-  Les clips rejoignent la liste Animation et « Générer toutes les animations » ; le rapport donne les os appariés (refus sous 8 os ou sans bassin).
-- **Ajouter un squelette… (modèle sans os)** : pose le squelette d'un autre fichier (ex. un FBX Mixamo) sur un maillage statique : mise à
-  l'échelle sur la hauteur, recentrage des jambes et bras sur la coupe du maillage, poids = segment d'os le plus proche, lissés sur le maillage
-  (sommets soudés par position pour éviter les fissures aux coutures UV).
-Hypothèses/limites : modèle debout, de face, en T ou en A (même pose que le squelette) ; rigs très atypiques (danseuse : os « Leg_-_HipR »…)
-n'apparient que quelques os ; aucun poids peint à la main. Test : `tests/ui_modele_rig.py` (Playwright).
+Le jeton reste dans ce navigateur (stockage local). Ne le partage jamais et ne le mets pas dans un commit.
 
-### Garde-robe : cheveux, armes, vêtements, chaussures, accessoires (`docs/wardrobe/`, carte « Garde-robe » de `modele.html`)
-163 pièces **CC0** (Quaternius, KayKit ; crédits dans `THIRD_PARTY.md`), avec vignettes :
-- **Accessoires** (33 armes, 10 boucliers, couronnes, colliers, sacs, gant, plastrons, objets) : fixés à l'os choisi (main, avant-bras, tête, cou, dos, pieds…), orientés « lame vers le haut, face vers l'avant » à la pose de repos, taille = fraction de la hauteur du personnage ; curseurs de taille et de décalage, rotations de 90°. Ils suivent les animations ajoutées et apparaissent dans les sprites.
-- **Pièces habillables** (21 hauts, 20 bas, 21 chaussures, 21 têtes, 13 cheveux, sac) : chaque sommet est déplacé de l'os du vêtement vers l'os apparié du modèle puis lié à son squelette, donc le vêtement suit les animations. Les cases « Parties d'origine » masquent le corps/les jambes/les pieds d'origine pour ne pas les voir à travers. Un seul objet par emplacement.
-- Limites : proportions humaines ; sur un modèle déjà habillé le vêtement d'origine dépasse tant qu'on ne le masque pas ; les hauts à capes ou épaulières larges peuvent traverser des bras très fins ; modèle sans squelette → ajouter d'abord un squelette (carte précédente).
-- Reconstruire : `node tools/wardrobe/build.mjs SRC_QUATERNIUS SRC_KAYKIT docs/wardrobe` puis `python tools/wardrobe/thumbs.py`. Test : `tests/ui_modele_wardrobe.py`.
+## Licences et droits : à lire avant de publier
 
-### Assistant sprites (carte « Assistant sprites » de `modele.html`)
-Personnage (banque `docs/bank/` de 5 personnages KayKit CC0, « Mes personnages » gardés dans le navigateur, ou un nouveau fichier : un squelette lui est posé automatiquement) → type de sortie → actions → planches.
-- **Plateforme (vue de côté, caméra 0°)** : repos (face), marche, course, saut, chute, échelle (de dos), corde, coup reçu (côté, tourné vers la droite).
-- **Aventure (vue du dessus, 4 directions, caméra 35°)** : mêmes actions, échelle et corde décochées.
-- Chaque ligne est modifiable (nom, animation source, directions, nombre d'images) ; « ＋ Ajouter une action » en crée d'autres (toute animation des bibliothèques, ou chargée dans la page). Toutes les actions partagent le même cadrage (le personnage garde la même taille et les pieds au même niveau) et la même palette.
-- Montée d'échelle et de corde : animations calculées (`procClip`), directions de segments image par image, valables pour un modèle en T ou en A.
-- `tools/rig_cli.py` : pose squelette + animations et écrit un GLB sans interface.
+- Le **code** de character-forge est sous licence MIT (fichier `LICENSE`).
+- `exemple/mannequin.glb` est un modèle original, publié sous **CC0** (domaine public).
+- **Tes modèles et animations ont leurs propres droits.** Un personnage tiré d'une œuvre protégée (jeu, BD, animé) reste du fan-art : garde-le **🔒 privé** et ne le place pas dans la banque publique.
+- Les animations Mixamo ont leurs propres conditions d'utilisation : vérifie si tu peux les redistribuer avant de les rendre publiques.
+- En cas de doute, laisse le contenu en privé.
 
-### Contrôle et réparation du squelette (`rigAnalyse`)
-Symétrie gauche/droite et proportions des articulations ; poids : un os gauche n'agit jamais sur le côté droit, sommets soudés = mêmes poids ; épreuve en 7 poses extrêmes avec mesure de l'étirement de chaque arête (une arête étirée entre deux os non voisins = déchirure) puis lissage des poids fautifs. Rapport affiché après la pose du squelette, à l'export et par le bouton « Contrôler et réparer le squelette ». La pose du squelette ramène aussi les deux côtés à leur moyenne et remet le coude à la proportion du squelette d'origine.
+## Limites connues & Dépannage
 
-### Bibliothèque d'animations (`docs/anims/`, carte « Bibliothèque d'animations » de `modele.html`)
-114 animations **CC0** (Quaternius *Universal Animation Library* : 45 ; KayKit *Adventurers* : 69), sans ouvrir de fichier : choisis un pack, filtre par catégorie ou par nom, clique sur une ou plusieurs animations puis « Ajouter la sélection » (ou « Tout ajouter »). Elles sont reciblées sur le squelette du modèle (il faut un squelette : celui du fichier, ou un squelette ajouté), rejoignent la liste « Animation » et « Générer toutes les animations », et partagent la palette commune. Reconstruire : `node tools/anims/build.mjs UAL.gltf Knight.glb docs/anims`. Test : `tests/ui_modele_anims.py`.
+- Si le navigateur bloque l'encodage PNG (message d'alerte sous Exporter) : la planche dépasse la limite de mémoire du canvas. Réduire la taille des cases (ex: 64 px au lieu de 128 px), réduire le nombre de frames, ou choisir l'export *Images (.zip)*.
+- FBX en version 6100 illisible : réexporter en GLB ou en FBX récent (Blender).
+- Un modèle dont les bras sont collés au corps se riggue mal : privilégier une pose en T ou en A.
+- Cheveux et vêtements amples restent rigides sans armature secondaire.
 
-## Contrôle qualité des frames (`qa`)
-`python -m forge qa DOSSIER_FRAMES [--max-colors 24]` : cadre coupé, poussières, alpha semi-transparent, nombre de
-couleurs, taille et ligne des pieds d'une frame à l'autre ; chaque problème donne une consigne de correction.
-À lancer sur des sprites, pas sur les références haute définition (qui déclenchent « couleurs » et « alpha » à raison).
+## Contribuer
 
-## Interface graphique (`docs/index.html`)
-Page statique, sans serveur ni dépendance : s'ouvre en local (double-clic) ou via GitHub Pages
-(Settings > Pages > Branch `main`, dossier `/docs`). Onglets : détourage (couleur de fond + gomme/restaurer),
-zones à effacer et parties nommées, armes à taille réelle (arc court/standard/recurve/long, flèche), tenue
-(règles de `gear`), sprite RGB565 (palette, contour, export .h/.raw/.png), multi-vues (vues manquantes, questions,
-décisions), export de `props.json`, `parts.json`, `manifest.json`, `decisions.json` et commandes à lancer.
-Limites : le détourage IA, le rendu définitif des armes et la 3D restent des commandes Python (`forge`) ou le
-notebook Colab ; l'aperçu des armes est approché. `tools/export_gear_json.py` régénère `docs/gear.js` depuis
-`forge/gear.py` (la CI vérifie qu'ils sont synchronisés). GitHub Pages n'est pas disponible pour un dépôt privé
-en compte gratuit : rendre le dépôt public ou ouvrir `docs/index.html` en local.
-
-## Planches de sprites : découpe, export à plat, réintégration (`sheetops`)
-`python -m forge sheetops slice planche.png -o dossier` : détecte la grille et écrit `frames/*.png` + `sheet.json`.
-`sheetops flatten planche.png -o dossier -f 4 [--colors 64]` : agrandissement à plat (pixels carrés) +
-`palette.json` + `meta.json` ; on retouche `flat.png` dans un éditeur de pixel art.
-`sheetops reintegrate flat_retouché.png -m dossier/meta.json -o planche.png` : retour à la résolution d'origine,
-recollage sur la palette (`--no-snap` pour garder de nouvelles couleurs), clé de transparence restaurée.
-Testé : aller-retour sans perte sur une planche, et une retouche de 10×10 px revient à l'identique. Agrandir ne
-crée pas de détail ; une source compressée (webp/jpg) est ramenée à `--colors` couleurs.
-
-## Mode apprentissage des animations (`anim`)
-`python -m forge anim check annot.json` (cohérence des os) · `anim learn a.json b.json --type walk --loop -o animlib`
-(moyenne circulaire des angles d'os de plusieurs exemples) · `anim generate animlib/walk.json --character pose.json
---frames 12 --height 64` (rejoue sur un autre squelette ; aperçu bonhomme-bâton `walk_gen.png`).
-Une annotation = JSON `{"facing":"right","loop":true,"frames":[{"pelvis":[x,y],"neck":[..],...15 articulations}]}`
-(voir `forge/anim.py`). Testé sur des données **synthétiques** (marche artificielle, 3 « exemples » à proportions
-différentes : écart moyen 2,4°) ; pas encore sur de vraies planches. Les articulations sont à annoter (ou à importer
-d'un estimateur lancé sur ton PC). Limite : vue de côté seulement (angles dans le plan de l'image). L'export
-Blender (`to_blender`) et le rendu 3D des poses restent à écrire/tester.
-
-### Ponts avec l'existant (voir THIRD_PARTY.md)
-`anim import-bvh mocap.bvh --forward x [--flip] --loop` : apprend une animation depuis un mocap (Mixamo, Quaternius…
-noms de nœuds Mixamo requis) ; `anim import-coco kp.json` : depuis un estimateur de pose (COCO-17) ;
-`anim export-bvh animlib/walk.json` : BVH rejouable ; `atlas frames/ -o out --name walk --fps 12` : atlas aligné aux
-pieds + JSON Aseprite + manifest + GIF ; `qa dossier --identity` : dérive d'identité des couleurs (seuils non calibrés).
-Les 4 petits os (clavicules, bassin) ne sont pas animés à l'export BVH.
-
-## Parties nommées
-`parts.json` : `{"image.png": {"head": [x,y,w,h], "body": [...], "weapon": [...]}}`.
-Les boîtes sont décidées en regardant l'image (par Claude ou à la main), puis découpées dans le détourage.
-
-## Étape 3D (CharacterGen)
-- Voir **NOTES_3D.md** : fonctionnement, limites, licences, alternatives et sources.
-- `gen3d` prépare l'image (512x768, fond transparent, comme l'app) et les scripts ; **le lancement se fait sur un PC
-  avec GPU NVIDIA** (VRAM non documentée).
-- Sortie : `output.glb` / `output.obj` en A-pose, couleurs par sommet, **sans squelette**. À copier dans `mesh/`.
-- Résultat incertain sur des images semi-réalistes ou en plan buste (modèle entraîné sur de l'anime en pied).
-
-## Ce que l'outil ne fait pas
-- Il n'utilise pas l'API non officielle Character AI (token navigateur, conditions du service) :
-  la persona est un fichier texte à donner à n'importe quel LLM ou moteur de dialogue.
-- Le script Blender (`forge/blender/render_turntable.py`) est écrit mais non exécuté ici.
-- Les armes fines (arcs, lances) sont souvent mal détourées par le modèle.
-
-## Licence
-
-Création originale de Jicehel (Jean-Charles Lebeau), publiée sous licence **[Creative Commons Attribution - Pas d'Utilisation Commerciale 4.0 (CC BY-NC 4.0)](LICENSE)** : tu peux copier, modifier et partager librement, avec mention de l'auteur, mais pas à des fins commerciales. Le texte complet est dans le fichier [LICENSE](LICENSE). Les bibliothèques et ressources tierces gardent leur propre licence.
-
-- `forge close in out` : referme un maillage OBJ/GLB (soude, retire les facettes flottantes, comble les trous) — voir NOTES_3D.md.
+Les retours sont bienvenus : ouvre une *issue* avec le message d'erreur complet (console du navigateur, touche F12) et, si possible, un modèle de test libre de droits.
