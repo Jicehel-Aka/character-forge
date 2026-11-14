@@ -401,3 +401,13 @@ gltf-transform optimize modele_squelette.glb modele_leger.glb --compress meshopt
 Attention : Meshopt (`EXT_meshopt_compression`) et Draco ne sont pas lus par tous les moteurs (Godot 4.5 : Meshopt seulement à l'import, Unity : paquets tiers) ; pour une compatibilité maximale, utiliser `gltf-transform resample` + `dedup` + `prune`, sans compression. Une option « Meshopt » dans la page demanderait d'embarquer l'encodeur WASM de meshoptimizer ou glTF-Transform (≈ 1,8 Mo, ESM) : non faite, la page n'a pas d'étape de build.
 
 **Lecture des GLB compressés.** `newGLTF()` branche `DRACOLoader`, `MeshoptDecoder` et `KTX2Loader` (fichiers locaux de three r160 dans `docs/vendor/three/addons/`, licences dans `THIRD_PARTY.md`). Testé avec des GLB produits par `gltf-transform optimize --compress draco` et `meshopt` (`tests/ui_io_decoders.py`). KTX2 : branché mais non éprouvé sur un vrai fichier (pas d'encodeur `toktx` ici) ; une texture KTX2 est une texture GPU compressée que GLTFExporter ne peut pas réécrire (l'export du modèle échouerait sur ses textures).
+
+## Monstres et objets procéduraux (`docs/objets.js`, carte « Monstres & objets » de modele.html)
+
+Objets à actionner (coffre, levier, bouton/plaque, porte, plateforme, piège, checkpoint), collectibles, projectiles, effets et monstres non
+humanoïdes (slime, volant, quadrupède, crabe, plante), fabriqués par code et animés par état, sans squelette humain. Ils se chargent comme un
+modèle sans os et passent par la génération et les exports habituels ; l'atlas porte `meta.gameData` (ancre, hurtbox, hitbox d'attaque, durées par
+image, boucle, état suivant, collision, transitions) et le paquet `*_gamedata.json` / `*_gamedata.h`. Format, échelle, vues : `docs/objets.md`.
+Exemple complet (héros + slime + coffre + levier + porte, C++ AKA, GDScript Godot 4) : `docs/exemples/plateforme_aka/`. Tests : `tests/ui_objets.py`.
+Choix : un clip non bouclé est tenu sur sa pose finale et généré avec `tmax = durée·N/(N-1)` (la dernière image est la pose finale) ; le cadre de
+la cellule est une boîte invisible de référence (`ref` de « Générer »), indépendante de la forme instantanée de l'objet.

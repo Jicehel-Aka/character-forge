@@ -21,6 +21,7 @@ dist/
 !docs/wardrobe/**/*.glb
 !docs/anims/**/*.glb
 !docs/bank/*.glb
+!docs/bank/objets/*.glb
 !docs/exemple/*.glb
 # --- sorties de tests ---
 tests/_out/

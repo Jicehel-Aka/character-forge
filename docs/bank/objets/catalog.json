@@ -1,0 +1,766 @@
+{
+ "objets": [
+  {
+   "id": "coffre",
+   "label": "Coffre",
+   "famille": "objet",
+   "etats": [
+    {
+     "id": "ferme",
+     "clip": "coffre · ferme",
+     "images": 1,
+     "boucle": false,
+     "duree_s": 1,
+     "suivant": null
+    },
+    {
+     "id": "ouverture",
+     "clip": "coffre · ouverture",
+     "images": 6,
+     "boucle": false,
+     "duree_s": 0.5,
+     "suivant": "ouvert"
+    },
+    {
+     "id": "ouvert",
+     "clip": "coffre · ouvert",
+     "images": 4,
+     "boucle": true,
+     "duree_s": 0.8,
+     "suivant": null
+    },
+    {
+     "id": "fermeture",
+     "clip": "coffre · fermeture",
+     "images": 5,
+     "boucle": false,
+     "duree_s": 0.4,
+     "suivant": "ferme"
+    }
+   ],
+   "vue": {
+    "dir": "s",
+    "pitch": 16
+   },
+   "cadre": 1,
+   "file": "coffre.glb",
+   "license": "CC0 1.0 (généré par code, docs/objets.js)"
+  },
+  {
+   "id": "levier",
+   "label": "Levier",
+   "famille": "objet",
+   "etats": [
+    {
+     "id": "off",
+     "clip": "levier · off",
+     "images": 1,
+     "boucle": false,
+     "duree_s": 1,
+     "suivant": null
+    },
+    {
+     "id": "on",
+     "clip": "levier · on",
+     "images": 1,
+     "boucle": false,
+     "duree_s": 1,
+     "suivant": null
+    },
+    {
+     "id": "activation",
+     "clip": "levier · activation",
+     "images": 4,
+     "boucle": false,
+     "duree_s": 0.25,
+     "suivant": "on"
+    },
+    {
+     "id": "desactivation",
+     "clip": "levier · desactivation",
+     "images": 4,
+     "boucle": false,
+     "duree_s": 0.25,
+     "suivant": "off"
+    }
+   ],
+   "vue": {
+    "dir": "s",
+    "pitch": 14
+   },
+   "cadre": 1,
+   "file": "levier.glb",
+   "license": "CC0 1.0 (généré par code, docs/objets.js)"
+  },
+  {
+   "id": "bouton",
+   "label": "Bouton / plaque de pression",
+   "famille": "objet",
+   "etats": [
+    {
+     "id": "relache",
+     "clip": "bouton · relache",
+     "images": 1,
+     "boucle": false,
+     "duree_s": 1,
+     "suivant": null
+    },
+    {
+     "id": "enfonce",
+     "clip": "bouton · enfonce",
+     "images": 1,
+     "boucle": false,
+     "duree_s": 1,
+     "suivant": null
+    },
+    {
+     "id": "enfoncement",
+     "clip": "bouton · enfoncement",
+     "images": 3,
+     "boucle": false,
+     "duree_s": 0.15,
+     "suivant": "enfonce"
+    },
+    {
+     "id": "relachement",
+     "clip": "bouton · relachement",
+     "images": 3,
+     "boucle": false,
+     "duree_s": 0.2,
+     "suivant": "relache"
+    }
+   ],
+   "vue": {
+    "dir": "s",
+    "pitch": 18
+   },
+   "cadre": 1,
+   "file": "bouton.glb",
+   "license": "CC0 1.0 (généré par code, docs/objets.js)"
+  },
+  {
+   "id": "porte",
+   "label": "Porte",
+   "famille": "objet",
+   "etats": [
+    {
+     "id": "ferme",
+     "clip": "porte · ferme",
+     "images": 1,
+     "boucle": false,
+     "duree_s": 1,
+     "suivant": null
+    },
+    {
+     "id": "ouvert",
+     "clip": "porte · ouvert",
+     "images": 1,
+     "boucle": false,
+     "duree_s": 1,
+     "suivant": null
+    },
+    {
+     "id": "ouverture",
+     "clip": "porte · ouverture",
+     "images": 6,
+     "boucle": false,
+     "duree_s": 0.5,
+     "suivant": "ouvert"
+    },
+    {
+     "id": "fermeture",
+     "clip": "porte · fermeture",
+     "images": 6,
+     "boucle": false,
+     "duree_s": 0.5,
+     "suivant": "ferme"
+    }
+   ],
+   "vue": {
+    "dir": "s",
+    "pitch": 8
+   },
+   "cadre": 1,
+   "file": "porte.glb",
+   "license": "CC0 1.0 (généré par code, docs/objets.js)"
+  },
+  {
+   "id": "plateforme",
+   "label": "Plateforme mobile",
+   "famille": "objet",
+   "etats": [
+    {
+     "id": "arret",
+     "clip": "plateforme · arret",
+     "images": 1,
+     "boucle": false,
+     "duree_s": 1,
+     "suivant": null
+    },
+    {
+     "id": "deplacement",
+     "clip": "plateforme · deplacement",
+     "images": 8,
+     "boucle": true,
+     "duree_s": 1,
+     "suivant": null
+    }
+   ],
+   "vue": {
+    "dir": "s",
+    "pitch": 12
+   },
+   "cadre": 1,
+   "file": "plateforme.glb",
+   "license": "CC0 1.0 (généré par code, docs/objets.js)"
+  },
+  {
+   "id": "piege",
+   "label": "Piège à pointes",
+   "famille": "objet",
+   "etats": [
+    {
+     "id": "rentre",
+     "clip": "piege · rentre",
+     "images": 1,
+     "boucle": false,
+     "duree_s": 1,
+     "suivant": null
+    },
+    {
+     "id": "sorti",
+     "clip": "piege · sorti",
+     "images": 1,
+     "boucle": false,
+     "duree_s": 1,
+     "suivant": null
+    },
+    {
+     "id": "avertissement",
+     "clip": "piege · avertissement",
+     "images": 4,
+     "boucle": false,
+     "duree_s": 0.4,
+     "suivant": "sortie"
+    },
+    {
+     "id": "sortie",
+     "clip": "piege · sortie",
+     "images": 4,
+     "boucle": false,
+     "duree_s": 0.15,
+     "suivant": "sorti"
+    },
+    {
+     "id": "rentree",
+     "clip": "piege · rentree",
+     "images": 4,
+     "boucle": false,
+     "duree_s": 0.3,
+     "suivant": "rentre"
+    }
+   ],
+   "vue": {
+    "dir": "s",
+    "pitch": 20
+   },
+   "cadre": 1,
+   "file": "piege.glb",
+   "license": "CC0 1.0 (généré par code, docs/objets.js)"
+  },
+  {
+   "id": "checkpoint",
+   "label": "Checkpoint (drapeau)",
+   "famille": "objet",
+   "etats": [
+    {
+     "id": "inactif",
+     "clip": "checkpoint · inactif",
+     "images": 4,
+     "boucle": true,
+     "duree_s": 1.2,
+     "suivant": null
+    },
+    {
+     "id": "activation",
+     "clip": "checkpoint · activation",
+     "images": 7,
+     "boucle": false,
+     "duree_s": 0.7,
+     "suivant": "actif"
+    },
+    {
+     "id": "actif",
+     "clip": "checkpoint · actif",
+     "images": 4,
+     "boucle": true,
+     "duree_s": 0.8,
+     "suivant": null
+    }
+   ],
+   "vue": {
+    "dir": "s",
+    "pitch": 8
+   },
+   "cadre": 1,
+   "file": "checkpoint.glb",
+   "license": "CC0 1.0 (généré par code, docs/objets.js)"
+  },
+  {
+   "id": "piece",
+   "label": "Pièce",
+   "famille": "collectible",
+   "etats": [
+    {
+     "id": "tourne",
+     "clip": "piece · tourne",
+     "images": 8,
+     "boucle": true,
+     "duree_s": 0.8,
+     "suivant": null
+    },
+    {
+     "id": "prise",
+     "clip": "piece · prise",
+     "images": 4,
+     "boucle": false,
+     "duree_s": 0.3,
+     "suivant": null
+    }
+   ],
+   "vue": {
+    "dir": "s",
+    "pitch": 0
+   },
+   "cadre": 0.5,
+   "file": "piece.glb",
+   "license": "CC0 1.0 (généré par code, docs/objets.js)"
+  },
+  {
+   "id": "coeur",
+   "label": "Cœur (vie)",
+   "famille": "collectible",
+   "etats": [
+    {
+     "id": "bat",
+     "clip": "coeur · bat",
+     "images": 6,
+     "boucle": true,
+     "duree_s": 0.8,
+     "suivant": null
+    },
+    {
+     "id": "pris",
+     "clip": "coeur · pris",
+     "images": 4,
+     "boucle": false,
+     "duree_s": 0.3,
+     "suivant": null
+    }
+   ],
+   "vue": {
+    "dir": "s",
+    "pitch": 0
+   },
+   "cadre": 0.5,
+   "file": "coeur.glb",
+   "license": "CC0 1.0 (généré par code, docs/objets.js)"
+  },
+  {
+   "id": "cle",
+   "label": "Clé",
+   "famille": "collectible",
+   "etats": [
+    {
+     "id": "tourne",
+     "clip": "cle · tourne",
+     "images": 8,
+     "boucle": true,
+     "duree_s": 1,
+     "suivant": null
+    },
+    {
+     "id": "prise",
+     "clip": "cle · prise",
+     "images": 4,
+     "boucle": false,
+     "duree_s": 0.3,
+     "suivant": null
+    }
+   ],
+   "vue": {
+    "dir": "s",
+    "pitch": 0
+   },
+   "cadre": 0.5,
+   "file": "cle.glb",
+   "license": "CC0 1.0 (généré par code, docs/objets.js)"
+  },
+  {
+   "id": "boule",
+   "label": "Boule d'énergie",
+   "famille": "projectile",
+   "etats": [
+    {
+     "id": "vol",
+     "clip": "boule · vol",
+     "images": 4,
+     "boucle": true,
+     "duree_s": 0.3,
+     "suivant": null
+    },
+    {
+     "id": "impact",
+     "clip": "boule · impact",
+     "images": 5,
+     "boucle": false,
+     "duree_s": 0.35,
+     "suivant": null
+    }
+   ],
+   "vue": {
+    "dir": "e",
+    "pitch": 0
+   },
+   "cadre": 0.6,
+   "file": "boule.glb",
+   "license": "CC0 1.0 (généré par code, docs/objets.js)"
+  },
+  {
+   "id": "fleche",
+   "label": "Flèche",
+   "famille": "projectile",
+   "etats": [
+    {
+     "id": "vol",
+     "clip": "fleche · vol",
+     "images": 4,
+     "boucle": true,
+     "duree_s": 0.3,
+     "suivant": null
+    },
+    {
+     "id": "fiche",
+     "clip": "fleche · fiche",
+     "images": 5,
+     "boucle": false,
+     "duree_s": 0.4,
+     "suivant": null
+    }
+   ],
+   "vue": {
+    "dir": "e",
+    "pitch": 0
+   },
+   "cadre": 0.5,
+   "file": "fleche.glb",
+   "license": "CC0 1.0 (généré par code, docs/objets.js)"
+  },
+  {
+   "id": "eclat",
+   "label": "Explosion / éclat",
+   "famille": "effet",
+   "etats": [
+    {
+     "id": "explosion",
+     "clip": "eclat · explosion",
+     "images": 7,
+     "boucle": false,
+     "duree_s": 0.45,
+     "suivant": null
+    }
+   ],
+   "vue": {
+    "dir": "s",
+    "pitch": 0
+   },
+   "cadre": 1,
+   "file": "eclat.glb",
+   "license": "CC0 1.0 (généré par code, docs/objets.js)"
+  },
+  {
+   "id": "poussiere",
+   "label": "Poussière (atterrissage, dérapage)",
+   "famille": "effet",
+   "etats": [
+    {
+     "id": "poussiere",
+     "clip": "poussiere · poussiere",
+     "images": 5,
+     "boucle": false,
+     "duree_s": 0.4,
+     "suivant": null
+    }
+   ],
+   "vue": {
+    "dir": "s",
+    "pitch": 0
+   },
+   "cadre": 1,
+   "file": "poussiere.glb",
+   "license": "CC0 1.0 (généré par code, docs/objets.js)"
+  },
+  {
+   "id": "slime",
+   "label": "Slime (blob)",
+   "famille": "monstre",
+   "etats": [
+    {
+     "id": "idle",
+     "clip": "slime · idle",
+     "images": 4,
+     "boucle": true,
+     "duree_s": 1,
+     "suivant": null
+    },
+    {
+     "id": "deplacement",
+     "clip": "slime · deplacement",
+     "images": 8,
+     "boucle": true,
+     "duree_s": 0.8,
+     "suivant": null
+    },
+    {
+     "id": "attaque",
+     "clip": "slime · attaque",
+     "images": 6,
+     "boucle": false,
+     "duree_s": 0.5,
+     "suivant": "idle"
+    },
+    {
+     "id": "degat",
+     "clip": "slime · degat",
+     "images": 4,
+     "boucle": false,
+     "duree_s": 0.4,
+     "suivant": "idle"
+    },
+    {
+     "id": "mort",
+     "clip": "slime · mort",
+     "images": 6,
+     "boucle": false,
+     "duree_s": 0.7,
+     "suivant": null
+    }
+   ],
+   "vue": {
+    "dir": "se",
+    "pitch": 8
+   },
+   "cadre": 1,
+   "file": "slime.glb",
+   "license": "CC0 1.0 (généré par code, docs/objets.js)"
+  },
+  {
+   "id": "volant",
+   "label": "Volant (chauve-souris / oiseau)",
+   "famille": "monstre",
+   "etats": [
+    {
+     "id": "idle",
+     "clip": "volant · idle",
+     "images": 6,
+     "boucle": true,
+     "duree_s": 0.6,
+     "suivant": null
+    },
+    {
+     "id": "deplacement",
+     "clip": "volant · deplacement",
+     "images": 6,
+     "boucle": true,
+     "duree_s": 0.4,
+     "suivant": null
+    },
+    {
+     "id": "attaque",
+     "clip": "volant · attaque",
+     "images": 6,
+     "boucle": false,
+     "duree_s": 0.7,
+     "suivant": "idle"
+    },
+    {
+     "id": "degat",
+     "clip": "volant · degat",
+     "images": 4,
+     "boucle": false,
+     "duree_s": 0.4,
+     "suivant": "idle"
+    },
+    {
+     "id": "mort",
+     "clip": "volant · mort",
+     "images": 6,
+     "boucle": false,
+     "duree_s": 0.8,
+     "suivant": null
+    }
+   ],
+   "vue": {
+    "dir": "s",
+    "pitch": 8
+   },
+   "cadre": 1,
+   "file": "volant.glb",
+   "license": "CC0 1.0 (généré par code, docs/objets.js)"
+  },
+  {
+   "id": "quadrupede",
+   "label": "Quadrupède (loup, bête, insecte à 6 pattes)",
+   "famille": "monstre",
+   "etats": [
+    {
+     "id": "idle",
+     "clip": "quadrupede · idle",
+     "images": 4,
+     "boucle": true,
+     "duree_s": 1.2,
+     "suivant": null
+    },
+    {
+     "id": "deplacement",
+     "clip": "quadrupede · deplacement",
+     "images": 8,
+     "boucle": true,
+     "duree_s": 0.8,
+     "suivant": null
+    },
+    {
+     "id": "attaque",
+     "clip": "quadrupede · attaque",
+     "images": 6,
+     "boucle": false,
+     "duree_s": 0.6,
+     "suivant": "idle"
+    },
+    {
+     "id": "degat",
+     "clip": "quadrupede · degat",
+     "images": 4,
+     "boucle": false,
+     "duree_s": 0.4,
+     "suivant": "idle"
+    },
+    {
+     "id": "mort",
+     "clip": "quadrupede · mort",
+     "images": 6,
+     "boucle": false,
+     "duree_s": 0.8,
+     "suivant": null
+    }
+   ],
+   "vue": {
+    "dir": "e",
+    "pitch": 8
+   },
+   "cadre": 1,
+   "file": "quadrupede.glb",
+   "license": "CC0 1.0 (généré par code, docs/objets.js)"
+  },
+  {
+   "id": "crabe",
+   "label": "Crabe (rampant, pinces)",
+   "famille": "monstre",
+   "etats": [
+    {
+     "id": "idle",
+     "clip": "crabe · idle",
+     "images": 4,
+     "boucle": true,
+     "duree_s": 1.2,
+     "suivant": null
+    },
+    {
+     "id": "deplacement",
+     "clip": "crabe · deplacement",
+     "images": 6,
+     "boucle": true,
+     "duree_s": 0.6,
+     "suivant": null
+    },
+    {
+     "id": "attaque",
+     "clip": "crabe · attaque",
+     "images": 5,
+     "boucle": false,
+     "duree_s": 0.5,
+     "suivant": "idle"
+    },
+    {
+     "id": "degat",
+     "clip": "crabe · degat",
+     "images": 4,
+     "boucle": false,
+     "duree_s": 0.4,
+     "suivant": "idle"
+    },
+    {
+     "id": "mort",
+     "clip": "crabe · mort",
+     "images": 6,
+     "boucle": false,
+     "duree_s": 0.8,
+     "suivant": null
+    }
+   ],
+   "vue": {
+    "dir": "s",
+    "pitch": 22
+   },
+   "cadre": 1,
+   "file": "crabe.glb",
+   "license": "CC0 1.0 (généré par code, docs/objets.js)"
+  },
+  {
+   "id": "plante",
+   "label": "Plante carnivore",
+   "famille": "monstre",
+   "etats": [
+    {
+     "id": "idle",
+     "clip": "plante · idle",
+     "images": 4,
+     "boucle": true,
+     "duree_s": 1.4,
+     "suivant": null
+    },
+    {
+     "id": "attaque",
+     "clip": "plante · attaque",
+     "images": 6,
+     "boucle": false,
+     "duree_s": 0.6,
+     "suivant": "idle"
+    },
+    {
+     "id": "degat",
+     "clip": "plante · degat",
+     "images": 4,
+     "boucle": false,
+     "duree_s": 0.4,
+     "suivant": "idle"
+    },
+    {
+     "id": "mort",
+     "clip": "plante · mort",
+     "images": 6,
+     "boucle": false,
+     "duree_s": 0.8,
+     "suivant": null
+    }
+   ],
+   "vue": {
+    "dir": "e",
+    "pitch": 8
+   },
+   "cadre": 1,
+   "file": "plante.glb",
+   "license": "CC0 1.0 (généré par code, docs/objets.js)"
+  }
+ ]
+}
