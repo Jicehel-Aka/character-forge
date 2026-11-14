@@ -656,7 +656,7 @@ async function addSkeleton(f){
   meshes.forEach((m,i)=>{const sm=new THREE.SkinnedMesh(done[i],m.material);sm.name=m.name;sm.frustumCulled=false;G.add(sm);sm.updateMatrixWorld(true);sm.bind(skel,new THREE.Matrix4())});
   const prev=M.userData.name||'modèle';setup(G,[],prev+' + squelette');
   rmsg(`Squelette « ${f.name} » posé : ${bs.length} os, ${meshes.length} maillage(s), ${total.toLocaleString('fr')} sommets, échelle ×${s.toPrecision(3)}.\nHypothèse : modèle debout, de face, bras écartés en T ou en A. Vérifie en jouant une animation ; si un bras entraîne le corps, c'est que le modèle est en A et le squelette en T (ou l'inverse) : utilise un squelette de même pose.`);
-  if($('#rchkauto').checked)setTimeout(()=>{try{const r=rigAnalyse(true);rmsg($('#rmsg').textContent+'\n'+rigReport(r,true))}catch(e){console.error(e)}},50)}
+  if($('#rchkauto').checked)setTimeout(()=>{try{const r=rigAnalyse(true);rmsg($('#rmsg').textContent+'\n'+rigReport(r,true))}catch(e){console.error(e);rmsg($('#rmsg').textContent+'\n⚠ Contrôle du squelette ignoré (erreur : '+e.message+')',1)}},50)}
 $('#banim').onclick=()=>$('#fanim').click();$('#bskel').onclick=()=>$('#fskel').click();$('#bskeld').onclick=async()=>{try{if(!M)return rmsg('Ouvre d\'abord un modèle.',1);rmsg('Pose du squelette standard…');const r=await fetch(ADIR+'ual_standard.glb');if(!r.ok)throw new Error('squelette standard introuvable ('+r.status+')');await addSkeleton(new File([await r.blob()],'ual_standard.glb'))}catch(er){rmsg('Échec : '+er.message,1)}};
 $('#fanim').onchange=async e=>{const fl=[...e.target.files];e.target.value='';if(fl.length)await addAnims(fl)};
 $('#bclose').onclick=()=>{if(!M)return rmsg('Ouvre d\'abord un modèle.',1);rmsg(closeReport(closeModel(M)))};
@@ -930,16 +930,33 @@ function bakeForExport(root,clipsIn){
       if(!t.name.endsWith('.position'))return t;const b=byName.get(t.name.slice(0,t.name.lastIndexOf('.')));if(!b||!b.parent)return t;
       const sc=new THREE.Vector3();b.parent.matrixWorld.decompose(new THREE.Vector3(),new THREE.Quaternion(),sc);const f=sc.x||1,v=Float32Array.from(t.values,x=>x*f);
       return new THREE.VectorKeyframeTrack(t.name,Array.from(t.times),Array.from(v))});return k});
-  return{E,anims}}
+  exportClean(E,anims);return{E,anims}}
+// Nettoie ce qu'on envoie à GLTFExporter pour que le validateur glTF officiel ne trouve plus d'erreur :
+//  - poids de peau : 4 influences maximum, triées, somme exactement 1 une fois écrites en Float32 (sinon ACCESSOR_WEIGHTS_NON_NORMALIZED) ;
+//  - quaternions des os et des animations : unitaires, composantes dans [-1, 1] (sinon VALUE_NOT_IN_RANGE à 1e-7 près) ;
+//  - pistes d'animation : on retire les images clés consécutives identiques (canaux constants, ~47 % du poids d'un export animé).
+function exportClean(E,anims){
+  const fr=Math.fround,nq=(a,o)=>{let x=a[o],y=a[o+1],z=a[o+2],w=a[o+3];const l=Math.hypot(x,y,z,w);if(!(l>0)){a[o]=a[o+1]=a[o+2]=0;a[o+3]=1;return}
+    const v=[x/l,y/l,z/l,w/l].map(c=>{c=fr(c);return Math.abs(c)>1?Math.sign(c):c});a[o]=v[0];a[o+1]=v[1];a[o+2]=v[2];a[o+3]=v[3]};
+  E.traverse(o=>{
+    if(o.isBone){const q=o.quaternion,a=[q.x,q.y,q.z,q.w];nq(a,0);q.set(a[0],a[1],a[2],a[3])}
+    if(!o.isSkinnedMesh)return;const g=o.geometry;plainSkin(g);const si=g.attributes.skinIndex,sw=g.attributes.skinWeight;if(!si||!sw)return;
+    for(let i=0;i<sw.count;i++){const e=[];for(let c=0;c<4;c++){const w=sw.array[i*4+c];if(w>0)e.push([si.array[i*4+c],w])}
+      e.sort((p,q)=>q[1]-p[1]);let t=0;for(const[,w]of e)t+=w;
+      if(!(t>0)){e.length=0;e.push([0,1]);t=1}
+      const out=e.map(([j,w])=>[j,fr(w/t)]);let rest=0;for(let c=1;c<out.length;c++)rest+=out[c][1];out[0][1]=fr(1-rest);   // le plus gros poids absorbe l'arrondi
+      for(let c=0;c<4;c++){si.array[i*4+c]=out[c]?out[c][0]:0;sw.array[i*4+c]=out[c]?out[c][1]:0}}
+    si.needsUpdate=sw.needsUpdate=true});
+  for(const k of anims)for(const t of k.tracks){if(t.name.endsWith('.quaternion'))for(let i=0;i+3<t.values.length;i+=4)nq(t.values,i);t.optimize()}}
 $('#bglb').onclick=async()=>{
   if(!M)return rmsg('Ouvre d\'abord un modèle.',1);if(!(M.userData.rig&&M.userData.rig.length))return rmsg('Ce modèle n\'a pas de squelette : rien à exporter de plus que le fichier d\'origine. Ajoute un squelette d\'abord.',1);
   try{rmsg('Écriture du GLB…');const{GLTFExporter}=await import('three/addons/exporters/GLTFExporter.js');
     const t0=clips.length?+$('#clip').value:null;if(mixer)mixer.stopAllAction();M.traverse(o=>{if(o.isBone&&o.userData.rq){o.position.copy(o.userData.rp);o.quaternion.copy(o.userData.rq)}});M.updateMatrixWorld(true);
-    try{if($('#rchkauto').checked)rigAnalyse(true)}catch(e){console.error(e)}
+    let rigNote='';try{if($('#rchkauto').checked)rigAnalyse(true)}catch(e){console.error(e);rigNote='\n⚠ Contrôle du squelette ignoré (erreur : '+e.message+')'}
     const{E,anims}=bakeForExport(M,$('#bglba').checked?clips:[]);
     const buf=await new Promise((ok,ko)=>new GLTFExporter().parse(E,ok,ko,{binary:true,animations:anims,onlyVisible:false,maxTextureSize:2048}));
     const name=(M.userData.name||'modele').replace(/\.[^.]+$/,'').replace(/[^\w.-]+/g,'_')+'_squelette.glb';dl(name,buf,'model/gltf-binary');
-    rmsg(`${name} : ${(buf.byteLength/1048576).toFixed(1)} Mo, ${anims.length} animation(s). Rouvre-le dans « Ouvrir le modèle » : les animations apparaissent dans la liste.`);
+    rmsg(`${name} : ${(buf.byteLength/1048576).toFixed(1)} Mo, ${anims.length} animation(s). Rouvre-le dans « Ouvrir le modèle » : les animations apparaissent dans la liste.`+rigNote,!!rigNote);
     const i=$('#clip').value;if(i!=='')play(+i)}
   catch(e){rmsg('Échec de l\'export : '+e.message,1);console.error(e)}};
 // Bouton « Modèle animé (GLB) » de la carte Exporter : même export que #bglb
@@ -1088,7 +1105,7 @@ $('#zgo').onclick=async()=>{if(wizBusy)return;if(!M)return zsay('Charge d\'abord
   wizBusy=true;$('#zgo').disabled=true;const errs=[];GENWARN.length=0;
   try{
     if(!(M.userData.rig&&M.userData.rig.length)){zsay('Pose automatique du squelette…');const r=await fetch(ADIR+'ual_standard.glb');await addSkeleton(new File([await r.blob()],'ual_standard.glb'));if(!(M.userData.rig&&M.userData.rig.length))throw new Error($('#rmsg').textContent)}
-    let rr=null;try{rr=rigAnalyse(true)}catch(e){console.error(e)}
+    let rr=null;try{rr=rigAnalyse(true)}catch(e){console.error(e);errs.push('Contrôle du squelette ignoré : '+e.message)}
     if($('#zclear').checked)library.clear();$('#ainpl').checked=true;$('#rinplace').checked=true;
     const pitch=+$('#zpitch').value,ref=restBox();let k=0;
     for(const a of todo){k++;zsay(`(${k}/${todo.length}) ${a.label}…`);
@@ -1490,6 +1507,11 @@ function softBake(root,clip,fps=30){
   mx.stopAllAction();mx.uncacheRoot(root);return ch.length}
 function softBakeAll(root,list){let n=0;for(const c of list)n+=softBake(root,c);return n}
 function physRun(list){if(!M||!list||!list.length)return 0;const n=softBakeAll(M,list);try{mixer.stopAllAction();mixer.uncacheRoot(M)}catch(e){}const v=$('#clip').value;if(v!==''&&clips[+v])play(+v);return n}
+// Rend skinIndex/skinWeight « simples » (BufferAttribute non entrelacé, non normalisé) : Float32 pour les poids, Uint16 pour les index.
+// Les GLB entrelacés (KayKit : InterleavedBufferAttribute) n'ont pas getComponent/setComponent en r160, d'où le TypeError d'origine dans rigAnalyse.
+function plainSkin(g){const get=['getX','getY','getZ','getW'];
+  for(const[k,T]of[['skinIndex',Uint16Array],['skinWeight',Float32Array]]){const a=g.attributes[k];if(!a)continue;
+    if(a.isInterleavedBufferAttribute||a.normalized||a.array.constructor!==T){const n=a.count,arr=new T(n*4);for(let i=0;i<n;i++)for(let c=0;c<4;c++)arr[i*4+c]=a[get[c]](i);g.setAttribute(k,new THREE.BufferAttribute(arr,4))}}}
 function rigAnalyse(fix){
   const T=M&&M.userData.rig;if(!T||!T.length)return null;const fr=frameOf(T);if(!fr)return null;
   const up=fr.up.clone(),Rt=new THREE.Vector3(1,0,0).applyQuaternion(fr.q).normalize(),F=new THREE.Vector3(0,0,-1).applyQuaternion(fr.q).normalize();
@@ -1529,7 +1551,7 @@ function rigAnalyse(fix){
   if(hipsT){const l=find('Lthigh'),r=find('Rthigh');if(l&&r){const mid=l.p.clone().add(r.p).multiplyScalar(.5);if(Math.abs(mid.clone().sub(hp).dot(Rt))>.03*Hm)rep.warn.push('bassin décalé par rapport aux hanches')}}
   // ---- 2 à 4, maillage par maillage
   const Minv=new THREE.Matrix4().copy(M.matrixWorld).invert(),sideOf=new Map();for(const t of T)if(/^[LR]/.test(t.key)&&/(thigh|calf|foot|toe|arm|forearm|hand|shoulder|thumb|index|middle|ring|pinky)/.test(t.key))sideOf.set(t.b,t.key[0]==='R'?1:-1);
-  const store=sms.map(m=>{const g=m.geometry;for(const k of['skinWeight']){const a=g.attributes[k];if(a.isInterleavedBufferAttribute||a.normalized||!(a.array instanceof Float32Array)){const arr=new Float32Array(a.count*4);for(let i=0;i<a.count;i++)for(let c=0;c<4;c++)arr[i*4+c]=a.normalized&&a.array instanceof Uint16Array?a.array[i*4+c]/65535:a.normalized&&a.array instanceof Uint8Array?a.array[i*4+c]/255:a.getComponent(i,c);g.setAttribute(k,new THREE.BufferAttribute(arr,4))}}return m});
+  const store=sms.map(m=>{plainSkin(m.geometry);return m});   // attributs de peau entrelacés/quantifiés → tableaux simples (sinon « a.getComponent is not a function »)
   for(const m of store){
     toRest();const g=m.geometry,pos=g.attributes.position,n=pos.count,si=g.attributes.skinIndex,sw=g.attributes.skinWeight,bones=m.skeleton.bones,tmp=new THREE.Vector3(),rest=new Float32Array(n*3),restM=new Float32Array(n*3),mm=new THREE.Matrix4().multiplyMatrices(Minv,m.matrixWorld);
     for(let i=0;i<n;i++){tmp.fromBufferAttribute(pos,i);m.applyBoneTransform(i,tmp);rest[3*i]=tmp.x;rest[3*i+1]=tmp.y;rest[3*i+2]=tmp.z;tmp.applyMatrix4(mm);restM.set([tmp.x,tmp.y,tmp.z],3*i)}
