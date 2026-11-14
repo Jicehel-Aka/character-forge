@@ -498,13 +498,13 @@ function aile(B, k, s, parent, L, couleur, oiseau) {
   const sh1 = new THREE.Shape(); sh1.moveTo(0, .1); sh1.lineTo(s * L * .55, .07); sh1.lineTo(s * L * .55, -.17); sh1.lineTo(0, -.14);
   const sh2 = new THREE.Shape(); if (oiseau) { sh2.moveTo(0, .07); sh2.lineTo(s * L * .5, .0); sh2.lineTo(s * L * .38, -.14); sh2.lineTo(0, -.17); }
   else { sh2.moveTo(0, .07); sh2.lineTo(s * L * .5, .05); sh2.lineTo(s * L * .4, -.03); sh2.lineTo(s * L * .32, -.2); sh2.lineTo(s * L * .14, -.07); sh2.lineTo(0, -.17); }
-  const plat = sh => new THREE.ExtrudeGeometry(sh, { depth: .012, bevelEnabled: false }).rotateX(Math.PI / 2);   // à plat (plan XZ)
+  const plat = sh => new THREE.ExtrudeGeometry(sh, { depth: .012, bevelEnabled: false });   // membrane dans le plan XY (face à la caméra)
   B.m('membrane_' + k, h, plat(sh1), clair(couleur, .12), [0, .005, 0], [0, 0, 0], 1, { double: true });
   B.m('membrane2_' + k, h2, plat(sh2), clair(couleur, .22), [0, .005, 0], [0, 0, 0], 1, { double: true });
   B.m('bras_' + k, h, cyl(.014, L * .58, 6), fonce(couleur, .6), [s * L * .27, .0, .0], [0, 0, Math.PI / 2]);
 }
 def({
-  id: 'volant', famille: 'monstre', label: 'Volant (chauve-souris / oiseau)', vue: { dir: 's', pitch: 8 }, vueP: P => P.type === 'oiseau' ? { dir: 'e', pitch: 8 } : { dir: 's', pitch: 8 }, cadre: 1, ancre: [0, .55, 0], initial: 'idle', miroir: true,
+  id: 'volant', famille: 'monstre', label: 'Volant (chauve-souris / oiseau)', vue: { dir: 's', pitch: 8 }, vueP: P => P.type === 'oiseau' ? { dir: 'se', pitch: 8 } : { dir: 's', pitch: 8 }, cadre: 1, ancre: [0, .55, 0], initial: 'idle', miroir: true,
   params: [pCh('type', 'Type', 'chauve-souris', ['chauve-souris', 'oiseau']), pCoul('couleur', 'Couleur', '#6a4a9a'), pNb('envergure', 'Longueur d\'aile', .32, .18, .5, .02), pTaille],
   cache: () => ['flash'],
   construire(P, B) {
@@ -524,7 +524,7 @@ def({
   etats() {
     const bat = (u, amp = 1, k = 1, v = {}) => { const a = sin(u, 0, k); return { corps_v: { p: [0, -.035 * a * amp, 0], ...v.corps }, aile_g: { r: [0, 0, -(.2 + .75 * a) * amp - .0] }, aile_d: { r: [0, 0, (.2 + .75 * a) * amp] },
       aile2_g: { r: [0, 0, -.6 * sin(u, -.12, k) * amp] }, aile2_d: { r: [0, 0, .6 * sin(u, -.12, k) * amp] } }; };
-    const plong = u => { const pitch = kf(u, [[0, 0], [.3, -.5], [.55, .95], [.8, .4], [1, 0]]), z = kf(u, [[0, 0], [.3, -.08], [.55, .22], [.8, .1], [1, 0]]), y = kf(u, [[0, 0], [.3, .1], [.55, -.22], [.8, -.08], [1, 0]]),
+    const plong = u => { const pitch = kf(u, [[0, 0], [.3, -.5], [.55, .7], [.8, .3], [1, 0]]), z = kf(u, [[0, 0], [.3, -.08], [.55, .22], [.8, .1], [1, 0]]), y = kf(u, [[0, 0], [.3, .1], [.55, -.22], [.8, -.08], [1, 0]]),
       f = kf(u, [[0, 0], [.3, -.5], [.55, 1], [1, 0]]);
       return { corps_v: { r: [pitch, 0, 0], p: [0, y, z], s: 1 + .25 * f }, aile_g: { r: [0, 0, -(.3 + 1.0 * f + .25 * sin(u, 0, 2))] }, aile_d: { r: [0, 0, .3 + 1.0 * f + .25 * sin(u, 0, 2)] }, aile2_g: { r: [0, 0, -.5 * f] }, aile2_d: { r: [0, 0, .5 * f] },
         patte_vg: { r: [-.9 * hold(u, .4, .6), 0, 0] }, patte_vd: { r: [-.9 * hold(u, .4, .6), 0, 0] } }; };
@@ -584,17 +584,17 @@ def({
 
 def({
   id: 'crabe', famille: 'monstre', label: 'Crabe (rampant, pinces)', vue: { dir: 's', pitch: 22 }, cadre: 1, initial: 'idle',
-  params: [pCoul('couleur', 'Carapace', '#e0643a'), pNb('pinces', 'Taille des pinces', 1.2, .7, 1.6, .05), pNb('taille', 'Taille (1 = héros)', 1.35, .4, 1.8, .05)],
+  params: [pCoul('couleur', 'Carapace', '#e0643a'), pNb('pinces', 'Taille des pinces', 1.5, .7, 1.8, .05), pNb('taille', 'Taille (1 = héros)', 1.35, .4, 1.8, .05)],
   cache: () => ['flash'],
   construire(P, B) {
     const t = B.g('tout', null, [0, .105, 0]), c = P.couleur;
-    B.m('carapace', t, sph(.2, .08, .13), c); B.m('dos', t, sph(.15, .05, .1), clair(c, .15), [0, .045, -.01]); B.m('flash', t, sph(.212, .088, .14), '#ffffff', [0, 0, 0], [0, 0, 0], 1, { basic: true });
+    B.m('carapace', t, sph(.2, .1, .14), c); B.m('dos', t, sph(.15, .06, .1), clair(c, .15), [0, .055, -.01]); B.m('flash', t, sph(.212, .108, .15), '#ffffff', [0, 0, 0], [0, 0, 0], 1, { basic: true });
     for (const [k, s] of [['g', -1], ['d', 1]]) {
-      const oe = B.g('pedoncule_' + k, t, [s * .07, .06, .1]); B.m('tige_' + k, oe, cyl(.012, .07, 6), fonce(c, .8), [0, .035, 0]); oeil(B, 'oeil_' + k, oe, [0, .085, .012], .032);
+      const oe = B.g('pedoncule_' + k, t, [s * .07, .08, .1]); B.m('tige_' + k, oe, cyl(.014, .09, 6), fonce(c, .8), [0, .045, 0]); oeil(B, 'oeil_' + k, oe, [0, .11, .012], .04);
       const br = B.g('bras_' + k, t, [s * .17, .02, .09], [0, 0, s * 1.0]); B.m('bras_m_' + k, br, box(.1, .035, .035), fonce(c, .85), [s * .05, 0, 0]);
       const av = B.g('avbras_' + k, br, [s * .1, 0, 0], [0, 0, s * -.7]); B.m('avbras_m_' + k, av, box(.075, .04, .04), c, [s * .037, 0, 0]);
       const pc = P.pinces, ph = B.g('pince_h_' + k, av, [s * .07, .0, 0], [0, 0, s * -.15]), pb = B.g('pince_b_' + k, av, [s * .07, -.0, 0], [0, 0, s * .25]);
-      B.m('doigt_h_' + k, ph, cone(.026 * pc, .12 * pc, 7), clair(c, .1), [s * .06 * pc, .0, 0], [0, 0, -s * Math.PI / 2]); B.m('doigt_b_' + k, pb, cone(.024 * pc, .11 * pc, 7), fonce(c, .85), [s * .055 * pc, -.0, 0], [0, 0, -s * Math.PI / 2]);
+      B.m('doigt_h_' + k, ph, cone(.03 * pc, .12 * pc, 7), clair(c, .3), [s * .06 * pc, .0, 0], [0, 0, -s * Math.PI / 2]); B.m('doigt_b_' + k, pb, cone(.028 * pc, .11 * pc, 7), clair(c, .12), [s * .055 * pc, -.0, 0], [0, 0, -s * Math.PI / 2]);
       for (let i = 0; i < 3; i++) { const pa = B.g(`patte_${k}${i}`, t, [s * .16, -.015, .07 - i * .07], [0, 0, s * -.55]); B.m(`patte_m_${k}${i}`, pa, box(.1, .018, .018), fonce(c, .75), [s * .045, 0, 0]);
         const bs = B.g(`patte_b_${k}${i}`, pa, [s * .09, 0, 0], [0, 0, s * .9]); B.m(`patte_bm_${k}${i}`, bs, box(.08, .016, .016), fonce(c, .65), [s * .035, 0, 0]); }
     }
@@ -732,7 +732,7 @@ export const NOTE_FORMAT = 'character-forge/gamedata@1 : coordonnées en pixels 
 export function enteteC(nomBase, donnees, nomsAnim) {
   const U = s => s.toUpperCase().replace(/[^A-Z0-9]+/g, '_');
   let t = `// ${nomBase} : données de jeu générées par character-forge (objets.js) — ne pas éditer\n#pragma once\n#include <stdint.h>\n`;
-  t += `typedef struct { const uint16_t* pixels; uint8_t images; uint8_t boucle; uint16_t duree_ms; int8_t suivant; int8_t collision; int8_t hurt_x, hurt_y; uint8_t hurt_w, hurt_h; } ObjetEtat;\n`;
+  t += `typedef struct { const uint16_t* pixels; uint8_t images; uint8_t boucle; uint16_t duree_ms; int8_t suivant; int8_t collision; int16_t hurt_x, hurt_y; uint16_t hurt_w, hurt_h; } ObjetEtat;\n`;
   t += `enum { COLL_AUCUNE, COLL_SOLIDE, COLL_TRAVERSABLE, COLL_DANGEREUX, COLL_DECLENCHEUR };\n`;
   const C = { aucune: 0, solide: 1, traversable: 2, dangereux: 3, declencheur: 4 };
   for (const [nom, d] of Object.entries(donnees)) {

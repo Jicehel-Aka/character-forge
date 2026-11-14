@@ -382,3 +382,13 @@ Chaque personnage, pièce et animation est 🔒 privé (défaut) ou 🌐 public.
 - Correction des bras (`armFix`) : prend en compte les objets tenus (échantillons des maillages rigides sous la main/avant-bras) ; `clip.__orig` garde les pistes d'origine ; `armSoon()` relance après chaque changement de visibilité/équipement.
 - Limites : collision tête/objet tenu non gérée, pas de physique des cheveux/capes, torse = chaîne d'ellipses approximative.
 - Test : `tests/ui_modele_props.py`.
+
+## Monstres et objets procéduraux (`docs/objets.js`, carte « Monstres & objets » de modele.html)
+
+Objets à actionner (coffre, levier, bouton/plaque, porte, plateforme, piège, checkpoint), collectibles, projectiles, effets et monstres non
+humanoïdes (slime, volant, quadrupède, crabe, plante), fabriqués par code et animés par état, sans squelette humain. Ils se chargent comme un
+modèle sans os et passent par la génération et les exports habituels ; l'atlas porte `meta.gameData` (ancre, hurtbox, hitbox d'attaque, durées par
+image, boucle, état suivant, collision, transitions) et le paquet `*_gamedata.json` / `*_gamedata.h`. Format, échelle, vues : `docs/objets.md`.
+Exemple complet (héros + slime + coffre + levier + porte, C++ AKA, GDScript Godot 4) : `docs/exemples/plateforme_aka/`. Tests : `tests/ui_objets.py`.
+Choix : un clip non bouclé est tenu sur sa pose finale et généré avec `tmax = durée·N/(N-1)` (la dernière image est la pose finale) ; le cadre de
+la cellule est une boîte invisible de référence (`ref` de « Générer »), indépendante de la forme instantanée de l'objet.

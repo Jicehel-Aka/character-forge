@@ -4,6 +4,8 @@ Transforme un modèle 3D de personnage (GLB / FBX / OBJ) en **planches de sprite
 
 **Essayer tout de suite :** ouvre la page *Modèle 3D → sprites* (`modele.html`) et clique sur **Essayer avec un exemple** (petit mannequin libre de droits CC0, déjà équipé d'un squelette et des animations Idle et Walk).
 
+**Monstres, coffres, leviers, portes… :** la carte repliée *Monstres & objets* de `modele.html` fabrique par code (sans fichier ni squelette humain) des objets à actionner, collectibles, projectiles, effets et monstres non humanoïdes, animés par état, avec leurs données de jeu (ancres, boîtes, durées). Voir `docs/objets.md` et `docs/exemples/plateforme_aka/`.
+
 ## Ce que fait l'outil
 
 1. **Ouvrir un modèle** : GLB (conseillé), FBX ou OBJ, par exemple rapporté de Meshy, Mixamo, ou généré depuis des photos multi-vues.

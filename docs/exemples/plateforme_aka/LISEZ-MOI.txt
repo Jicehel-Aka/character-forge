@@ -1,0 +1,21 @@
+character-forge — paquet de sprites « plateforme »
+Animations : idle, marche, saut, degat, slime_idle, slime_deplacement, slime_attaque, slime_degat, slime_mort, coffre_ferme, coffre_ouverture, coffre_ouvert, coffre_fermeture, levier_off, levier_on, levier_activation, levier_desactivation, porte_ferme, porte_ouvert, porte_ouverture, porte_fermeture  |  directions : e, se, s  |  48x48 px
+
+CONTENU
+  plateforme_planche.png           toutes les animations (une ligne par animation et direction), fond transparent
+                             1re case de chaque ligne = étiquette (nom + direction), les images commencent à la 2e case (l'atlas en tient compte)
+  plateforme_planche_magenta.png   même planche sur fond magenta 255,0,255 (format des planches de jeu)
+  plateforme_atlas.json            atlas au format Aseprite (frames + étiquettes « animation_direction »)
+  plateforme_<animation>.raw / .h  RGB565 pour la console AKA (transparence 0xF81F)
+  plateforme_meta.json             palette, tailles, directions
+  frames/<animation>/<dir>_NN.png   images séparées (fond transparent)
+  gif/<animation>_<dir>.gif  aperçus animés
+
+SUITE DU TRAVAIL (outils du dépôt character-forge, en ligne de commande)
+  python -m forge qa frames/<animation>                          contrôle qualité (cadre, taille, pieds, couleurs)
+  python -m forge animrules check --frames frames/<animation> --kind walk
+                                                                  vérifie que le mouvement est le bon (walk, run, crouch, kick, fall...)
+  python -m forge harmonize frames/<animation> --keep-colors -o harmonise --height 102
+                                                                  uniformise taille / palette / contour avec d'autres sprites
+  python -m forge atlas frames/<animation> -o export --name <animation>     atlas moteur + GIF
+  python -m forge sprites frames/<animation> -o sprites --name plateforme         spritesheet RGB565 + en-tête C

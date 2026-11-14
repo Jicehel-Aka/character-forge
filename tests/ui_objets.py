@@ -201,6 +201,21 @@ def main():
             r = subprocess.run(['gcc', '-std=c99', '-Wall', '-fsyntax-only', main, '-I', tmp], capture_output=True, text=True)
             if r.returncode: ko('gamedata.h ne compile pas : ' + r.stderr[:600])
             else: print('   gamedata.h compile (gcc -std=c99 -Wall)')
+        # --- banque GLB (docs/bank/objets) : le coffre s'ouvre par « Ouvrir le modèle », sans squelette ni message d'erreur ---
+        print('== GLB de la banque d\'objets (Ouvrir le modèle -> Générer)')
+        glb = os.path.join(DOCS, 'bank', 'objets', 'coffre.glb')
+        if not os.path.exists(glb): ko('docs/bank/objets/coffre.glb absent (python3 tests/generer_banque_objets.py)')
+        else:
+            erreurs.clear(); pg.reload(); pg.wait_for_timeout(1500); pg.select_option('#size', str(T))
+            pg.set_input_files('#file', glb); pg.wait_for_function("document.querySelector('#info').textContent.includes('0 os')", timeout=30000)
+            idx = pg.evaluate("window._obj.getClips().findIndex(c=>c.name.endsWith('ouverture'))")
+            if idx < 0: ko('GLB coffre : clip « ouverture » absent')
+            else:
+                pg.select_option('#clip', str(idx)); pg.evaluate("document.querySelector('#frames').value='5';document.querySelector('#ndir').value='1'")
+                pg.click('#go'); pg.wait_for_function("document.querySelector('#prog').textContent.includes('images')||document.querySelector('#prog').textContent.includes('Erreur')", timeout=120000)
+                prog = pg.inner_text('#prog'); print('  ', prog[:100])
+                if 'Erreur' in prog or 'vide' in prog or '1 seule image' in prog: ko('GLB coffre : ' + prog)
+            if erreurs: ko(f'GLB : erreurs JS : {erreurs[:3]}')
         if erreurs: ko(f'erreurs JS : {erreurs[:3]}')
         b.close()
 

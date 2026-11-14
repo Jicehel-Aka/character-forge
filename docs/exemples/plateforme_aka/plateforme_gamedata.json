@@ -1,0 +1,606 @@
+{
+ "format": "character-forge/gamedata@1",
+ "note": "character-forge/gamedata@1 : coordonnées en pixels de cellule, origine en haut à gauche, y vers le bas ; durées en ms par image ; ancre = pieds (ou centre pour projectiles/collectibles/effets)",
+ "objets": {
+  "slime": {
+   "type": "slime",
+   "famille": "monstre",
+   "params": {
+    "couleur": "#4fd16a",
+    "largeur": 1,
+    "taille": 1
+   },
+   "direction": "se",
+   "miroir_gauche": "retourner horizontalement à l'exécution (ou générer la direction w)",
+   "cellule": {
+    "w": 48,
+    "h": 48
+   },
+   "cadre": 1,
+   "px_par_unite": 33.1,
+   "unite": "hauteur du héros = 1",
+   "ancre": {
+    "x": 24,
+    "y": 46.1
+   },
+   "points": {
+    "bouche": {
+     "x": 29.9,
+     "y": 45
+    },
+    "dessus": {
+     "x": 24,
+     "y": 36.3
+    }
+   },
+   "etat_initial": "idle",
+   "etats": {
+    "idle": {
+     "animation": "slime_idle",
+     "tag": "slime_idle_se",
+     "images": 4,
+     "boucle": true,
+     "statique": false,
+     "duree_ms": [
+      250,
+      250,
+      250,
+      250
+     ],
+     "duree_totale_ms": 1000,
+     "collision": "solide",
+     "hurtbox": {
+      "x": 14,
+      "y": 36,
+      "w": 20,
+      "h": 12
+     },
+     "suivant": null
+    },
+    "deplacement": {
+     "animation": "slime_deplacement",
+     "tag": "slime_deplacement_se",
+     "images": 8,
+     "boucle": true,
+     "statique": false,
+     "duree_ms": [
+      100,
+      100,
+      100,
+      100,
+      100,
+      100,
+      100,
+      100
+     ],
+     "duree_totale_ms": 800,
+     "collision": "solide",
+     "hurtbox": {
+      "x": 13,
+      "y": 26,
+      "w": 22,
+      "h": 22
+     },
+     "suivant": null
+    },
+    "attaque": {
+     "animation": "slime_attaque",
+     "tag": "slime_attaque_se",
+     "images": 6,
+     "boucle": false,
+     "statique": false,
+     "duree_ms": [
+      83,
+      83,
+      83,
+      83,
+      83,
+      83
+     ],
+     "duree_totale_ms": 498,
+     "collision": "solide",
+     "hurtbox": {
+      "x": 13,
+      "y": 36,
+      "w": 28,
+      "h": 12
+     },
+     "suivant": "idle",
+     "hitbox": {
+      "images": [
+       2,
+       4
+      ],
+      "x": 30,
+      "y": 38,
+      "w": 11,
+      "h": 10
+     }
+    },
+    "degat": {
+     "animation": "slime_degat",
+     "tag": "slime_degat_se",
+     "images": 4,
+     "boucle": false,
+     "statique": false,
+     "duree_ms": [
+      100,
+      100,
+      100,
+      100
+     ],
+     "duree_totale_ms": 400,
+     "collision": "solide",
+     "hurtbox": {
+      "x": 10,
+      "y": 35,
+      "w": 25,
+      "h": 13
+     },
+     "suivant": "idle"
+    },
+    "mort": {
+     "animation": "slime_mort",
+     "tag": "slime_mort_se",
+     "images": 6,
+     "boucle": false,
+     "statique": false,
+     "duree_ms": [
+      117,
+      117,
+      117,
+      117,
+      117,
+      117
+     ],
+     "duree_totale_ms": 702,
+     "collision": "aucune",
+     "hurtbox": {
+      "x": 9,
+      "y": 35,
+      "w": 30,
+      "h": 13
+     },
+     "suivant": null
+    }
+   },
+   "transitions": [
+    {
+     "de": "idle",
+     "evenement": "bouger",
+     "vers": "deplacement"
+    },
+    {
+     "de": "deplacement",
+     "evenement": "arreter",
+     "vers": "idle"
+    },
+    {
+     "de": "idle",
+     "evenement": "attaquer",
+     "vers": "attaque"
+    },
+    {
+     "de": "idle",
+     "evenement": "blesse",
+     "vers": "degat"
+    },
+    {
+     "de": "deplacement",
+     "evenement": "blesse",
+     "vers": "degat"
+    },
+    {
+     "de": "attaque",
+     "evenement": "blesse",
+     "vers": "degat"
+    },
+    {
+     "de": "idle",
+     "evenement": "tue",
+     "vers": "mort"
+    },
+    {
+     "de": "deplacement",
+     "evenement": "tue",
+     "vers": "mort"
+    },
+    {
+     "de": "degat",
+     "evenement": "tue",
+     "vers": "mort"
+    }
+   ]
+  },
+  "coffre": {
+   "type": "coffre",
+   "famille": "objet",
+   "params": {
+    "couleur": "#9a6431",
+    "metal": "#d2a82a",
+    "butin": true,
+    "taille": 1
+   },
+   "direction": "s",
+   "miroir_gauche": null,
+   "cellule": {
+    "w": 48,
+    "h": 48
+   },
+   "cadre": 1,
+   "px_par_unite": 33.1,
+   "unite": "hauteur du héros = 1",
+   "ancre": {
+    "x": 24,
+    "y": 45.5
+   },
+   "points": {
+    "butin": {
+     "x": 24,
+     "y": 35.3
+    },
+    "interaction": {
+     "x": 24,
+     "y": 43.4
+    }
+   },
+   "etat_initial": "ferme",
+   "etats": {
+    "ferme": {
+     "animation": "coffre_ferme",
+     "tag": "coffre_ferme_s",
+     "images": 1,
+     "boucle": false,
+     "statique": true,
+     "duree_ms": [
+      0
+     ],
+     "duree_totale_ms": 0,
+     "collision": "solide",
+     "hurtbox": {
+      "x": 15,
+      "y": 30,
+      "w": 18,
+      "h": 17
+     },
+     "suivant": null
+    },
+    "ouverture": {
+     "animation": "coffre_ouverture",
+     "tag": "coffre_ouverture_s",
+     "images": 6,
+     "boucle": false,
+     "statique": false,
+     "duree_ms": [
+      83,
+      83,
+      83,
+      83,
+      83,
+      83
+     ],
+     "duree_totale_ms": 498,
+     "collision": "solide",
+     "hurtbox": {
+      "x": 15,
+      "y": 22,
+      "w": 18,
+      "h": 25
+     },
+     "suivant": "ouvert"
+    },
+    "ouvert": {
+     "animation": "coffre_ouvert",
+     "tag": "coffre_ouvert_s",
+     "images": 4,
+     "boucle": true,
+     "statique": false,
+     "duree_ms": [
+      200,
+      200,
+      200,
+      200
+     ],
+     "duree_totale_ms": 800,
+     "collision": "solide",
+     "hurtbox": {
+      "x": 15,
+      "y": 22,
+      "w": 18,
+      "h": 25
+     },
+     "suivant": null
+    },
+    "fermeture": {
+     "animation": "coffre_fermeture",
+     "tag": "coffre_fermeture_s",
+     "images": 5,
+     "boucle": false,
+     "statique": false,
+     "duree_ms": [
+      80,
+      80,
+      80,
+      80,
+      80
+     ],
+     "duree_totale_ms": 400,
+     "collision": "solide",
+     "hurtbox": {
+      "x": 15,
+      "y": 22,
+      "w": 18,
+      "h": 25
+     },
+     "suivant": "ferme"
+    }
+   },
+   "transitions": [
+    {
+     "de": "ferme",
+     "evenement": "interagir",
+     "vers": "ouverture"
+    },
+    {
+     "de": "ouvert",
+     "evenement": "interagir",
+     "vers": "fermeture"
+    }
+   ]
+  },
+  "levier": {
+   "type": "levier",
+   "famille": "objet",
+   "params": {
+    "couleur": "#d83a3a",
+    "taille": 1.3
+   },
+   "direction": "s",
+   "miroir_gauche": null,
+   "cellule": {
+    "w": 48,
+    "h": 48
+   },
+   "cadre": 1,
+   "px_par_unite": 33.1,
+   "unite": "hauteur du héros = 1",
+   "ancre": {
+    "x": 24,
+    "y": 45.7
+   },
+   "points": {
+    "interaction": {
+     "x": 24,
+     "y": 34.2
+    }
+   },
+   "etat_initial": "off",
+   "etats": {
+    "off": {
+     "animation": "levier_off",
+     "tag": "levier_off_s",
+     "images": 1,
+     "boucle": false,
+     "statique": true,
+     "duree_ms": [
+      0
+     ],
+     "duree_totale_ms": 0,
+     "collision": "solide",
+     "hurtbox": {
+      "x": 13,
+      "y": 26,
+      "w": 22,
+      "h": 21
+     },
+     "suivant": null
+    },
+    "on": {
+     "animation": "levier_on",
+     "tag": "levier_on_s",
+     "images": 1,
+     "boucle": false,
+     "statique": true,
+     "duree_ms": [
+      0
+     ],
+     "duree_totale_ms": 0,
+     "collision": "solide",
+     "hurtbox": {
+      "x": 13,
+      "y": 26,
+      "w": 22,
+      "h": 21
+     },
+     "suivant": null
+    },
+    "activation": {
+     "animation": "levier_activation",
+     "tag": "levier_activation_s",
+     "images": 4,
+     "boucle": false,
+     "statique": false,
+     "duree_ms": [
+      63,
+      63,
+      63,
+      63
+     ],
+     "duree_totale_ms": 252,
+     "collision": "solide",
+     "hurtbox": {
+      "x": 13,
+      "y": 24,
+      "w": 22,
+      "h": 23
+     },
+     "suivant": "on"
+    },
+    "desactivation": {
+     "animation": "levier_desactivation",
+     "tag": "levier_desactivation_s",
+     "images": 4,
+     "boucle": false,
+     "statique": false,
+     "duree_ms": [
+      63,
+      63,
+      63,
+      63
+     ],
+     "duree_totale_ms": 252,
+     "collision": "solide",
+     "hurtbox": {
+      "x": 13,
+      "y": 24,
+      "w": 22,
+      "h": 23
+     },
+     "suivant": "off"
+    }
+   },
+   "transitions": [
+    {
+     "de": "off",
+     "evenement": "interagir",
+     "vers": "activation"
+    },
+    {
+     "de": "on",
+     "evenement": "interagir",
+     "vers": "desactivation"
+    }
+   ]
+  },
+  "porte": {
+   "type": "porte",
+   "famille": "objet",
+   "params": {
+    "type": "coulissante",
+    "couleur": "#8a6a48",
+    "pierre": "#8e919c",
+    "taille": 1
+   },
+   "direction": "s",
+   "miroir_gauche": null,
+   "cellule": {
+    "w": 48,
+    "h": 48
+   },
+   "cadre": 1,
+   "px_par_unite": 33.1,
+   "unite": "hauteur du héros = 1",
+   "ancre": {
+    "x": 24,
+    "y": 46.1
+   },
+   "points": {
+    "passage": {
+     "x": 20,
+     "y": 42.8
+    }
+   },
+   "etat_initial": "ferme",
+   "etats": {
+    "ferme": {
+     "animation": "porte_ferme",
+     "tag": "porte_ferme_s",
+     "images": 1,
+     "boucle": false,
+     "statique": true,
+     "duree_ms": [
+      0
+     ],
+     "duree_totale_ms": 0,
+     "collision": "solide",
+     "hurtbox": {
+      "x": 7,
+      "y": 4,
+      "w": 37,
+      "h": 43
+     },
+     "suivant": null
+    },
+    "ouvert": {
+     "animation": "porte_ouvert",
+     "tag": "porte_ouvert_s",
+     "images": 1,
+     "boucle": false,
+     "statique": true,
+     "duree_ms": [
+      0
+     ],
+     "duree_totale_ms": 0,
+     "collision": "traversable",
+     "hurtbox": {
+      "x": 7,
+      "y": 4,
+      "w": 37,
+      "h": 43
+     },
+     "suivant": null
+    },
+    "ouverture": {
+     "animation": "porte_ouverture",
+     "tag": "porte_ouverture_s",
+     "images": 6,
+     "boucle": false,
+     "statique": false,
+     "duree_ms": [
+      83,
+      83,
+      83,
+      83,
+      83,
+      83
+     ],
+     "duree_totale_ms": 498,
+     "collision": "solide",
+     "hurtbox": {
+      "x": 7,
+      "y": 4,
+      "w": 37,
+      "h": 43
+     },
+     "suivant": "ouvert"
+    },
+    "fermeture": {
+     "animation": "porte_fermeture",
+     "tag": "porte_fermeture_s",
+     "images": 6,
+     "boucle": false,
+     "statique": false,
+     "duree_ms": [
+      83,
+      83,
+      83,
+      83,
+      83,
+      83
+     ],
+     "duree_totale_ms": 498,
+     "collision": "solide",
+     "hurtbox": {
+      "x": 7,
+      "y": 4,
+      "w": 37,
+      "h": 43
+     },
+     "suivant": "ferme"
+    }
+   },
+   "transitions": [
+    {
+     "de": "ferme",
+     "evenement": "ouvrir",
+     "vers": "ouverture"
+    },
+    {
+     "de": "ouvert",
+     "evenement": "fermer",
+     "vers": "fermeture"
+    }
+   ]
+  }
+ }
+}

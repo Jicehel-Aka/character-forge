@@ -42,6 +42,8 @@ code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding
     <div class="row"><button id="zaddact">＋ Ajouter une action</button><label class="chip" style="margin:0"><input type="checkbox" id="zclear" checked> vider la bibliothèque avant</label><button class="primary" id="zgo">Générer les actions cochées</button></div>
     <p class="mute" id="zmsg" style="white-space:pre-line;margin:6px 0 0"></p>
   </div>
+  <!-- === objets.js : section (point d'accroche) === -->
+  <details class="card" id="ocard"><summary><b>Monstres &amp; objets</b> <span class="mute">(coffre, levier, porte, slime, chauve-souris… animés par code)</span></summary><div id="obox"></div></details>
   <div class="card" id="rcard"><h2>Squelette et animations d'autres fichiers</h2>
     <input type="file" id="fanim" accept=".glb,.gltf,.fbx" multiple hidden><input type="file" id="fskel" accept=".glb,.gltf,.fbx" hidden>
     <div class="row"><button class="primary" id="banim" title="Mixamo, bibliothèques d'animations, autre modèle animé : plusieurs fichiers à la fois">Ajouter des animations… (FBX / GLB)</button><label class="chip" style="margin:0" title="supprime le déplacement du bassin : le personnage reste au centre"><input type="checkbox" id="rinplace" checked> sur place</label></div>
@@ -131,6 +133,7 @@ code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding
   </div>
 </aside>
 </main>
+<script type="module" src="objets.js"></script>
 <script type="module">
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
@@ -1618,6 +1621,54 @@ $('#ctest').onclick=async()=>{cloudRead();CLOUD.cfg.on=true;$('#con').checked=tr
     cmsg(out.join(' | '),bad);await wdMineLoad();await bankInit()}catch(e){cmsg('Échec : '+e.message,1)}};
 $('#csync').onclick=async()=>{cloudRead();try{await cloudBackup();await wdMineLoad();await bankInit()}catch(e){cmsg('Échec : '+e.message,1)}};
 window._test={softCands,softComps,softBuild,softUndo,softBake,softBakeAll,softColliders,softScan,physRun,SOFT_PRE,wdSaveAttach,wdEquipAttach,armSoon,armFix,armFixSetup,armFixClip,THREE,skinSparse,skinPosed,torsoModel,torsoRho,skinFix,skinMeshes,skinData,skinRules,skinStretch,skinPoses,cloudBackup,mineLoad,sheetCanvasAll,atlasJSON,zipImport,zipReport,MYA,anPackSelect,STORE,CLOUD,wdPanel,wdSavePiece,get WO(){return WO},wdMineLoad,closeGeometry,closeModel,closeReport,rigAnalyse,rigReport,setClipTime:(i,t)=>{$("#clip").value=String(i);play(i);playing=false;mixer.setTime(t)},exportGLB:()=>$('#bglb').onclick(),anAdd,AN,wdAdd,get WD(){return WD},generate,get result(){return result},setup,loadFile,addAnims,addSkeleton,get clips(){return clips},get M(){return M},get library(){return library}};
+/* === objets.js : glue === (monstres et objets procéduraux : voir objets.js et docs/objets.md ; ce bloc ne touche à rien d'autre que par les points d'accroche ci-dessous) */
+const OB={O:null,F:()=>window.ObjetsForge};
+const obMsg=(t,bad)=>{const e=$('#omsg');if(e){e.textContent=t;e.classList.toggle('bad',!!bad)}};
+const obMir={e:'w',se:'sw',ne:'nw'};
+function obForm(){const F=OB.F();if(!F||!$('#obox'))return;const cat=F.catalogue(),fam=[['objet','Objets à actionner'],['collectible','Collectibles'],['projectile','Projectiles'],['effet','Effets'],['monstre','Monstres (non humanoïdes)']];
+  $('#obox').innerHTML=`<p class="mute" style="margin:0 0 6px">Sans fichier ni squelette humain : le maillage est fabriqué par code, avec ses animations par état. Il se charge comme un modèle (liste « Animation » ci-dessus) ; « Générer tous les états » remplit la bibliothèque (planche, atlas avec <code>meta.gameData</code>, paquet).</p>
+  <div class="row"><label style="margin:0">Type</label><select id="otype">${fam.map(([k,l])=>`<optgroup label="${l}">${cat.filter(c=>c.famille===k).map(c=>`<option value="${c.id}">${c.label}</option>`).join('')}</optgroup>`).join('')}</select></div>
+  <div id="oparams" class="grid2"></div>
+  <div class="row"><label style="margin:0" title="taille de la cellule en hauteurs de héros : 1 = même échelle que le héros ; plus petit = sprite plus gros dans la cellule (petits objets : générer alors avec une cellule plus petite). Vide = valeur conseillée du type">Cadre</label><input type="number" id="ocadre" placeholder="auto" min=".25" max="3" step=".05"></div>
+  <div class="row"><label style="margin:0">Vues</label><select id="odirs"><option value="1">une (vue conseillée)</option><option value="2">deux : droite et gauche (créatures)</option></select></div>
+  <div class="row"><button id="oload" class="primary">Charger dans la scène</button><button id="ogen">Générer tous les états</button><label class="chip" style="margin:0"><input type="checkbox" id="oclear"> vider la bibliothèque avant</label></div>
+  <p class="mute" id="omsg" style="white-space:pre-line;margin:6px 0 0"></p>`;
+  const draw=()=>{const c=cat.find(x=>x.id===$('#otype').value);$('#oparams').innerHTML=c.params.map(p=>{const id='op_'+p.k;
+    if(p.type==='couleur')return`<div><label>${p.label}</label><input type="color" id="${id}" value="${p.def}"></div>`;
+    if(p.type==='bool')return`<div style="grid-column:1/-1"><label class="chip" style="margin:0"><input type="checkbox" id="${id}" ${p.def?'checked':''}> ${p.label}</label></div>`;
+    if(p.type==='choix')return`<div><label>${p.label}</label><select id="${id}">${p.choix.map(x=>`<option ${x===p.def?'selected':''}>${x}</option>`).join('')}</select></div>`;
+    return`<div><label>${p.label}</label><input type="number" id="${id}" value="${p.def}" min="${p.min}" max="${p.max}" step="${p.pas}"></div>`}).join('')};
+  $('#otype').onchange=draw;draw();$('#oload').onclick=()=>obCharger().catch(e=>{obMsg('Échec : '+e.message,1);console.error(e)});$('#ogen').onclick=()=>obGenerer().catch(e=>{obMsg('Échec : '+e.message,1);console.error(e)})}
+function obLire(){const F=OB.F(),id=$('#otype').value,c=F.catalogue().find(x=>x.id===id),P={};for(const p of c.params){const e=$('#op_'+p.k);P[p.k]=p.type==='bool'?e.checked:p.type==='nombre'?+e.value:e.value}const cd=$('#ocadre').value;if(cd!=='')P.cadre=+cd;return{id,P}}
+/* charge l'objet comme un modèle sans os : animations (une par état) dans la liste existante */
+function obInstaller(O){setup(O.racine,[],O.nom);M.userData.objet=O;OB.O=O;for(const c of O.clips)clips.push(c);
+  refreshClips(clips.findIndex(c=>c.name===O.etats.find(e=>e.id===O.initial).clip));return O}
+async function obCharger(){const{id,P}=obLire(),O=OB.F().creer(id,P);obInstaller(O);obMsg(`« ${O.nom} » chargé : ${O.etats.length} états (${O.etats.map(e=>e.id).join(', ')}). Choisis une animation dans la liste, ou « Générer tous les états ».`);return O}
+function obRepos(O){O.racine.traverse(n=>{const r=n.userData.rest;if(r){n.position.fromArray(r.p);n.quaternion.copy(r.q);n.scale.fromArray(r.s)}})}
+function obRef(O){if(mixer)mixer.stopAllAction();obRepos(O);const sp=M.position.clone(),sr=pivot.rotation.y;M.position.set(0,0,0);pivot.rotation.y=0;M.updateMatrixWorld(true);
+  const b=new THREE.Box3().setFromObject(O.cadreMesh,true);M.position.copy(sp);pivot.rotation.y=sr;M.updateMatrixWorld(true);return{box:b}}
+async function obGenerer(){const O=M&&M.userData.objet;if(!O)return obMsg('Charge d\'abord un objet (bouton « Charger dans la scène »).',1);
+  const F=OB.F(),trim=$('#trim'),t0=trim.checked,two=$('#odirs').value==='2'&&obMir[O.vue.dir];trim.checked=false;GENWARN.length=0;   // exactement N images par état
+  if($('#oclear').checked)library.clear();const errs=[];let k=0;
+  try{const ref=obRef(O),dirs=two?[O.vue.dir,obMir[O.vue.dir]]:[O.vue.dir];
+    for(const e of O.etats){k++;obMsg(`(${k}/${O.etats.length}) ${e.id}…`);obRepos(O);
+      try{await generate({clipIndex:clips.findIndex(c=>c.name===e.clip),dirs,N:e.N,pitch:O.vue.pitch,fixed:true,ref,label:slug(O.nom+'_'+e.id),store:true,tmax:e.tmax})}catch(er){errs.push(e.id+' : '+er.message)}}
+    obRepos(O);const T=result&&result.T;
+    F.registre.set(O.nom,{O,T,dir:O.vue.dir,pitch:O.vue.pitch,cle:id=>slug(O.nom+'_'+id)});
+    if($('#xcommon')&&$('#xcommon').checked&&library.size)unifyPalette();
+    obMsg(`${O.etats.length-errs.length} état(s) générés dans la bibliothèque (${T}×${T} px) : ${O.etats.map(e=>slug(O.nom+'_'+e.id)).join(', ')}.${errs.length?'\nÉchecs : '+errs.join(' ; '):''}\nExporte avec la carte « Exporter » : l'atlas (.json) porte meta.gameData (ancres, boîtes, durées, transitions).`,errs.length>0)}
+  finally{trim.checked=t0}}
+/* données de jeu : ajoutées à l'atlas, au meta.json et au paquet sans toucher à leur code (enveloppes) */
+function obDonnees(){const F=OB.F(),o={};for(const[nom,reg]of F.registre){const d=F.donneesDeJeu(reg,library);if(Object.keys(d.etats).length)o[nom]=d}return{format:'character-forge/gamedata@1',note:F.NOTE_FORMAT,objets:o}}
+{const _atlas=atlasJSON,_meta=metaJSON,_pack=buildPackage;
+  atlasJSON=function(...a){const j=JSON.parse(_atlas.apply(this,a)),gd=obDonnees();if(Object.keys(gd.objets).length){j.meta.gameData=gd;
+    for(const d of Object.values(gd.objets))for(const e of Object.values(d.etats)){const R=library.get(e.animation);if(R)for(const dd of R.dirs)e.duree_ms.forEach((ms,i)=>{const f=j.frames[`${e.animation}_${dd}_${String(i).padStart(2,'0')}`];if(f)f.duration=ms||1000})}}
+    return JSON.stringify(j,null,1)};
+  metaJSON=function(...a){const j=JSON.parse(_meta.apply(this,a)),gd=obDonnees();if(Object.keys(gd.objets).length)j.gameData=gd;return JSON.stringify(j,null,1)};
+  buildPackage=async function(...a){const f=await _pack.apply(this,a);if(f){const gd=obDonnees();if(Object.keys(gd.objets).length){const b=base();
+    f.push({name:`${b}_gamedata.json`,data:enc.encode(JSON.stringify(gd,null,1))},{name:`${b}_gamedata.h`,data:enc.encode(OB.F().enteteC(b,gd.objets,n=>`${b}_${n}`))})}}return f}}
+obForm();
+window._obj={OB,obCharger,obGenerer,obInstaller,obDonnees,obRepos,obRef,library,generate,atlasJSON:()=>atlasJSON('planche.png',110),metaJSON:()=>metaJSON(),buildPackage:(g)=>buildPackage(g),sheetCanvasAll,setup,getM:()=>M,getClips:()=>clips,getResult:()=>result};
 </script>
 </body>
 </html>
