@@ -5,19 +5,10 @@ import {
   Sparkles,
   Check,
   Sword,
-  Shield,
-  Layers,
-  Shirt,
-  Box,
-  Copy,
-  ArrowRight,
-  ExternalLink,
-  ChevronRight,
-  Sliders,
 } from 'lucide-react';
 import { BankCharacter, BankPropObject, CharacterArchetype } from '../types/characterBank';
 import { BANK_CHARACTERS, BANK_PROP_OBJECTS } from '../data/characterBank';
-import { WardrobeItem, WardrobeSlot, CharacterWardrobeState } from '../types/wardrobe';
+import { CharacterWardrobeState } from '../types/wardrobe';
 
 interface Props {
   isOpen: boolean;
@@ -267,7 +258,7 @@ export const CharacterBankModal: React.FC<Props> = ({
               {filteredProps.map((prop) => {
                 const isEquipped =
                   currentWardrobeState &&
-                  (currentWardrobeState as any)[prop.slot] === prop.wardrobeItemId;
+                  currentWardrobeState[prop.slot] === prop.wardrobeItemId;
 
                 return (
                   <div

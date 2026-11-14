@@ -1,14 +1,9 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Crosshair,
   Trash2,
-  Plus,
-  Eye,
-  Sliders,
-  Sparkles,
   Grid,
   Pipette,
-  Check,
 } from 'lucide-react';
 import { DetectedElement, AssetCategory } from '../types/assets';
 import { ChromaKeyOptions } from '../utils/imageProcessing';
@@ -54,8 +49,8 @@ export const InteractiveCanvas: React.FC<Props> = ({
   const [isDrawing, setIsDrawing] = useState<boolean>(false);
   const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null);
   const [currentPoint, setCurrentPoint] = useState<{ x: number; y: number } | null>(null);
-  const [newLabel, setNewLabel] = useState<string>('Custom Sprite');
-  const [newCategory, setNewCategory] = useState<AssetCategory>('item');
+  const [newLabel] = useState<string>('Custom Sprite');
+  const [newCategory] = useState<AssetCategory>('item');
   const [showGridModal, setShowGridModal] = useState<boolean>(false);
   const [gridRows, setGridRows] = useState<number>(2);
   const [gridCols, setGridCols] = useState<number>(4);

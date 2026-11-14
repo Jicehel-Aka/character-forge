@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, SkipForward, SkipBack, RefreshCw, ZoomIn, ZoomOut, Film } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Play, Pause, SkipForward, SkipBack, ZoomIn, ZoomOut, Film } from 'lucide-react';
 import { DetectedElement } from '../types/assets';
 
 interface Props {

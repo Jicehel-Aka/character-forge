@@ -2,14 +2,10 @@ import React, { useState } from 'react';
 import {
   SlidersHorizontal,
   Wand2,
-  Sparkles,
   User,
   Eye,
-  Layers,
   RotateCcw,
-  Check,
   Camera,
-  Scissors,
   Box,
   Palette,
 } from 'lucide-react';

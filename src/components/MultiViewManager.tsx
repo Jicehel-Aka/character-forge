@@ -9,7 +9,6 @@ import {
   Info,
   ChevronDown,
   ChevronUp,
-  SlidersHorizontal,
   CheckCircle2,
   Wand2,
   RotateCw,

@@ -4,15 +4,11 @@ import {
   Copy,
   Check,
   Download,
-  Layers,
-  Shield,
   Sword,
   Compass,
-  Code,
   Terminal,
   FileCode,
   UserCheck,
-  Cpu,
 } from 'lucide-react';
 import { CharacterProfile } from '../types/assets';
 

@@ -12,6 +12,9 @@ import {
   AlertCircle,
 } from 'lucide-react';
 
+import { useServerStatus } from '../hooks/useServerStatus';
+import { apiFetch, readApiError, MSG_STATIC_MODE } from '../utils/serverApi';
+
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -27,6 +30,8 @@ export const GitHubPublishModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [copiedGit, setCopiedGit] = useState<boolean>(false);
+  const serverStatus = useServerStatus();
+  const noServer = serverStatus.checked && !serverStatus.reachable;
 
   useEffect(() => {
     try {
@@ -63,14 +68,20 @@ export const GitHubPublishModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const gitSnippet = `# Dans le dossier de ton dépôt existant ${cleanOwner}/${cleanRepo} :
 git clone ${repoUrl}.git
 cd ${cleanRepo}
-# Décompresse l'archive téléchargée à la racine du dossier (remplacer les fichiers)
+# Pack Pages : décompresse l'archive DANS le dossier docs/ (GitHub Pages sert docs/)
+# Pack Sources : décompresse à la racine du dépôt
 git add -A
 git commit -m "Fusion Studio 3D HD + Sprites 8 directions + Outils GitHub"
 git push origin ${cleanBranch}`;
 
   const handleDownloadPack = async (mode: 'pages' | 'source') => {
-    setIsDownloading(mode);
     setErrorMsg(null);
+    if (noServer) {
+      setStatusMsg(null);
+      setErrorMsg(MSG_STATIC_MODE + ' Pour fabriquer un pack : lance le serveur local (npm install puis npm run dev), ou télécharge directement le dépôt depuis GitHub (Code > Download ZIP).');
+      return;
+    }
+    setIsDownloading(mode);
     setStatusMsg(
       mode === 'pages'
         ? 'Compilation du Studio complet fusionné (Vite + 3D HD + Sprites) et création du pack GitHub Pages...'
@@ -83,10 +94,9 @@ git push origin ${cleanBranch}`;
         owner: cleanOwner,
         repo: cleanRepo,
       });
-      const resp = await fetch(`./api/export/github-pages-pack?${qs.toString()}`);
+      const resp = await apiFetch(`api/export/github-pages-pack?${qs.toString()}`);
       if (!resp.ok) {
-        const text = await resp.text();
-        throw new Error(text || `Erreur serveur HTTP ${resp.status}`);
+        throw new Error(await readApiError(resp));
       }
       const blob = await resp.blob();
       const url = URL.createObjectURL(blob);
@@ -108,7 +118,7 @@ git push origin ${cleanBranch}`;
       setErrorMsg(
         err instanceof Error
           ? err.message
-          : 'Impossible de générer le pack en mode statique. Utilisez la version serveur locale.'
+          : 'Impossible de générer le pack. Lance le serveur local (npm run dev).'
       );
       setStatusMsg(null);
     } finally {
@@ -221,6 +231,15 @@ git push origin ${cleanBranch}`;
             </div>
           </div>
 
+          {noServer && (
+            <div
+              role="status"
+              data-testid="github-static-notice"
+              className="p-3 rounded-xl bg-amber-950/50 border border-amber-700/50 text-amber-100 leading-relaxed"
+            >
+              {MSG_STATIC_MODE} Les boutons de téléchargement ci-dessous sont donc désactivés ; les liens GitHub fonctionnent normalement.
+            </div>
+          )}
           {statusMsg && (
             <div className="p-3 rounded-xl bg-emerald-950/70 border border-emerald-500/40 text-emerald-200">
               {statusMsg}
@@ -247,14 +266,14 @@ git push origin ${cleanBranch}`;
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-400 leading-relaxed">
-                  Compile le Studio 3D HD complet + inclut <code className="text-slate-200">modele.html</code>,{' '}
+                  Archive le site déjà compilé (<code className="text-slate-200">docs/</code>) avec <code className="text-slate-200">modele.html</code>,{' '}
                   <code className="text-slate-200">atelier.html</code>, <code className="text-slate-200">3d.html</code>,{' '}
                   <code className="text-slate-200">exemple/mannequin.glb</code>, <code className="text-slate-200">.nojekyll</code> et <code className="text-slate-200">README.md</code>. Fonctionne immédiatement sur GitHub Pages.
                 </p>
               </div>
               <button
                 onClick={() => handleDownloadPack('pages')}
-                disabled={isDownloading !== null}
+                disabled={isDownloading !== null || noServer}
                 className="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 <FolderArchive className="w-4 h-4" />
@@ -278,13 +297,13 @@ git push origin ${cleanBranch}`;
                 </div>
                 <p className="text-[11px] text-slate-400 leading-relaxed">
                   Contient tout le code TypeScript/React (<code className="text-slate-200">src/</code>,{' '}
-                  <code className="text-slate-200">server.ts</code>, <code className="text-slate-200">public/</code>) + workflow{' '}
-                  <code className="text-slate-200">deploy-pages.yml</code> pour compilation auto à chaque push sur <code className="text-slate-200">{cleanBranch}</code>.
+                  <code className="text-slate-200">server.ts</code>, <code className="text-slate-200">docs/</code>) + workflows{' '}
+                  <code className="text-slate-200">.github/workflows/</code> (dont <code className="text-slate-200">pages.yml</code>, désactivé par défaut : le site est servi depuis <code className="text-slate-200">docs/</code> sur <code className="text-slate-200">{cleanBranch}</code>).
                 </p>
               </div>
               <button
                 onClick={() => handleDownloadPack('source')}
-                disabled={isDownloading !== null}
+                disabled={isDownloading !== null || noServer}
                 className="w-full py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 font-bold flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 <FolderArchive className="w-4 h-4 text-sky-400" />

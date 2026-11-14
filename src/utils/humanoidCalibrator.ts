@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { MultiViewAngle } from '../types/wardrobe';
 
 export interface AnatomicalProportions {
   totalHeight: number;        // Overall height scale (default 1.0 = ~1.75m)
@@ -104,7 +103,6 @@ export async function calibrateProportionsFromImage(imageUrl: string): Promise<A
         const chestY = Math.round(minY + charHeight * 0.28);
         const waistY = Math.round(minY + charHeight * 0.38);
         const hipY = Math.round(minY + charHeight * 0.50);
-        const kneeY = Math.round(minY + charHeight * 0.72);
 
         // Average widths around anatomical zones
         const sampleSpan = (center: number, radius = 4) => {

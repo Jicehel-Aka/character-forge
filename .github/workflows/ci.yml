@@ -7,10 +7,45 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: "3.11"}
-      - run: pip install pillow numpy scipy pyyaml
+      - run: pip install pillow numpy scipy pyyaml pytest scikit-image trimesh
       - run: python -m compileall -q forge
+      - run: python -m pytest tests -q          # tests unitaires Python (animrules, formats, meshclose)
       - run: python -m forge gear check --file tenues_exemple.json --name archer_orque
       - run: python tools/export_gear_json.py && git diff --exit-code docs/gear.js
       - run: python -m forge scale-chart -o echelle_arcs.png
       - uses: actions/upload-artifact@v4
         with: {name: echelle_arcs, path: echelle_arcs.png}
+
+  coherence:             # un seul LICENSE, pas de pages autonomes dupliquées
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cmp LICENSE docs/LICENSE
+      - run: test ! -e public
+      - run: cmp docs/3d.html docs/chaine3d.html && { echo "chaine3d.html doit rester une redirection vers 3d.html"; exit 1; } || true
+
+  app:                   # app React : dépendances reproductibles, types, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: "22", cache: npm}
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - name: docs/ à jour par rapport aux sources (avertissement seulement)
+        continue-on-error: true
+        run: |
+          git status --porcelain -- docs/index.html docs/assets
+          git diff --exit-code -- docs/index.html docs/assets \
+            || { echo "::warning::docs/index.html + docs/assets ne correspondent pas à « npm run build » : relance le build et commit."; exit 1; }
+
+  ui:                    # tests d'interface Playwright (Chromium, rendu logiciel) sur docs/ servi sans serveur d'API
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - run: pip install pytest playwright
+      - run: python -m playwright install --with-deps chromium
+      - run: python -m pytest tests/ui_pages.py tests/ui_smoke_modele.py -q

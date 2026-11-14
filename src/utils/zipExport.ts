@@ -43,7 +43,7 @@ export async function generateAssetZip(data: ZipExportData): Promise<Blob> {
   const cHeadersFolder = opts.includeCHeaders ? zip.folder('c_headers') : null;
   const paletteFolder = opts.includePalette ? zip.folder('palette') : null;
 
-  const metadataList: any[] = [];
+  const metadataList: Array<Record<string, unknown>> = [];
   const totalElements = data.elements.length;
 
   let currentIndex = 0;

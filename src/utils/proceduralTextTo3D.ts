@@ -1,3 +1,4 @@
+import { apiFetch, readApiError } from './serverApi';
 import * as THREE from 'three';
 import {
   exportGroupToGlbBlob,
@@ -47,6 +48,8 @@ export interface TextTo3DResult {
   vertexCount: number;
   triangleCount: number;
   usedAI: boolean;
+  /** Renseigné quand l'IA était demandée mais indisponible : l'objet vient alors du moteur procédural. */
+  aiWarning?: string;
   blueprint: Generated3DBlueprint;
   exportObj: (name?: string) => string;
   exportGlbBlob: () => Promise<Blob>;
@@ -537,9 +540,11 @@ export async function generate3DFromDescription(
   let blueprint: Generated3DBlueprint | null = null;
   let usedAI = false;
 
+  let aiWarning: string | undefined;
+
   if (preferAI && prompt.trim().length > 3) {
     try {
-      const resp = await fetch('/api/generate/3d-blueprint', {
+      const resp = await apiFetch('api/generate/3d-blueprint', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt }),
@@ -549,10 +554,18 @@ export async function generate3DFromDescription(
         if (data?.parts && Array.isArray(data.parts) && data.parts.length >= 2) {
           blueprint = data as Generated3DBlueprint;
           usedAI = true;
+        } else {
+          aiWarning = "L'IA a renvoyé un plan 3D inexploitable.";
         }
+      } else {
+        aiWarning = await readApiError(resp);
       }
-    } catch {
-      // Seamless fallback to deterministic procedural engine
+    } catch (err) {
+      aiWarning = err instanceof Error ? err.message : "L'IA est injoignable.";
+    }
+    if (aiWarning) {
+      console.warn('Génération 3D par IA indisponible :', aiWarning);
+      aiWarning = `Génération par IA indisponible (${aiWarning.replace(/\.$/, '')}). Repli sur la synthèse procédurale.`;
     }
   }
 
@@ -571,6 +584,7 @@ export async function generate3DFromDescription(
     vertexCount,
     triangleCount,
     usedAI,
+    aiWarning,
     blueprint,
     exportObj: (name = blueprint!.title) => exportGroupToObjString(group, name),
     exportGlbBlob: () => exportGroupToGlbBlob(group),

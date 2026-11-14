@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { TransferableAnimationId } from '../types/characterBank';
-import { CharacterRigBones } from '../components/ThreeCharacterViewport';
+import { CharacterRigBones } from '../types/rig';
 
 /**
  * Standard bone names in our humanoid skeletal rig

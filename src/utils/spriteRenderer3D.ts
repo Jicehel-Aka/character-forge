@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import JSZip from 'jszip';
 import { TransferableAnimationId } from '../types/characterBank';
 import { evaluateSkeletalKinematics } from './animationBank';
-import type { CharacterRigBones } from '../components/ThreeCharacterViewport';
+import type { CharacterRigBones } from '../types/rig';
 
 export type SpritePalettePreset =
   | 'native'

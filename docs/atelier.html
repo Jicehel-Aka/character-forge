@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>character-forge — atelier</title>
+<title>character-forge — fiche en pied</title>
 <style>
 :root{--bg:#f6f5f2;--panel:#fff;--ink:#1d1d1b;--mute:#6b6a66;--line:#d9d6cf;--acc:#2f6f4f;--acc-ink:#fff;--bad:#b3261e;--warn:#9a6700;--ok:#2f6f4f;--chk1:#e4e2dc;--chk2:#f1efea}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#171715;--panel:#222220;--ink:#ecebe6;--mute:#a09e97;--line:#3a3935;--acc:#6fbf94;--acc-ink:#10231a;--bad:#ff8a80;--warn:#e3b341;--ok:#6fbf94;--chk1:#2c2b28;--chk2:#34332f}}
@@ -45,13 +45,14 @@ table{border-collapse:collapse;width:100%;font-size:13px}td,th{border-bottom:1px
 </head>
 <body>
 <header>
-  <h1>character-forge · atelier</h1>
+  <h1>character-forge · fiche en pied</h1>
   <div class="row">
     <input type="file" id="files" accept="image/*" multiple hidden>
     <button class="primary" onclick="files.click()">Ouvrir des images…</button>
     <input type="file" id="projfile" accept=".json,application/json" hidden>
     <button id="saveproj" title="Enregistre images, détourages, marques, zones, armes, tenue dans un seul fichier">💾 Enregistrer le projet</button>
     <button onclick="projfile.click()" title="Rouvre un projet enregistré">📂 Ouvrir un projet…</button>
+    <a href="index.html">← Studio</a>
     <a href="3d.html" target="_blank" rel="noopener">Chaîne 3D &amp; liens ↗</a>
     <a href="modele.html" target="_blank" rel="noopener">Modèle 3D → sprites ↗</a>
     <button id="theme">Thème</button>

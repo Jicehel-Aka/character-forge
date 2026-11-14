@@ -1,15 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Download,
   X,
   Archive,
-  Cpu,
   FileCode,
   Check,
   Loader2,
-  Package,
   Layers,
-  Sparkles,
   CheckSquare,
   Square,
   Sliders,

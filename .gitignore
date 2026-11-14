@@ -1,10 +1,26 @@
 __pycache__/
 *.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.log
 out/
 consolidated/
 *.glb
 *.obj
 .venv/
+# --- Node / app React ---
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+.vite/
+*.tsbuildinfo
+# --- fichiers .glb/.obj voulus dans le dépôt ---
 !docs/wardrobe/**/*.glb
 !docs/anims/**/*.glb
 !docs/bank/*.glb
+!docs/exemple/*.glb
+# --- sorties de tests ---
+tests/_out/
