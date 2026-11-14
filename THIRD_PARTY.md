@@ -67,7 +67,7 @@ Ajoutées par le propriétaire (commit 7546d6b / 20d2499, « Add files via uploa
 | `sample_character_bd_*.jpg` | « Gruumshka », guerrière de BD (896×1200) | **inconnue** ; un personnage de BD / de licence tierce reste du fan-art (voir README) |
 | `sample_retro_game_*.jpg` | capture de jeu rétro (1376×768) | **inconnue** |
 | `sample_spritesheet_*.jpg` | planche de sprites (1200×896) | **inconnue** |
-**À faire par le propriétaire** : confirmer qu'il en détient les droits (ou qu'elles sont générées par lui) et l'indiquer ici ; sinon les retirer du dépôt (`src/data/samples.ts` les référence) avant de les publier sous MIT.
+**Droits confirmés par le propriétaire (Jicehel, 14 novembre 2026)** : il détient les droits sur ces cinq images ; elles peuvent rester dans le dépôt.
 
 ## Mannequin d'exemple (docs/exemple/mannequin.glb)
 Mannequin procédural nommé `Mannequin_CC0`, exporté par three.js (GLTFExporter r187), avec squelette et clips Idle / Walk. Indiqué comme **modèle original CC0** par le propriétaire dans le README ; aucune source tierce n'a été trouvée dans le dépôt.
