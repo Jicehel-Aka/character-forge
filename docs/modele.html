@@ -83,13 +83,15 @@ code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding
     <div class="row"><label style="margin:0">Direction</label><select id="adir"></select><canvas id="anim" width="64" height="64"></canvas><span class="mute" id="ainfo"></span></div>
     <canvas id="sheet" width="64" height="64"></canvas>
     <div class="mute" id="sinfo"></div>
+    <div class="row"><label class="chip" style="margin:0" title="affiche l'animation à l'échelle réelle de l'écran de la console (320×240), sur un décor simple"><input type="checkbox" id="akaon"> aperçu à l'échelle de l'écran AKA (320×240)</label></div>
+    <canvas id="aka" width="320" height="240" hidden style="width:640px;max-width:100%"></canvas><div class="mute" id="akainfo"></div>
   </div>
 </section>
 <aside>
   <div class="card"><h2>Rendu des sprites</h2>
     <div class="grid2">
-      <div><label>Hauteur (px)</label><select id="size"><option>48</option><option selected>64</option><option>96</option><option>128</option></select></div>
-      <div><label>Couleurs</label><input type="number" id="colors" value="32" min="4" max="64"></div>
+      <div><label>Hauteur (px)</label><select id="size"><optgroup label="Console (RGB565)"><option>48</option><option selected>64</option><option>96</option><option>128</option></optgroup><optgroup label="Sprites PC (alpha doux, pleine couleur)"><option>192</option><option>256</option><option>384</option><option>512</option></optgroup></select></div>
+      <div><label>Couleurs</label><input type="number" id="colors" value="32" min="4" max="256" title="nombre de couleurs de la palette RGB565 (inactif pour les palettes rétro fixes et la pleine couleur)"></div>
       <div><label>Images / direction</label><input type="number" id="frames" value="6" min="1" max="24"></div>
       <div style="grid-column:1/-1"><label class="chip" style="margin:0" title="supprime les images consécutives identiques et celles qui refont un cycle déjà présent plus à gauche"><input type="checkbox" id="trim" checked> supprimer les images identiques / d'un cycle déjà présent</label></div>
       <div><label>Directions</label><select id="ndir"><option value="8" selected>8</option><option value="4">4 (s, e, n, w)</option><option value="1">1 (face)</option></select></div>
@@ -105,8 +107,14 @@ code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding
         <option value="pico8">PICO-8 (16 teintes)</option>
         <option value="nes">NES (54 teintes)</option>
         <option value="cga">CGA (16 teintes)</option>
+        <option value="full">Pleine couleur (sans palette)</option>
       </select>
     </div>
+    <div class="row" id="dithrow"><label style="margin:0" title="tramage ordonné : simule les teintes intermédiaires avec un motif régulier (utile avec peu de couleurs)">Tramage</label><select id="dither"><option value="none" selected>Aucun</option><option value="bayer4">Bayer 4×4</option><option value="bayer8">Bayer 8×8</option></select><label style="margin:0">force</label><input type="number" id="dstr" value="60" min="0" max="100" step="5" style="width:64px"> %</div>
+    <div class="row"><label class="chip" title="le bas du pied le plus bas de chaque direction est amené sur la même ligne de sol (sinon la ligne de sol varie de plusieurs pixels d'une direction à l'autre)"><input type="checkbox" id="feet" checked> pieds sur une ligne de sol commune</label><label class="chip" title="petites tailles : un bras ou une jambe plus fin que ~2 px est élargi avant la réduction (sinon il devient pointillé et le contour le mange)"><input type="checkbox" id="thin" checked> membres fins renforcés (≤ 128 px)</label></div>
+    <div class="row"><label style="margin:0" title="épaisseur du contour en % de la case : 1,2 % = 1 px à 64 px, 6 px à 512 px">Contour (% de la case)</label><input type="number" id="olpct" value="1.2" min=".2" max="6" step=".1" style="width:64px"><label class="chip" style="margin:0"><input type="checkbox" id="olblack"> noir pur</label></div>
+    <div class="row"><label style="margin:0" title="durée d'une image dans l'animation (aperçu, atlas JSON, .tres Godot) ; réglable ensuite par animation dans « Exporter »">Durée d'une image (ms)</label><input type="number" id="fdur" value="110" min="10" step="10" style="width:72px"></div>
+    <p class="mute" id="pcnote" style="margin:0"></p>
     <div class="row"><label style="margin:0">Durée max. (s)</label><input type="number" id="tmax" value="0" min="0" step="0.1" title="0 = clip entier"></div>
     <div class="row"><button class="primary" id="go">Générer les sprites</button></div>
     <p class="mute" id="prog"></p>
@@ -117,6 +125,8 @@ code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding
     <div class="row"><button id="dlpng">Planche PNG</button><label class="chip" style="margin:0"><input type="checkbox" id="xmag"> fond magenta</label><label class="chip" style="margin:0" title="première case de chaque ligne : nom de l'animation et direction (décalage d'une case, indiqué dans l'atlas)"><input type="checkbox" id="xlabel" checked> case du nom à gauche</label></div>
     <div class="row"><button id="xatlas">Atlas JSON (Aseprite)</button><button id="xgodot" title="Exporte la planche + ressource Godot 4 (.tres) + configuration moteur">Pack Godot / Unity</button><button id="xgif">GIF animé</button><button id="xframes">Images (.zip)</button></div>
     <div class="row"><button id="dlraw">.raw RGB565</button><button id="dlh">En-tête C (.h)</button><button id="dljson">Métadonnées</button></div>
+    <div class="row"><select id="pixfmt" title="ordre des composantes des pixels de .raw / .h"><option value="rgb565" selected>RGB565</option><option value="bgr565">BGR565</option></select><select id="endian" title="ordre des octets"><option value="le" selected>little-endian</option><option value="be">big-endian</option></select><label style="margin:0" title="valeur 16 bits d'un pixel transparent dans .raw / .h (F81F = magenta en RGB565)">transparence 0x</label><input id="transp" value="F81F" maxlength="4" style="width:64px;font-family:monospace"></div>
+    <div id="xdurs" class="mute"></div>
     <div class="row"><button id="xall" title="rend chaque animation du modèle avec les réglages actuels, puis exporte-les ensemble">Générer toutes les animations</button><button id="xclear">Vider</button></div>
     <div class="row"><button class="primary" id="xglb" title="écrit le modèle avec son squelette et les animations de la liste (celles du fichier, ajoutées ou générées) en un seul GLB, à rouvrir dans Blender, Godot, Unity…">Modèle animé (GLB)</button><label class="chip" style="margin:0"><input type="checkbox" id="xglba" checked> avec les animations</label></div>
     <div class="row"><label class="chip" style="margin:0" title="une seule palette pour toutes les animations générées d'un coup"><input type="checkbox" id="xcommon" checked> palette commune</label><button id="xpal" title="recalcule une palette unique pour toute la bibliothèque">Unifier la palette</button></div>
@@ -208,11 +218,73 @@ function classGeoms(root){const out=[];root.traverse(m=>{if(!m.isMesh||!m.visibl
   g2.setAttribute('color',new THREE.BufferAttribute(col,3));out.push({m,g2,g0:m.geometry,mat0:m.material})});return out}
 
 /* ---------- génération des sprites ---------- */
+/* Réglages du moteur de sprites regroupés ici : aucune valeur « magique » dans le code plus bas. */
+const SPR={
+  RENDER_MIN:512,          // côté minimal (px) du rendu interne
+  SSAA:2,                  // mode PC : rendu interne = SSAA × taille de case (suréchantillonnage)
+  PC_MIN:192,              // à partir de cette taille de case : mode « Sprites PC » (alpha doux, planches paginées…)
+  SOLID:.45,               // petites tailles : couverture d'alpha au-delà de laquelle un pixel est opaque
+  THIN_MAX:128,            // renfort des membres fins actif jusqu'à cette taille de case
+  OUTLINE_PCT:1.2,         // contour : épaisseur par défaut, en % de la case (1 px à 64, 6 px à 512)
+  PALETTE_SAMPLE:200000,   // nombre max de pixels qui servent à calculer une palette (médiane coupée)
+  MEM_WARN:2**30,          // estimation mémoire : avertir au-delà
+  MEM_MAX:2.5*2**30,       // … refuser au-delà
+  PAGE_SIDE:16384,         // planche : côté maximal d'un canvas (limite Chrome)
+  PAGE_PIXELS:64e6,        // planche : pixels maximum par PNG (≈ 256 Mo en RGBA ; Safari est plus strict)
+  DEFAULT_MS:110,          // durée d'une image par défaut (ms)
+  KEY565:0xF81F            // couleur de transparence RGB565 par défaut (magenta)
+};
+const isPC=T=>T>=SPR.PC_MIN;
+/* palettes rétro fixes ; le nombre de teintes affiché dans le menu est celui de la table (pas un chiffre écrit à la main) */
+const RETRO={
+  gameboy:{name:'Game Boy',cols:[[15,56,15],[48,98,48],[139,172,15],[155,188,15]]},
+  pico8:{name:'PICO-8',cols:[[0,0,0],[29,43,83],[126,37,83],[0,135,81],[171,82,54],[95,87,79],[194,195,199],[255,241,232],[255,0,77],[255,163,0],[255,236,39],[0,228,54],[41,173,255],[131,118,156],[255,119,168],[255,204,170]]},
+  nes:{name:'NES',cols:[[124,124,124],[0,0,252],[0,0,188],[68,40,188],[148,0,132],[168,0,32],[168,16,0],[136,20,0],[80,48,0],[0,120,0],[0,104,0],[0,88,0],[0,64,88],[0,0,0],[188,188,188],[0,120,248],[0,88,248],[104,68,252],[216,0,204],[228,0,88],[248,56,0],[228,92,16],[172,124,0],[0,184,0],[0,168,0],[0,168,68],[0,136,136],[248,248,248],[60,188,252],[104,136,252],[152,120,248],[248,120,248],[248,88,152],[248,120,88],[252,160,68],[248,184,0],[184,248,24],[88,216,84],[88,248,152],[0,232,216],[120,120,120]]},
+  cga:{name:'CGA',cols:[[0,0,0],[0,0,170],[0,170,0],[0,170,170],[170,0,0],[170,0,170],[170,85,0],[170,170,170],[85,85,85],[85,85,255],[85,255,85],[85,255,255],[255,85,85],[255,85,255],[255,255,85],[255,255,255]]}};
+const palName=k=>k==='full'?'Pleine couleur (sans palette)':RETRO[k]?RETRO[k].name:'RGB565 quantifié';
+for(const o of $('#palpreset').options)if(RETRO[o.value])o.textContent=`${RETRO[o.value].name} (${RETRO[o.value].cols.length} teintes)`;
+
 const to565=(r,g,b)=>((r>>3)<<11)|((g>>2)<<5)|(b>>3),from565=v=>[((v>>11)&31)*255/31|0,((v>>5)&63)*255/63|0,(v&31)*255/31|0];
 function medianCut(px,n){let boxes=[px];while(boxes.length<n){boxes.sort((a,b)=>b.length-a.length);const b=boxes.shift();if(!b||b.length<2){boxes.push(b);break}
   const rg=[0,1,2].map(k=>{let lo=255,hi=0;b.forEach(p=>{if(p[k]<lo)lo=p[k];if(p[k]>hi)hi=p[k]});return hi-lo}),k=rg.indexOf(Math.max(...rg));b.sort((p,q)=>p[k]-q[k]);const h=b.length>>1;boxes.push(b.slice(0,h),b.slice(h))}
   return boxes.filter(b=>b&&b.length).map(b=>[0,1,2].map(k=>Math.round(b.reduce((a,p)=>a+p[k],0)/b.length)))}
 const yieldUI=()=>new Promise(r=>setTimeout(r,0));
+
+/* ---- appariement perceptuel (OKLab) + tramage ordonné de Bayer ---- */
+const SRGB_LIN=Float32Array.from({length:256},(_,i)=>{const c=i/255;return c<=.04045?c/12.92:((c+.055)/1.055)**2.4});
+const c8=v=>v<=0?0:v>=255?255:(v+.5)|0;
+function toOklab(r,g,b){const R=SRGB_LIN[c8(r)],G=SRGB_LIN[c8(g)],B=SRGB_LIN[c8(b)],
+  l=Math.cbrt(.4122214708*R+.5363325363*G+.0514459929*B),m=Math.cbrt(.2119034982*R+.6806995451*G+.1073969566*B),s=Math.cbrt(.0883024619*R+.2817188376*G+.6299787005*B);
+  return[.2104542553*l+.793617785*m-.0040720468*s,1.9779984951*l-2.428592205*m+.4505937099*s,.0259040371*l+.7827717662*m-.808675766*s]}
+const bayer=n=>{if(n===2)return[0,2,3,1];const p=bayer(n/2),m=[];for(let y=0;y<n;y++)for(let x=0;x<n;x++){const q=p[(y%(n/2))*(n/2)+(x%(n/2))];m[y*n+x]=4*q+[0,2,3,1][(y>=n/2?2:0)+(x>=n/2?1:0)]}return m};
+const BAYER={bayer4:bayer(4),bayer8:bayer(8)};                       // matrices de seuils 0..n²-1
+const DITHER_SIZE={bayer4:4,bayer8:8};
+/* quantificateur : (r,g,b,x,y) -> indice de palette. Tramage = décalage de luminosité OKLab proportionnel à l'écart typique entre couleurs voisines. */
+function makeQuantizer(pal,opt){
+  const lab=pal.map(p=>toOklab(p[0],p[1],p[2])),n=pal.length;let spread=0;
+  for(let i=0;i<n;i++){let m=1e9;for(let j=0;j<n;j++)if(j!==i)m=Math.min(m,Math.hypot(lab[i][0]-lab[j][0],lab[i][1]-lab[j][1],lab[i][2]-lab[j][2]));spread+=n>1?m:0}spread=n?spread/n:0;
+  const mat=BAYER[opt.dither]||null,sz=DITHER_SIZE[opt.dither]||1,amp=spread*(opt.strength||0)*1.5,cache=new Map();
+  const nearest=(L,a,b)=>{let best=0,bd=1e9;for(let q=0;q<n;q++){const p=lab[q],d=(p[0]-L)**2+(p[1]-a)**2+(p[2]-b)**2;if(d<bd){bd=d;best=q}}return best};
+  return(r,g,b,x,y)=>{
+    if(!mat||!amp){const k=(c8(r)<<16)|(c8(g)<<8)|c8(b);let v=cache.get(k);if(v===undefined){const o=toOklab(r,g,b);v=nearest(o[0],o[1],o[2]);if(cache.size>3e5)cache.clear();cache.set(k,v)}return v}
+    const o=toOklab(r,g,b),t=(mat[(y%sz)*sz+(x%sz)]+.5)/(sz*sz)-.5;return nearest(o[0]+t*amp,o[1]+t*amp*.5,o[2]+t*amp*.5)}}
+/* palette d'un jeu de pixels : préréglage fixe, ou médiane coupée (sur un échantillon régulier) puis arrondie en RGB565 */
+function paletteFor(key,frames,T,ncol){
+  if(RETRO[key])return RETRO[key].cols.map(p=>p.slice());
+  const all=[];let tot=0;for(const fr of frames)for(let j=0;j<T*T;j++)if(fr.mask[j])tot++;
+  const step=Math.max(1,Math.ceil(tot/SPR.PALETTE_SAMPLE));let k=0;
+  for(const fr of frames)for(let j=0;j<T*T;j++)if(fr.mask[j]&&(k++%step===0))all.push([fr.C[j*3]|0,fr.C[j*3+1]|0,fr.C[j*3+2]|0]);
+  return medianCut(all,ncol).map(p=>from565(to565(...p)))}
+/* applique la palette (ou la pleine couleur) à des images : remplit fr.rgba ; alpha doux en mode PC */
+function applyPalette(frames,T,pal,opt){
+  const q=pal&&pal.length?makeQuantizer(pal,opt):null;
+  for(const fr of frames){const rgba=new Uint8ClampedArray(T*T*4);
+    for(let y=0;y<T;y++)for(let x=0;x<T;x++){const j=y*T+x;if(!fr.mask[j]&&!(opt.soft&&fr.A[j]>0))continue;
+      const r=fr.C[j*3],g=fr.C[j*3+1],b=fr.C[j*3+2];let o=j*4;
+      if(q){const p=pal[q(r,g,b,x,y)];rgba[o]=p[0];rgba[o+1]=p[1];rgba[o+2]=p[2]}else{rgba[o]=r;rgba[o+1]=g;rgba[o+2]=b}
+      rgba[o+3]=opt.soft?fr.A[j]:255}
+    fr.rgba=rgba}}
+
 /* images inutiles : (1) identiques à la précédente conservée, (2) fin qui recommence un cycle déjà présent plus à gauche (période p : les images
    p.. répètent 0..). Une image n'est retirée que si elle l'est dans TOUTES les directions (colonnes alignées). */
 const GENWARN=[];
@@ -227,74 +299,187 @@ function trimFrames(frames,dirs,T){
   const keep=by[0].map((_,i)=>i).filter(i=>!gone.has(i)),map=new Map(keep.map((i,k)=>[i,k]));
   const out=frames.filter(f=>map.has(f.f));out.forEach(f=>{f.f=map.get(f.f)});
   return{frames:out,N:keep.length,ident:[...gone.values()].filter(w=>w==='ident').length,cycle:[...gone.values()].filter(w=>w==='cycle').length}}
+
+/* ---- garde-fous mémoire ---- */
+/* octets conservés par image de case T : petites tailles = C (Float32 ×3) + rgba + masque + classes ; mode PC = C (octets ×3) + rgba + masque + alpha */
+const bytesPerImage=T=>T*T*(isPC(T)?3+4+1+1:12+4+1+1);
+const libraryBytes=()=>{let n=0;library.forEach(R=>{n+=R.frames.length*bytesPerImage(R.T)});return n};
+const fmtMo=n=>n>=2**30?(n/2**30).toFixed(1)+' Go':Math.round(n/2**20)+' Mo';
+/* estimation avant de lancer : { bytes, level:'ok'|'warn'|'refuse', msg } ; propose une réduction si c'est trop gros */
+function memoryPlan(T,nDirs,N,withClasses=false){
+  const S=isPC(T)?SPR.SSAA*T:SPR.RENDER_MIN,transient=S*S*4*(withClasses?8:6),own=nDirs*N*bytesPerImage(T),lib=libraryBytes(),bytes=own+lib+transient;
+  if(bytes<=SPR.MEM_WARN)return{bytes,level:'ok',msg:''};
+  const maxN=Math.max(0,Math.floor((SPR.MEM_MAX-lib-transient)/(nDirs*bytesPerImage(T)))),lessSize=[...document.querySelectorAll('#size option')].map(o=>+o.value).filter(s=>s<T&&nDirs*N*bytesPerImage(s)+lib+transient<=SPR.MEM_MAX).pop();
+  const tip=`Réduis : ${maxN>=1&&maxN<N?`images / direction à ${maxN} au plus`:'le nombre de directions (4 ou 1)'}${lessSize?`, ou la taille de case à ${lessSize} px`:''}${lib?', ou vide la bibliothèque (bouton « Vider »)':''}.`;
+  if(bytes>SPR.MEM_MAX)return{bytes,level:'refuse',msg:`Refus : ~${fmtMo(bytes)} de mémoire estimés pour ${nDirs*N} images de ${T}×${T} px (limite ${fmtMo(SPR.MEM_MAX)}, risque de plantage de l'onglet). ${tip}`};
+  return{bytes,level:'warn',msg:`⚠ ~${fmtMo(bytes)} de mémoire estimés pour ${nDirs*N} images de ${T}×${T} px : la page peut devenir lente. ${tip}`}}
+
+/* ---- réductions du rendu interne (S×S) vers la case T×T ---- */
+/* petites tailles : moyenne par couverture d'alpha (boîte), identique à l'ancien rendu ; renvoie A (couverture), C (couleurs), K (classes de membres) */
+function reduceBox(col,cls,S,T,win){
+  const A=new Float32Array(T*T),C=new Float32Array(T*T*3),K=new Uint8Array(T*T),d=col.data,cd=cls?cls.data:null,{sx,sy,blk}=win;
+  for(let ty=0;ty<T;ty++)for(let tx=0;tx<T;tx++){let a=0,sr=0,sg=0,sb=0,n=0;
+    const ya=Math.max(0,Math.floor(sy+ty*blk)),yb=Math.min(S,Math.ceil(sy+(ty+1)*blk)),xa=Math.max(0,Math.floor(sx+tx*blk)),xb=Math.min(S,Math.ceil(sx+(tx+1)*blk));
+    for(let y=ya;y<yb;y++)for(let x=xa;x<xb;x++){const o=(y*S+x)*4,al=d[o+3]/255;a+=al;sr+=d[o]*al;sg+=d[o+1]*al;sb+=d[o+2]*al;n++}
+    const j=ty*T+tx;A[j]=n?a/n:0;if(a>0){C[j*3]=sr/a;C[j*3+1]=sg/a;C[j*3+2]=sb/a}
+    if(cd){const cy=Math.min(S-1,Math.floor(sy+(ty+.5)*blk)),cx2=Math.min(S-1,Math.floor(sx+(tx+.5)*blk));K[j]=cd[(cy*S+cx2)*4+3]?Math.round(cd[(cy*S+cx2)*4]/30):0}}
+  return{A,C,K}}
+/* mode PC : réduction par le navigateur (drawImage + lissage de haute qualité), pas de boucle JS sur le rendu ; alpha doux conservé */
+let REDUCER=null;
+function reduceCanvas(src,T,win){
+  if(!REDUCER||REDUCER.width!==T){REDUCER=document.createElement('canvas');REDUCER.width=REDUCER.height=T}
+  const x=REDUCER.getContext('2d',{willReadFrequently:true});x.clearRect(0,0,T,T);x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';
+  x.drawImage(src,win.sx,win.sy,win.side,win.side,0,0,T,T);const d=x.getImageData(0,0,T,T).data,C=new Uint8ClampedArray(T*T*3),A=new Uint8Array(T*T);
+  for(let j=0;j<T*T;j++){A[j]=d[j*4+3];C[j*3]=d[j*4];C[j*3+1]=d[j*4+1];C[j*3+2]=d[j*4+2]}
+  return{A,C}}
+/* masque binaire d'une image réduite : petites tailles = seuil de couverture + pixels fins conservés (un pixel isolé de couverture ≥ .2 reste) */
+function solidMask(A,T){
+  const mask=new Uint8Array(T*T),S=SPR.SOLID;for(let j=0;j<T*T;j++)if(A[j]>=S)mask[j]=1;
+  for(let y=0;y<T;y++)for(let x=0;x<T;x++){const j=y*T+x;if(mask[j]||A[j]<.2)continue;let near=false;
+    for(let dy=-1;dy<=1&&!near;dy++)for(let dx=-1;dx<=1;dx++){const X=x+dx,Y=y+dy;if(X>=0&&Y>=0&&X<T&&Y<T&&A[Y*T+X]>=S){near=true;break}}
+    if(!near)mask[j]=1}
+  return mask}
+
+/* ---- épaisseur minimale des membres (petites tailles) : un membre plus fin que ~2 px de case est élargi avant la réduction ----
+   « fin » = ce qui disparaît à l'ouverture morphologique (érosion puis dilatation, fenêtre carrée, calculée par images intégrales) ;
+   les pixels ajoutés reprennent la couleur du pixel opaque le plus proche. */
+function boxCount(bin,S,r,out){          // out[i] = nombre de pixels à 1 dans la fenêtre (2r+1)² centrée en i (bords = 0)
+  const W=S+1,I=new Int32Array(W*W);
+  for(let y=0;y<S;y++){let row=0;for(let x=0;x<S;x++){row+=bin[y*S+x];I[(y+1)*W+x+1]=I[y*W+x+1]+row}}
+  for(let y=0;y<S;y++){const y0=Math.max(0,y-r),y1=Math.min(S,y+r+1);for(let x=0;x<S;x++){const x0=Math.max(0,x-r),x1=Math.min(S,x+r+1);out[y*S+x]=I[y1*W+x1]-I[y0*W+x1]-I[y1*W+x0]+I[y0*W+x0]}}}
+function thickenThin(img,S,blk){
+  const d=img.data,r=Math.max(1,Math.round(blk*.9)),g=Math.max(1,Math.round(blk*.5)),n=S*S,B=new Uint8Array(n),cnt=new Int32Array(n);
+  for(let i=0;i<n;i++)B[i]=d[i*4+3]>=128?1:0;
+  const full=(2*r+1)**2;boxCount(B,S,r,cnt);const E=new Uint8Array(n);for(let i=0;i<n;i++)E[i]=cnt[i]===full?1:0;          // érosion
+  boxCount(E,S,r,cnt);const thin=new Uint8Array(n);for(let i=0;i<n;i++)thin[i]=B[i]&&!cnt[i]?1:0;                   // fin = opaque mais hors ouverture
+  boxCount(thin,S,g,cnt);let added=0;
+  for(let y=0;y<S;y++)for(let x=0;x<S;x++){const i=y*S+x;if(B[i]||!cnt[i])continue;
+    let bi=-1,bd=1e9;for(let dy=-g;dy<=g;dy++)for(let dx=-g;dx<=g;dx++){const X=x+dx,Y=y+dy;if(X<0||Y<0||X>=S||Y>=S)continue;const q=Y*S+X;if(B[q]&&dx*dx+dy*dy<bd){bd=dx*dx+dy*dy;bi=q}}
+    if(bi>=0){d[i*4]=d[bi*4];d[i*4+1]=d[bi*4+1];d[i*4+2]=d[bi*4+2];d[i*4+3]=255;added++}}
+  return added}
+
+/* ---- passes sur les couleurs d'une image réduite ---- */
+const lumOf=(C,j)=>.3*C[j*3]+.59*C[j*3+1]+.11*C[j*3+2];
+/* sépare bras / jambes du corps : trait plus sombre (ou plus clair si déjà très sombre) entre classes voisines de même luminosité */
+function separateLimbs(frames,T){
+  const nb=[[1,0],[-1,0],[0,1],[0,-1]];
+  for(const fr of frames){const{mask,C,K}=fr,mark=new Uint8Array(T*T);
+    for(let y=0;y<T;y++)for(let x=0;x<T;x++){const j=y*T+x;if(!mask[j]||K[j]<1||K[j]>4)continue;
+      for(const[dx,dy]of nb){const X=x+dx,Y=y+dy;if(X<0||Y<0||X>=T||Y>=T)continue;const q=Y*T+X;if(mask[q]&&K[q]!==K[j]&&Math.abs(lumOf(C,j)-lumOf(C,q))<26){mark[j]=1;break}}}
+    for(let j=0;j<T*T;j++)if(mark[j]){const l=lumOf(C,j);for(let c=0;c<3;c++)C[j*3+c]=l<45?C[j*3+c]+18:C[j*3+c]*.6}}}
+/* contour : les `width` couches de pixels les plus proches du vide sont assombries (×.5 = teinté, ×0 = noir pur) ; les pixels à alpha doux du bord aussi */
+const outlineWidth=(T,pct)=>Math.max(1,Math.round(T*pct/100));
+function outlineFrames(frames,T,width,black,soft){
+  const k=black?0:.5;
+  for(const fr of frames){const{mask,C}=fr,depth=new Uint8Array(T*T);let front=[];
+    for(let y=0;y<T;y++)for(let x=0;x<T;x++){const j=y*T+x;if(mask[j]&&(x===0||y===0||x===T-1||y===T-1||!mask[j-1]||!mask[j+1]||!mask[j-T]||!mask[j+T])){depth[j]=1;front.push(j)}}
+    for(let lv=1;lv<width;lv++){const next=[];for(const j of front){const x=j%T,y=(j/T)|0;
+      for(const q of[x>0?j-1:-1,x<T-1?j+1:-1,y>0?j-T:-1,y<T-1?j+T:-1])if(q>=0&&mask[q]&&!depth[q]){depth[q]=lv+1;next.push(q)}}front=next}
+    for(let j=0;j<T*T;j++)if(depth[j]||(soft&&!mask[j]&&fr.A[j]>0))for(let c=0;c<3;c++)C[j*3+c]*=k}}
+
+/* ---- ancrages exportés par image : pieds, main, point de tir, boîte de collision ---- */
+function frameAnchors(fr,T,groundY){
+  const m=fr.mask;let x0=T,y0=T,x1=-1,y1=-1;
+  for(let y=0;y<T;y++)for(let x=0;x<T;x++)if(m[y*T+x]){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}
+  if(x1<0)return{box:{x:0,y:0,w:0,h:0},feet:{x:T/2,y:groundY}};
+  let sx=0,n=0;for(let y=Math.max(y0,y1-2);y<=y1;y++)for(let x=x0;x<=x1;x++)if(m[y*T+x]){sx+=x+.5;n++}
+  const rd=v=>Math.round(v*10)/10,pt=p=>p?{x:rd(p.x),y:rd(p.y)}:null;
+  return{box:{x:x0,y:y0,w:x1-x0+1,h:y1-y0+1},feet:{x:rd(sx/n),y:rd(groundY)},hand:pt(fr.hand),muzzle:pt(fr.muz)}}
+
+/* mémoire / fichiers d'une action : durée d'une image (ms) et boucle (idle, marche, course… boucle ; saut, attaque, coup reçu, mort : non) */
+const NOLOOP=/jump|saut|attack|attaque|punch|kick|slash|shoot|hit|coup|d[eé]g[aâ]t|death|mort|\bdie|dead|roll|spell|cast/i;
+const loopOf=name=>!NOLOOP.test(String(name||''));
+
 async function generate(o={}){
   if(!M){$('#prog').textContent='Ouvre d\'abord un modèle.';return}
   // o : réglages d'une action de l'assistant (clip, directions, images, caméra, cadre fixe commun à toutes les actions)
-  const S=512,size=+$('#size').value,N=Math.max(1,o.N||+$('#frames').value),nd=+$('#ndir').value,dirs=o.dirs?o.dirs.map(n=>DIRS.find(d=>d[0]===n)).filter(Boolean):nd===8?DIRS:nd===4?DIRS.filter((d,i)=>i%2===0):[DIRS[0]],pitch=(o.pitch!=null?o.pitch:+$('#pitch').value)*Math.PI/180,padf=o.fixed?0:(+$('#pad').value)/100;
+  const size=+$('#size').value,T=size,pc=isPC(T),N=Math.max(1,o.N||+$('#frames').value),nd=+$('#ndir').value,dirs=o.dirs?o.dirs.map(n=>DIRS.find(d=>d[0]===n)).filter(Boolean):nd===8?DIRS:nd===4?DIRS.filter((d,i)=>i%2===0):[DIRS[0]],pitch=(o.pitch!=null?o.pitch:+$('#pitch').value)*Math.PI/180,padf=o.fixed?0:(+$('#pad').value)/100;
+  const S=pc?SPR.SSAA*T:SPR.RENDER_MIN,palKey=$('#palpreset')?$('#palpreset').value:'rgb565',full=palKey==='full',sep=$('#sep').checked&&!pc;
+  const plan=memoryPlan(T,dirs.length,N,sep);
+  if(plan.level==='refuse'){$('#prog').textContent=plan.msg;return}
   const ci=o.clipIndex!=null?String(o.clipIndex):$('#clip').value,clip=ci===''?null:clips[+ci],tmax=(o.tmax!=null?o.tmax:+$('#tmax').value)||1e9;playing=false;
   const rr=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});rr.setSize(S,S,false);rr.setPixelRatio(1);rr.setClearColor(0,0);rr.outputColorSpace=THREE.SRGBColorSpace;
-  const cr=new THREE.WebGLRenderer({antialias:false,alpha:true,preserveDrawingBuffer:true});cr.setSize(S,S,false);cr.setPixelRatio(1);cr.setClearColor(0,0);cr.outputColorSpace=THREE.LinearSRGBColorSpace;
+  const cr=sep?new THREE.WebGLRenderer({antialias:false,alpha:true,preserveDrawingBuffer:true}):null;if(cr){cr.setSize(S,S,false);cr.setPixelRatio(1);cr.setClearColor(0,0);cr.outputColorSpace=THREE.LinearSRGBColorSpace}
   const mx=new THREE.AnimationMixer(M);let act=null;if(clip){act=mx.clipAction(clip);act.reset().play()}
   const times=[...Array(N).keys()].map(i=>clip?i/N*Math.min(clip.duration,tmax):0);
   const saveRot=pivot.rotation.y,savePos=M.position.clone();M.position.set(0,0,0);pivot.rotation.y=0;mx.setTime(0);M.updateMatrixWorld(true);
-  const b0=o.ref?o.ref.box:new THREE.Box3().setFromObject(M,true),h=b0.max.y-b0.min.y,cx=(b0.min.x+b0.max.x)/2,cz=(b0.min.z+b0.max.z)/2;M.position.set(-cx,-b0.min.y,-cz);M.updateMatrixWorld(true);
-  const half=h*(o.fixed?1.45:1.25)/2,cam=new THREE.OrthographicCamera(-half,half,half,-half,.01,1000),cen=new THREE.Vector3(0,(o.fixed?.675:.5)*h,0);cam.position.set(0,cen.y+Math.sin(pitch)*100,Math.cos(pitch)*100);cam.lookAt(cen);
-  const CG=$('#sep').checked?classGeoms(M):null,cmat=new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.DoubleSide});
-  const cvs=document.createElement('canvas');cvs.width=cvs.height=S;const x2=cvs.getContext('2d',{willReadFrequently:true}),grab=c=>{x2.clearRect(0,0,S,S);x2.drawImage(c,0,0);return x2.getImageData(0,0,S,S)};
-  const raw=[];let k=0;
-  for(const[dn,yaw]of dirs){pivot.rotation.y=yaw*Math.PI/180;for(let i=0;i<N;i++){mx.setTime(times[i]);M.updateMatrixWorld(true);rr.render(scene,cam);const col=grab(rr.domElement);let cls=null;
-    if(CG){const hid=[];scene.traverse(n=>{if(n.isMesh&&!CG.some(c=>c.m===n)&&n.visible){hid.push(n);n.visible=false}});CG.forEach(c=>{c.m.geometry=c.g2;c.m.material=cmat});const bgs=scene.background;scene.background=null;cr.render(scene,cam);cls=grab(cr.domElement);scene.background=bgs;CG.forEach(c=>{c.m.geometry=c.g0;c.m.material=c.mat0});hid.forEach(n=>n.visible=true)}
-    raw.push({d:dn,f:i,col,cls});$('#prog').textContent=`Rendu ${++k}/${dirs.length*N}`;if(k%4===0)await yieldUI()}}
-  rr.dispose();cr.dispose();pivot.rotation.y=saveRot;M.position.copy(savePos);mx.stopAllAction();if(clip)play(+ci);playing=true;
-  // cadrage serré commun
-  let x0=S,y0=S,x1=0,y1=0;if(o.fixed){x0=0;y0=0;x1=S-1;y1=S-1}else for(const r of raw){const d=r.col.data;for(let y=0;y<S;y++)for(let x=0;x<S;x++)if(d[(y*S+x)*4+3]>16){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}}
-  if(x1<x0){$('#prog').textContent='Rendu vide (modèle invisible ?).';return}
-  const side=Math.max(x1-x0+1,y1-y0+1)*(1+2*padf),ccx=(x0+x1+1)/2,ccy=(y0+y1+1)/2,sx=ccx-side/2,sy=ccy-side/2,T=size,blk=side/T;
-  // réduction par couverture (alpha) + parties fines conservées
-  const frames=raw.map(r=>{const A=new Float32Array(T*T),C=new Float32Array(T*T*3),K=new Uint8Array(T*T),d=r.col.data,cd=r.cls?r.cls.data:null,cnt=new Uint32Array(T*T*8);
-    for(let ty=0;ty<T;ty++)for(let tx=0;tx<T;tx++){let a=0,sr=0,sg=0,sb=0,n=0;const ya=Math.max(0,Math.floor(sy+ty*blk)),yb=Math.min(S,Math.ceil(sy+(ty+1)*blk)),xa=Math.max(0,Math.floor(sx+tx*blk)),xb=Math.min(S,Math.ceil(sx+(tx+1)*blk));
-      for(let y=ya;y<yb;y++)for(let x=xa;x<xb;x++){const o=(y*S+x)*4,al=d[o+3]/255;a+=al;sr+=d[o]*al;sg+=d[o+1]*al;sb+=d[o+2]*al;n++}
-      const j=ty*T+tx;A[j]=n?a/n:0;if(a>0){C[j*3]=sr/a;C[j*3+1]=sg/a;C[j*3+2]=sb/a}
-      if(cd){const cy=Math.min(S-1,Math.floor(sy+(ty+.5)*blk)),cx2=Math.min(S-1,Math.floor(sx+(tx+.5)*blk));K[j]=cd[(cy*S+cx2)*4+3]?Math.round(cd[(cy*S+cx2)*4]/30):0}}
-    const mask=new Uint8Array(T*T);for(let j=0;j<T*T;j++)if(A[j]>=.45)mask[j]=1;
-    for(let y=0;y<T;y++)for(let x=0;x<T;x++){const j=y*T+x;if(mask[j]||A[j]<.2)continue;let near=false;for(let dy=-1;dy<=1&&!near;dy++)for(let dx=-1;dx<=1;dx++){const X=x+dx,Y=y+dy;if(X>=0&&Y>=0&&X<T&&Y<T&&A[Y*T+X]>=.45){near=true;break}}if(!near)mask[j]=1}
-    return{d:r.d,f:r.f,mask,C,K}});
-  const lum=(C,j)=>.3*C[j*3]+.59*C[j*3+1]+.11*C[j*3+2];
-  if($('#sep').checked)for(const fr of frames){const{mask,C,K}=fr,mark=new Uint8Array(T*T),nb=[[1,0],[-1,0],[0,1],[0,-1]];
-    for(let y=0;y<T;y++)for(let x=0;x<T;x++){const j=y*T+x;if(!mask[j]||K[j]<1||K[j]>4)continue;for(const[dx,dy]of nb){const X=x+dx,Y=y+dy;if(X<0||Y<0||X>=T||Y>=T)continue;const q=Y*T+X;if(mask[q]&&K[q]!==K[j]&&Math.abs(lum(C,j)-lum(C,q))<26){mark[j]=1;break}}}
-    for(let j=0;j<T*T;j++)if(mark[j]){const l=lum(C,j);for(let c=0;c<3;c++)C[j*3+c]=l<45?C[j*3+c]+18:C[j*3+c]*.6}}
-  if($('#outline').checked)for(const fr of frames){const{mask,C}=fr,e=[];for(let y=0;y<T;y++)for(let x=0;x<T;x++){const j=y*T+x;if(!mask[j])continue;if(x===0||y===0||x===T-1||y===T-1||!mask[j-1]||!mask[j+1]||!mask[j-T]||!mask[j+T])e.push(j)}for(const j of e)for(let c=0;c<3;c++)C[j*3+c]*=.5}
-  // palette commune, quantifiée selon le préréglage choisi
-  const px=[];for(const fr of frames)for(let j=0;j<T*T;j++)if(fr.mask[j])px.push([fr.C[j*3]|0,fr.C[j*3+1]|0,fr.C[j*3+2]|0]);
-  const pr=$('#palpreset')?$('#palpreset').value:'rgb565';let pal;
-  if(pr==='gameboy'){pal=[[15,56,15],[48,98,48],[139,172,15],[155,188,15]];}
-  else if(pr==='pico8'){pal=[[0,0,0],[29,43,83],[126,37,83],[0,135,81],[171,82,54],[95,87,79],[194,195,199],[255,241,232],[255,0,77],[255,163,0],[255,236,39],[0,228,54],[41,173,255],[131,118,156],[255,119,168],[255,204,170]];}
-  else if(pr==='cga'){pal=[[0,0,0],[0,0,170],[0,170,0],[0,170,170],[170,0,0],[170,0,170],[170,85,0],[170,170,170],[85,85,85],[85,85,255],[85,255,85],[85,255,255],[255,85,85],[255,85,255],[255,255,85],[255,255,255]];}
-  else if(pr==='nes'){pal=[[124,124,124],[0,0,252],[0,0,188],[68,40,188],[148,0,132],[168,0,32],[168,16,0],[136,20,0],[80,48,0],[0,120,0],[0,104,0],[0,88,0],[0,64,88],[0,0,0],[188,188,188],[0,120,248],[0,88,248],[104,68,252],[216,0,204],[228,0,88],[248,56,0],[228,92,16],[172,124,0],[0,184,0],[0,168,0],[0,168,68],[0,136,136],[248,248,248],[60,188,252],[104,136,252],[152,120,248],[248,120,248],[248,88,152],[248,120,88],[252,160,68],[248,184,0],[184,248,24],[88,216,84],[88,248,152],[0,232,216],[120,120,120]];}
-  else{pal=medianCut(px,+$('#colors').value).map(p=>from565(to565(...p)));}
-  for(const fr of frames){fr.rgba=new Uint8ClampedArray(T*T*4);for(let j=0;j<T*T;j++){if(!fr.mask[j])continue;let best=0,bd=1e9;for(let q=0;q<pal.length;q++){const p=pal[q],dd=(p[0]-fr.C[j*3])**2+(p[1]-fr.C[j*3+1])**2+(p[2]-fr.C[j*3+2])**2;if(dd<bd){bd=dd;best=q}}fr.rgba[j*4]=pal[best][0];fr.rgba[j*4+1]=pal[best][1];fr.rgba[j*4+2]=pal[best][2];fr.rgba[j*4+3]=255}}
+  let frames,win,groundY=T,anchorsOn=false;
+  try{
+    const b0=o.ref?o.ref.box:new THREE.Box3().setFromObject(M,true),h=b0.max.y-b0.min.y,cx=(b0.min.x+b0.max.x)/2,cz=(b0.min.z+b0.max.z)/2;M.position.set(-cx,-b0.min.y,-cz);M.updateMatrixWorld(true);
+    const half=h*(o.fixed?1.45:1.25)/2,cam=new THREE.OrthographicCamera(-half,half,half,-half,.01,1000),cen=new THREE.Vector3(0,(o.fixed?.675:.5)*h,0);cam.position.set(0,cen.y+Math.sin(pitch)*100,Math.cos(pitch)*100);cam.lookAt(cen);cam.updateMatrixWorld(true);
+    const CG=sep?classGeoms(M):null,cmat=new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.DoubleSide});
+    const cvs=document.createElement('canvas');cvs.width=cvs.height=S;const x2=cvs.getContext('2d',{willReadFrequently:true}),grab=c=>{x2.clearRect(0,0,S,S);x2.drawImage(c,0,0);return x2.getImageData(0,0,S,S)};
+    const handBone=(M.userData.rig||[]).find(r=>r.key==='Rhand'&&!r.dup),proj=new THREE.Vector3(),toPx=v=>{proj.copy(v).project(cam);return{x:(proj.x+1)/2*S,y:(1-proj.y)/2*S}};
+    // pose + rendu d'une image (direction dn, numéro i) ; renvoie false si on doit s'arrêter
+    const pose=(yaw,i)=>{pivot.rotation.y=yaw*Math.PI/180;mx.setTime(times[i]);M.updateMatrixWorld(true);rr.render(scene,cam)};
+    let k=0;const tick=async txt=>{$('#prog').textContent=`${txt} ${++k}/${dirs.length*N*(o.fixed?1:2)}`;if(k%4===0)await yieldUI()};
+    // passe 1 : emprise de chaque direction (cadrage serré commun) ; rien n'est gardé en mémoire.
+    // Mode PC : mesure à 1/4 de résolution (bornes élargies au pixel entier supérieur) pour ne pas payer deux fois un rendu énorme.
+    const bnd=new Map();let x0=S,y0=S,x1=0,y1=0;
+    if(!o.fixed){
+      const q=pc?4:1,Sq=S/q,sc=document.createElement('canvas');sc.width=sc.height=Sq;const sx2=sc.getContext('2d',{willReadFrequently:true});
+      if(q>1)rr.setSize(Sq,Sq,false);
+      for(const[dn,yaw]of dirs){const b={x0:S,y0:S,x1:0,y1:0};
+        for(let i=0;i<N;i++){pose(yaw,i);sx2.clearRect(0,0,Sq,Sq);sx2.drawImage(rr.domElement,0,0);const d=sx2.getImageData(0,0,Sq,Sq).data;
+          for(let y=0;y<Sq;y++)for(let x=0;x<Sq;x++)if(d[(y*Sq+x)*4+3]>16){const X0=x*q,X1=x*q+q-1,Y0=y*q,Y1=y*q+q-1;if(X0<b.x0)b.x0=X0;if(X1>b.x1)b.x1=X1;if(Y0<b.y0)b.y0=Y0;if(Y1>b.y1)b.y1=Y1}
+          await tick('Mesure')}
+        bnd.set(dn,b)}
+      if(q>1)rr.setSize(S,S,false);
+      // ligne de sol commune : le bas du pied le plus bas de chaque direction est amené sur la même ligne (décalage vertical par direction)
+      const align=!$('#feet')||$('#feet').checked,G=Math.max(...[...bnd.values()].map(b=>b.y1));
+      for(const b of bnd.values()){b.shift=align?G-b.y1:0;x0=Math.min(x0,b.x0);x1=Math.max(x1,b.x1);y0=Math.min(y0,b.y0+b.shift);y1=Math.max(y1,b.y1+b.shift)}
+      anchorsOn=true;groundY=0
+    }else{x0=0;y0=0;x1=S-1;y1=S-1}
+    if(x1<x0){$('#prog').textContent='Rendu vide (modèle invisible ?).';return}
+    const side=Math.max(x1-x0+1,y1-y0+1)*(1+2*padf),ccx=(x0+x1+1)/2,ccy=(y0+y1+1)/2,sx=ccx-side/2,sy=ccy-side/2,blk=side/T;
+    win={sx,sy,side,blk};
+    const groundS=o.fixed?toPx(new THREE.Vector3(0,0,0)).y:y1+1;                   // ordonnée (rendu) du sol commun
+    groundY=(groundS-sy)/blk;
+    // passe 2 : rendu + réduction image par image (le rendu plein format n'est jamais conservé)
+    frames=[];const thick=!pc&&T<=SPR.THIN_MAX&&(!$('#thin')||$('#thin').checked);
+    for(const[dn,yaw]of dirs){const dw={...win,sy:sy-(bnd.get(dn)?bnd.get(dn).shift:0)};
+      for(let i=0;i<N;i++){pose(yaw,i);let fr;
+        if(pc){const rd=reduceCanvas(rr.domElement,T,dw);fr={d:dn,f:i,A:rd.A,C:rd.C,mask:Uint8Array.from(rd.A,a=>a>=128?1:0)}}
+        else{const col=grab(rr.domElement);if(thick)thickenThin(col,S,blk);let cls=null;
+          if(CG){const hid=[];scene.traverse(n=>{if(n.isMesh&&!CG.some(c=>c.m===n)&&n.visible){hid.push(n);n.visible=false}});CG.forEach(c=>{c.m.geometry=c.g2;c.m.material=cmat});const bgs=scene.background;scene.background=null;cr.render(scene,cam);cls=grab(cr.domElement);scene.background=bgs;CG.forEach(c=>{c.m.geometry=c.g0;c.m.material=c.mat0});hid.forEach(n=>n.visible=true)}
+          const rd=reduceBox(col,cls,S,T,dw);fr={d:dn,f:i,A:rd.A,C:rd.C,K:rd.K,mask:solidMask(rd.A,T)}}
+        if(handBone){const wp=new THREE.Vector3();handBone.b.getWorldPosition(wp);const p=toPx(wp),a=(yaw*Math.PI)/180,q=toPx(wp.clone().add(new THREE.Vector3(Math.sin(a),0,Math.cos(a)).multiplyScalar(.35*h)));
+          fr.hand={x:(p.x-dw.sx)/blk,y:(p.y-dw.sy)/blk};fr.muz={x:(q.x-dw.sx)/blk,y:(q.y-dw.sy)/blk}}
+        frames.push(fr);await tick('Rendu')}}
+  }finally{rr.dispose();if(cr)cr.dispose();pivot.rotation.y=saveRot;M.position.copy(savePos);mx.stopAllAction();if(clip)play(+ci);playing=true}
+  if(!frames)return;
+  if(sep)separateLimbs(frames,T);
+  if($('#outline').checked)outlineFrames(frames,T,outlineWidth(T,$('#olpct')?+$('#olpct').value:SPR.OUTLINE_PCT),$('#olblack')&&$('#olblack').checked,pc);
+  // palette commune, quantifiée selon le préréglage choisi (appariement OKLab + tramage ordonné éventuel)
+  const dith=$('#dither')?$('#dither').value:'none',opt={dither:full?'none':dith,strength:$('#dstr')?+$('#dstr').value/100:0,soft:pc};
+  const pal=full?[]:paletteFor(palKey,frames,T,+$('#colors').value);applyPalette(frames,T,full?null:pal,opt);
   let N1=N,tr=null,fr1=frames;const nm=o.label||(clip?clip.name:'pose');
   if(N>1&&$('#trim').checked){tr=trimFrames(frames,dirs.map(d=>d[0]),T);fr1=tr.frames;N1=tr.N}
-  let note='';if(tr&&N1<N)note=` · ${N} → ${N1} images (${tr.ident} identique(s), ${tr.cycle} d'un cycle déjà présent retirée(s))`;
+  let note='';if(tr&&N1<N){const w=`${N1*2<=N?'⚠ ':''}« ${nm} » : ${N} → ${N1} images (${tr.ident} identique(s), ${tr.cycle} d'un cycle déjà présent retirée(s)). Pour garder les ${N} images, décoche « supprimer les images identiques ».`;GENWARN.push(w);note=' · '+w}
   if(N>1&&N1===1){const w=`⚠ « ${nm} » est réduite à 1 seule image sur ${N} : l'animation ne bouge pas. Vérifie le squelette (bras / jambes qui ne suivent pas), l'option « sur place » ou l'animation choisie.`;GENWARN.push(w);note+='\n'+w}
-  else if(N>1&&clip&&N1===N&&false){}
-  result={T,N:N1,N0:N,dirs:dirs.map(d=>d[0]),frames:fr1,pal,clip:clip?clip.name:null,label:o.label||null,model:$('#info').textContent,trim:tr?{ident:tr.ident,cycle:tr.cycle}:null,note};showResult();if(o.store)store();if(note&&N1<N)GENWARN.push(`« ${nm} » : ${N} → ${N1} images (${tr.ident} identique(s), ${tr.cycle} d'un cycle déjà présent)`);$('#prog').textContent=`${fr1.length} images ${T}×${T}, ${pal.length} couleurs.${note}`}
+  const ms=Math.max(10,o.ms||+($('#fdur')?$('#fdur').value:0)||SPR.DEFAULT_MS);
+  result={T,N:N1,N0:N,dirs:dirs.map(d=>d[0]),frames:fr1,pal,palKey,palName:palName(palKey),full,soft:pc,dither:opt.dither,dstr:opt.strength,clip:clip?clip.name:null,label:o.label||null,model:$('#info').textContent,trim:tr?{ident:tr.ident,cycle:tr.cycle}:null,note,ms,loop:o.loop!=null?o.loop:loopOf(nm),ground:Math.round(groundY*10)/10,aligned:anchorsOn&&(!$('#feet')||$('#feet').checked)};
+  for(const fr of fr1)fr.anch=frameAnchors(fr,T,groundY);
+  showResult();if(o.store)store();
+  $('#prog').textContent=`${fr1.length} images ${T}×${T}, ${full?'pleine couleur':pal.length+' couleurs ('+result.palName+')'}.${note}${plan.level==='warn'?'\n'+plan.msg:''}`}
 $('#go').onclick=()=>generate().catch(e=>{$('#prog').textContent='Erreur : '+e.message;console.error(e)});
 
 /* ---------- affichage / export ---------- */
+const infoText=R=>`${R.dirs.length} direction(s) × ${R.N} image(s) · ${R.T}×${R.T} px · ${R.full?'pleine couleur (sans palette)':R.pal.length+' couleurs ('+(R.palName||'RGB565 quantifié')+')'} · ${R.ms||SPR.DEFAULT_MS} ms/image · ${R.clip||'pose seule'}`;
 function showResult(){const R=result,{T,N}=R,sh=$('#sheet');sh.width=T*N;sh.height=T*R.dirs.length;const x=sh.getContext('2d');x.clearRect(0,0,sh.width,sh.height);
   R.frames.forEach(fr=>{const im=new ImageData(fr.rgba,T,T),c=document.createElement('canvas');c.width=c.height=T;c.getContext('2d').putImageData(im,0,0);x.drawImage(c,fr.f*T,R.dirs.indexOf(fr.d)*T)});
-  sh.style.width=Math.min(sh.width*2,820)+'px';$('#adir').innerHTML=R.dirs.map(d=>`<option>${d}</option>`).join('');$('#sinfo').textContent=`${R.dirs.length} direction(s) × ${N} image(s) · ${T}×${T} px · ${R.pal.length} couleurs (RGB565) · ${R.clip||'pose seule'}`;animate()}
-let animT=null;function animate(){clearInterval(animT);if(!result)return;const R=result,d=$('#adir').value||R.dirs[0],fs=R.frames.filter(f=>f.d===d),a=$('#anim');a.width=a.height=R.T;a.style.width=Math.min(192,R.T*3)+'px';let i=0;
-  const draw=()=>{a.getContext('2d').putImageData(new ImageData(fs[i%fs.length].rgba,R.T,R.T),0,0);i++};draw();if(fs.length>1)animT=setInterval(draw,110)}
-$('#adir').onchange=animate;
+  sh.style.width=Math.min(sh.width*2,820)+'px';$('#adir').innerHTML=R.dirs.map(d=>`<option>${d}</option>`).join('');$('#sinfo').textContent=infoText(R);animate()}
+/* aperçu « à l'échelle de l'écran AKA » : la case posée sur un décor 320×240 (sol à 85 % de la hauteur), agrandie ×2 par le navigateur */
+const AKA={W:320,H:240,GROUND:.85};
+function akaPreview(src,R){const c=$('#aka'),on=$('#akaon').checked;c.hidden=!on;if(!on)return;const x=c.getContext('2d');
+  x.fillStyle='#4a7fb5';x.fillRect(0,0,AKA.W,AKA.H);x.fillStyle='#4f8a46';const gy=Math.round(AKA.H*AKA.GROUND);x.fillRect(0,gy,AKA.W,AKA.H-gy);
+  x.imageSmoothingEnabled=false;const sc=R.T>AKA.H?AKA.H/R.T:1,w=R.T*sc,gr=(R.ground!=null?R.ground:R.T)*sc;x.drawImage(src,Math.round((AKA.W-w)/2),Math.round(gy-gr),w,w);
+  $('#akainfo').textContent=R.T>AKA.H?`⚠ ${R.T} px : plus haut que l'écran AKA (240 px), affiché réduit.`:`${R.T} px sur 320×240 : le personnage occupe ${Math.round(R.T/AKA.H*100)} % de la hauteur de l'écran.`}
+let animT=null;function animate(){clearInterval(animT);if(!result)return;const R=result,d=$('#adir').value||R.dirs[0],fs=R.frames.filter(f=>f.d===d).sort((a,b)=>a.f-b.f),a=$('#anim');a.width=a.height=R.T;a.style.width=Math.min(192,R.T*3)+'px';let i=0;
+  const draw=()=>{a.getContext('2d').putImageData(new ImageData(fs[i%fs.length].rgba,R.T,R.T),0,0);akaPreview(a,R);i++};draw();if(fs.length>1)animT=setInterval(draw,R.ms||SPR.DEFAULT_MS)}
+$('#adir').onchange=animate;$('#akaon').onchange=animate;
 const dl=(name,data,type)=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:type||'application/octet-stream'}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)};
 const base=()=>($('#info').textContent.split(' · ')[0]||'modele').replace(/\.[^.]+$/,'').replace(/[^\w\-]+/g,'_');
-function words(){const R=result,w=new Uint16Array(R.frames.length*R.T*R.T);let o=0;const order=[];R.dirs.forEach(d=>R.frames.filter(f=>f.d===d).forEach(f=>order.push(f)));
-  for(const fr of order)for(let j=0;j<R.T*R.T;j++)w[o++]=fr.mask[j]?to565(fr.rgba[j*4],fr.rgba[j*4+1],fr.rgba[j*4+2]):0xF81F;return w}
-$('#dlh').onclick=()=>{if(!result)return;const R=result,w=words(),n=base().toUpperCase();let t=`// ${n} : ${R.dirs.length} directions (${R.dirs.join(',')}) x ${R.N} images, ${R.T}x${R.T} RGB565, transparence 0xF81F\n// ordre : direction, puis image\n#pragma once\n#include <stdint.h>\n#define ${n}_W ${R.T}\n#define ${n}_H ${R.T}\n#define ${n}_FRAMES ${R.N}\n#define ${n}_DIRS ${R.dirs.length}\nstatic const uint16_t ${base()}[] = {\n`;
-  for(let i=0;i<w.length;i+=12)t+='  '+[...w.slice(i,i+12)].map(v=>'0x'+v.toString(16).toUpperCase().padStart(4,'0')).join(', ')+',\n';dl(base()+'.h',t+'};\n','text/plain')};
-$('#dljson').onclick=()=>{if(!result)return;const R=result;dl(base()+'.json',JSON.stringify({model:R.model,clip:R.clip,size:R.T,frames:R.N,directions:R.dirs,palette:R.pal.map(p=>'#'+p.map(v=>v.toString(16).padStart(2,'0')).join('')),transparent:'0xF81F',format:'RGB565 little-endian, ordre direction puis image'},null,1),'application/json')};
 
 /* ======================= EXPORT : bibliothèque d'animations, paquet ZIP, atlas, GIF, dossier ======================= */
 const library=new Map();   // nom de clip -> résultat (toutes les animations générées avec les mêmes réglages)
@@ -307,13 +492,27 @@ function frameCanvas(fr,T,mag){const c=document.createElement('canvas');c.width=
 const labelOn=()=>{const e=document.getElementById('xlabel');return !e||e.checked};
 // case d'étiquette (T×T) : nom de l'animation (coupé aux « _ ») puis direction ; texte seuil à 2 couleurs pour rester net
 function labelCell(name,dir,T){const c=document.createElement('canvas');c.width=c.height=T;const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#202020';x.fillRect(0,0,T,T);
-  const words=String(name).split(/[_\s]+/).filter(Boolean);let fs=Math.max(6,Math.min(11,Math.round(T/6))),lines;
+  const words=String(name).split(/[_\s]+/).filter(Boolean);let fs=Math.max(6,Math.min(T>66?48:11,Math.round(T/6))),lines;
   for(;fs>=6;fs--){x.font=`bold ${fs}px monospace`;lines=[];for(const w of words){let cur=w;while(x.measureText(cur).width>T-4&&cur.length>2){let k=cur.length-1;while(k>2&&x.measureText(cur.slice(0,k)).width>T-4)k--;lines.push(cur.slice(0,k));cur=cur.slice(k)}lines.push(cur)}
     if((lines.length+1)*(fs+1)<=T-2)break}
   x.fillStyle='#fff';x.textBaseline='top';const lh=fs+1,y0=Math.max(1,Math.floor((T-(lines.length+1)*lh)/2));lines.forEach((l,i)=>x.fillText(l,2,y0+i*lh));x.fillStyle='#ffd24a';x.fillText('→ '+dir,2,y0+lines.length*lh);
   const im=x.getImageData(0,0,T,T),d=im.data;for(let j=0;j<T*T;j++){const on=d[j*4]+d[j*4+1]+d[j*4+2]>330;d[j*4]=on?(d[j*4+2]<120?255:255):32;d[j*4+1]=on?(d[j*4+2]<120?210:255):32;d[j*4+2]=on?(d[j*4+2]<120?74:255):32;d[j*4+3]=255}x.putImageData(im,0,0);return c}
-function sheetCanvasAll(mag){const rows=rowsOf();if(!rows.length)return null;const T=rows[0].R.T,lab=labelOn()?1:0,W=(Math.max(...rows.map(r=>r.fs.length))+lab)*T,c=document.createElement('canvas');c.width=W;c.height=rows.length*T;const x=c.getContext('2d');
-  if(mag){x.fillStyle='#ff00ff';x.fillRect(0,0,c.width,c.height)}rows.forEach((r,ri)=>{if(lab)x.drawImage(labelCell(r.name,r.d,T),0,ri*T);r.fs.forEach((fr,i)=>x.drawImage(frameCanvas(fr,T,mag),(i+lab)*T,ri*T))});return c}
+/* mise en page des planches : une ligne par (animation, direction), 1re case = étiquette si demandée.
+   Si la planche dépasse les limites d'un canvas (côté, nombre de pixels), elle est coupée en plusieurs pages (lignes entières). */
+function layoutOf(lab=labelOn()){
+  const rows=rowsOf();if(!rows.length)return null;
+  const T=rows[0].R.T,cols=Math.max(...rows.map(r=>r.fs.length))+(lab?1:0),W=cols*T;
+  if(W>SPR.PAGE_SIDE)throw new Error(`une ligne de la planche ferait ${W} px de large (limite ${SPR.PAGE_SIDE} px) : utilise « Images (.zip) » ou réduis la taille des cases / le nombre d'images`);
+  const perPage=Math.max(1,Math.floor(Math.min(SPR.PAGE_SIDE,SPR.PAGE_PIXELS/W)/T));
+  rows.forEach((r,i)=>{r.page=Math.floor(i/perPage);r.y=(i%perPage)*T});
+  const pages=[...Array(Math.ceil(rows.length/perPage))].map((_,p)=>{const rs=rows.filter(r=>r.page===p);return{W,H:rs.length*T,rows:rs}});
+  return{T,lab:lab?1:0,W,rows,pages}}
+function sheetPage(L,p,mag){const pg=L.pages[p],c=document.createElement('canvas');c.width=pg.W;c.height=pg.H;const x=c.getContext('2d');
+  if(mag){x.fillStyle='#ff00ff';x.fillRect(0,0,c.width,c.height)}
+  pg.rows.forEach(r=>{if(L.lab)x.drawImage(labelCell(r.name,r.d,L.T),0,r.y);r.fs.forEach((fr,i)=>x.drawImage(frameCanvas(fr,L.T,mag),(i+L.lab)*L.T,r.y))});return c}
+function sheetCanvasAll(mag,page=0){const L=layoutOf();return L?sheetPage(L,page,mag):null}
+/* noms de fichiers d'une planche : « x_planche.png » ou « x_planche_1.png », « x_planche_2.png »… si plusieurs pages */
+const pageName=(b,stem,p,n,ext='png')=>n>1?`${b}_${stem}_${p+1}.${ext}`:`${b}_${stem}.${ext}`;
 const blobOf=c=>new Promise((ok,ko)=>c.toBlob(b=>b?ok(b):ko(new Error(`le navigateur n'arrive pas à encoder l'image PNG (${c.width}×${c.height} px : trop grande ?). Réduis la taille des cases, le nombre d'images ou de directions, ou utilise « Images (.zip) »`)),'image/png'));const bytesOf=async b=>{if(!b)throw new Error('contenu vide : rien à écrire (image ou fichier non généré)');return new Uint8Array(await b.arrayBuffer())};
 const enc=new TextEncoder();
 /* ZIP sans compression (écrit à la main : aucune bibliothèque) */
@@ -334,26 +533,53 @@ function gifBlob(fs,T,pal,scale,delayMs){const n=pal.length+1;let bits=1;while((
   for(const fr of fs){const px=new Uint8Array(W*W);for(let y=0;y<W;y++)for(let x=0;x<W;x++){const j=((y/scale)|0)*T+((x/scale)|0);px[y*W+x]=fr.mask[j]?(lut.get((fr.rgba[j*4]<<16)|(fr.rgba[j*4+1]<<8)|fr.rgba[j*4+2])??0):tr}
     w(0x21,0xF9,4,0x09);w16(Math.round(delayMs/10));w(tr,0);w(0x2C);w16(0);w16(0);w16(W);w16(W);w(0,minc);const d=lzw(px,minc);for(let i=0;i<d.length;i+=255){const c=d.slice(i,i+255);w(c.length,...c)}w(0)}
   w(0x3B);return new Blob([new Uint8Array(o)],{type:'image/gif'})}
-/* atlas JSON au format Aseprite (hash) : Godot, Unity, Phaser, LÖVE, TexturePacker... une étiquette par « animation_direction » */
-function atlasJSON(imageName,delay){const rows=rowsOf(),T=rows[0].R.T,lab=labelOn()?1:0,W=(Math.max(...rows.map(r=>r.fs.length))+lab)*T,frames={},tags=[];let k=0;
-  rows.forEach((r,ri)=>{const from=k;r.fs.forEach((fr,i)=>{frames[`${r.name}_${r.d}_${String(i).padStart(2,'0')}`]={frame:{x:(i+lab)*T,y:ri*T,w:T,h:T},rotated:false,trimmed:false,spriteSourceSize:{x:0,y:0,w:T,h:T},sourceSize:{w:T,h:T},duration:delay};k++});tags.push({name:`${r.name}_${r.d}`,from,to:k-1,direction:'forward'})});
-  return JSON.stringify({frames,meta:{app:'character-forge',version:'1',image:imageName,format:'RGBA8888',size:{w:W,h:rows.length*T},scale:'1',frameTags:tags,slices:[]}},null,1)}
-function metaJSON(){const rows=rowsOf(),R=rows[0].R;return JSON.stringify({model:R.model,size:R.T,directions:R.dirs,animations:[...library].map(([n,r])=>({name:n,clip:r.clip,frames:r.N,directions:r.dirs})),palette:R.pal.map(p=>'#'+p.map(v=>v.toString(16).padStart(2,'0')).join('')),transparent_rgb565:'0xF81F',transparent_png:'alpha=0',magenta_sheet:'255,0,255',format:'RGB565 little-endian, ordre animation > direction > image'},null,1)}
-function wordsOf(R){const w=new Uint16Array(R.frames.length*R.T*R.T);let o=0;R.dirs.forEach(d=>R.frames.filter(f=>f.d===d).sort((a,b)=>a.f-b.f).forEach(fr=>{for(let j=0;j<R.T*R.T;j++)w[o++]=fr.mask[j]?to565(fr.rgba[j*4],fr.rgba[j*4+1],fr.rgba[j*4+2]):0xF81F}));return w}
-function headerOf(name,R){const w=wordsOf(R),n=name.toUpperCase();let t=`// ${name} : ${R.dirs.length} directions (${R.dirs.join(',')}) x ${R.N} images, ${R.T}x${R.T} RGB565, transparence 0xF81F\n// ordre : direction, puis image\n#pragma once\n#include <stdint.h>\n#define ${n}_W ${R.T}\n#define ${n}_H ${R.T}\n#define ${n}_FRAMES ${R.N}\n#define ${n}_DIRS ${R.dirs.length}\nstatic const uint16_t ${name}[] = {\n`;
-  for(let i=0;i<w.length;i+=12)t+='  '+[...w.slice(i,i+12)].map(v=>'0x'+v.toString(16).toUpperCase().padStart(4,'0')).join(', ')+',\n';return t+'};\n'}
-function readme(b){const names=[...library.keys()];return `character-forge — paquet de sprites « ${b} »
-Animations : ${names.join(', ')}  |  directions : ${[...new Set([...library.values()].flatMap(r=>r.dirs))].join(', ')}  |  ${[...library.values()][0].T}x${[...library.values()][0].T} px
+/* atlas JSON au format Aseprite (hash) : Godot, Unity, Phaser, LÖVE, TexturePacker... une étiquette par « animation_direction ».
+   Champs en plus par image (ignorés par les lecteurs qui ne les connaissent pas) : « anchors » (pieds, main, point de tir) et « collision » (boîte), en pixels de la case ;
+   « duration » vient de l'animation (ms). Une planche coupée en plusieurs pages donne un atlas par page (paramètre `page`). */
+function atlasJSON(imageName,delay,page=0,L=layoutOf()){
+  const T=L.T,pg=L.pages[page],frames={},tags=[];let k=0;
+  pg.rows.forEach(r=>{const from=k,ms=r.R.ms||delay||SPR.DEFAULT_MS;
+    r.fs.forEach((fr,i)=>{const a=fr.anch||{};
+      frames[`${r.name}_${r.d}_${String(i).padStart(2,'0')}`]={frame:{x:(i+L.lab)*T,y:r.y,w:T,h:T},rotated:false,trimmed:false,spriteSourceSize:{x:0,y:0,w:T,h:T},sourceSize:{w:T,h:T},duration:ms,
+        anchors:{feet:a.feet||null,hand:a.hand||null,muzzle:a.muzzle||null},collision:a.box||null};k++});
+    tags.push({name:`${r.name}_${r.d}`,from,to:k-1,direction:'forward',loop:r.R.loop!==false,ground:r.R.ground!=null?r.R.ground:null})});
+  return JSON.stringify({frames,meta:{app:'character-forge',version:'1',image:imageName,format:'RGBA8888',size:{w:pg.W,h:pg.H},scale:'1',frameTags:tags,slices:[],page:page+1,pages:L.pages.length,
+    anchorsUnit:'px dans la case (x vers la droite, y vers le bas) ; feet.y = ligne de sol commune',labelColumn:!!L.lab}},null,1)}
+function metaJSON(){const rows=rowsOf(),R=rows[0].R,o=rawOpts();return JSON.stringify({model:R.model,size:R.T,directions:R.dirs,animations:[...library].map(([n,r])=>({name:n,clip:r.clip,frames:r.N,directions:r.dirs,ms_per_frame:r.ms||SPR.DEFAULT_MS,loop:r.loop!==false,ground_line:r.ground})),
+  palette:R.full?'pleine couleur (sans palette)':R.pal.map(p=>'#'+p.map(v=>v.toString(16).padStart(2,'0')).join('')),palette_name:R.palName||'RGB565 quantifié',dither:R.dither||'none',
+  transparent_rgb565:'0x'+o.key.toString(16).toUpperCase().padStart(4,'0'),transparent_png:'alpha=0',magenta_sheet:'255,0,255',
+  format:`${o.bgr?'BGR565':'RGB565'} ${o.be?'big-endian':'little-endian'}, ordre animation > direction > image`},null,1)}
+/* ---- RGB565 / BGR565, little / big endian, couleur de transparence configurable (réglages de la carte « Exporter ») ----
+   La clé est une valeur de pixel 16 bits dans le format choisi (0xF81F = magenta en RGB565 ; la même valeur en BGR565 est un cyan-bleu : choisis la clé voulue).
+   L'échange d'octets (big-endian) s'applique à TOUT, clé comprise. Un pixel opaque dont la valeur égale la clé est décalé d'un cran de bleu (sinon il serait transparent).
+   NB : src/utils/rgb565.ts (application React) utilise le noir comme couleur de remplissage transparente, forge/rgb565.py la clé 0xF81F : ici la clé 0xF81F est le défaut, comme forge. */
+const swap16=v=>((v&255)<<8)|(v>>8);
+function rawOpts(){const f=$('#pixfmt'),e=$('#endian'),t=$('#transp'),v=t?parseInt(String(t.value).trim().replace(/^0x/i,''),16):NaN;
+  return{bgr:!!f&&f.value==='bgr565',be:!!e&&e.value==='be',key:Number.isFinite(v)&&v>=0&&v<=0xFFFF?v:SPR.KEY565}}
+const fmtName=o=>`${o.bgr?'BGR565':'RGB565'} ${o.be?'big-endian':'little-endian'}`;
+function wordsOf(R,o=rawOpts()){
+  const w=new Uint16Array(R.frames.length*R.T*R.T);let n=0;const swap=o.be?swap16:v=>v;
+  R.dirs.forEach(d=>R.frames.filter(f=>f.d===d).sort((a,b)=>a.f-b.f).forEach(fr=>{for(let j=0;j<R.T*R.T;j++){
+    let v=o.key;if(fr.mask[j]){const r=fr.rgba[j*4],g=fr.rgba[j*4+1],b=fr.rgba[j*4+2];v=o.bgr?to565(b,g,r):to565(r,g,b);if(v===o.key)v^=1}
+    w[n++]=swap(v)}}));return w}
+function headerOf(name,R,o=rawOpts()){const w=wordsOf(R,o),n=name.toUpperCase(),key=o.be?swap16(o.key):o.key,hx=v=>'0x'+v.toString(16).toUpperCase().padStart(4,'0');
+  let t=`// ${name} : ${R.dirs.length} directions (${R.dirs.join(',')}) x ${R.N} images, ${R.T}x${R.T} ${fmtName(o)}, transparence ${hx(key)}\n// ordre : direction, puis image\n#pragma once\n#include <stdint.h>\n#define ${n}_W ${R.T}\n#define ${n}_H ${R.T}\n#define ${n}_FRAMES ${R.N}\n#define ${n}_DIRS ${R.dirs.length}\n#define ${n}_TRANSPARENT ${hx(key)}   // valeur telle qu'écrite dans le tableau\nstatic const uint16_t ${name}[] = {\n`;
+  for(let i=0;i<w.length;i+=12)t+='  '+[...w.slice(i,i+12)].map(hx).join(', ')+',\n';return t+'};\n'}
+/* avertit quand un export console est démesuré pour une case de taille PC */
+const rawWarn=R=>isPC(R.T)?` ⚠ cases de ${R.T} px : ${fmtMo(R.frames.length*R.T*R.T*2)} pour cette animation, bien trop pour la console AKA (écran 320×240).`:'';
+function readme(b){const names=[...library.keys()],R0=[...library.values()][0],L=layoutOf(),n=L.pages.length,o=rawOpts(),full=[...library.values()].some(R=>R.full),pc=isPC(R0.T);
+  return `character-forge — paquet de sprites « ${b} »
+Animations : ${names.join(', ')}  |  directions : ${[...new Set([...library.values()].flatMap(r=>r.dirs))].join(', ')}  |  ${R0.T}x${R0.T} px  |  palette : ${R0.palName||'RGB565 quantifié'}
 
 CONTENU
-  ${b}_planche.png           toutes les animations (une ligne par animation et direction), fond transparent${labelOn()?'\n                             1re case de chaque ligne = étiquette (nom + direction), les images commencent à la 2e case (l\'atlas en tient compte)':''}
-  ${b}_planche_magenta.png   même planche sur fond magenta 255,0,255 (format des planches de jeu)
-  ${b}_atlas.json            atlas au format Aseprite (frames + étiquettes « animation_direction »)
-  ${b}_<animation>.raw / .h  RGB565 pour la console AKA (transparence 0xF81F)
-  ${b}_meta.json             palette, tailles, directions
-  frames/<animation>/<dir>_NN.png   images séparées (fond transparent)
-  gif/<animation>_<dir>.gif  aperçus animés
-
+  ${pageName(b,'planche',0,n)}${n>1?' … (+ '+(n-1)+' page(s))':''}  toutes les animations (une ligne par animation et direction), fond transparent${n>1?'\n                             planche coupée en '+n+' pages (limites du navigateur) : un atlas JSON par page':''}${labelOn()?'\n                             1re case de chaque ligne = étiquette (nom + direction), les images commencent à la 2e case (l\'atlas en tient compte)':''}
+  ${pageName(b,'planche_magenta',0,n)}   même planche sur fond magenta 255,0,255 (format des planches de jeu)${pc?' (bords nets : l\'alpha doux est coupé)':''}
+  ${pageName(b,'atlas',0,n,'json')}            atlas au format Aseprite : images, durées (ms), étiquettes « animation_direction » (boucle),
+                             ancrages par image (pieds, main, point de tir) et boîte de collision
+${full?'  (pleine couleur : pas de .raw / .h / GIF, ils exigent une palette)':`  ${b}_<animation>.raw / .h  ${fmtName(o)} pour la console AKA (transparence 0x${(o.key).toString(16).toUpperCase().padStart(4,'0')})${pc?'\n                             ⚠ cases PC : fichiers énormes, pas faits pour la console':''}`}
+  ${b}_meta.json             palette, tailles, directions, durées
+  frames/<animation>/<dir>_NN.png   images séparées (fond transparent${pc?', alpha doux':''})
+${full||pc?'':'  gif/<animation>_<dir>.gif  aperçus animés\n'}
 SUITE DU TRAVAIL (outils du dépôt character-forge, en ligne de commande)
   python -m forge qa frames/<animation>                          contrôle qualité (cadre, taille, pieds, couleurs)
   python -m forge animrules check --frames frames/<animation> --kind walk
@@ -363,11 +589,14 @@ SUITE DU TRAVAIL (outils du dépôt character-forge, en ligne de commande)
   python -m forge atlas frames/<animation> -o export --name <animation>     atlas moteur + GIF
   python -m forge sprites frames/<animation> -o sprites --name ${b}         spritesheet RGB565 + en-tête C
 `}
-async function buildPackage(withGifs){if(!library.size)return null;const b=base(),files=[],T=[...library.values()][0].T;
-  const tr=sheetCanvasAll(false),mg=sheetCanvasAll(true);files.push({name:`${b}_planche.png`,data:await bytesOf(await blobOf(tr))},{name:`${b}_planche_magenta.png`,data:await bytesOf(await blobOf(mg))},{name:`${b}_atlas.json`,data:enc.encode(atlasJSON(`${b}_planche.png`,110))},{name:`${b}_meta.json`,data:enc.encode(metaJSON())});
-  for(const [n,R] of library){files.push({name:`${b}_${n}.raw`,data:new Uint8Array(wordsOf(R).buffer)},{name:`${b}_${n}.h`,data:enc.encode(headerOf(`${b}_${n}`,R))});
-    for(const fr of R.frames)files.push({name:`frames/${n}/${fr.d}_${String(fr.f).padStart(2,'0')}.png`,data:await bytesOf(await blobOf(frameCanvas(fr,R.T,false)))});
-    if(withGifs)for(const d of R.dirs){const fs=R.frames.filter(f=>f.d===d).sort((a,c)=>a.f-c.f);files.push({name:`gif/${n}_${d}.gif`,data:await bytesOf(gifBlob(fs,R.T,R.pal,Math.max(2,Math.round(256/R.T)),110))})}}
+async function buildPackage(withGifs){if(!library.size)return null;const b=base(),files=[],L=layoutOf(),n=L.pages.length;
+  for(let p=0;p<n;p++){const nm=pageName(b,'planche',p,n);
+    files.push({name:nm,data:await bytesOf(await blobOf(sheetPage(L,p,false)))},{name:pageName(b,'planche_magenta',p,n),data:await bytesOf(await blobOf(sheetPage(L,p,true)))},{name:pageName(b,'atlas',p,n,'json'),data:enc.encode(atlasJSON(nm,SPR.DEFAULT_MS,p,L))})}
+  files.push({name:`${b}_meta.json`,data:enc.encode(metaJSON())});
+  for(const [nm,R] of library){
+    if(!R.full)files.push({name:`${b}_${nm}.raw`,data:new Uint8Array(wordsOf(R).buffer)},{name:`${b}_${nm}.h`,data:enc.encode(headerOf(`${b}_${nm}`,R))});
+    for(const fr of R.frames)files.push({name:`frames/${nm}/${fr.d}_${String(fr.f).padStart(2,'0')}.png`,data:await bytesOf(await blobOf(frameCanvas(fr,R.T,false)))});
+    if(withGifs&&!R.full&&!isPC(R.T))for(const d of R.dirs){const fs=R.frames.filter(f=>f.d===d).sort((a,c)=>a.f-c.f);files.push({name:`gif/${nm}_${d}.gif`,data:await bytesOf(gifBlob(fs,R.T,R.pal,Math.max(2,Math.round(256/R.T)),R.ms||SPR.DEFAULT_MS))})}}
   files.push({name:'LISEZ-MOI.txt',data:enc.encode(readme(b))});return files}
 const msg=t=>{$('#xmsg').textContent=t};
 async function doZip(){if(!library.size)return;msg('Préparation du paquet…');const f=await buildPackage(true);dl(base()+'_paquet.zip',zipBlob(f),'application/zip');msg(`Paquet téléchargé : ${f.length} fichiers (planches, atlas, RGB565, images, GIF, LISEZ-MOI).`)}
@@ -377,52 +606,90 @@ async function doFolder(){if(!window.showDirectoryPicker){msg('Ce navigateur ne 
   msg(`${f.length} fichiers écrits dans « ${dir.name} ».`)}
 $('#xzip').onclick=()=>doZip().catch(e=>msg('Erreur : '+e.message));$('#xdir').onclick=()=>doFolder().catch(e=>msg('Erreur : '+e.message));
 $('#xframes').onclick=async()=>{if(!library.size)return;const files=[];for(const [n,R] of library)for(const fr of R.frames)files.push({name:`${n}/${fr.d}_${String(fr.f).padStart(2,'0')}.png`,data:await bytesOf(await blobOf(frameCanvas(fr,R.T,false)))});dl(base()+'_images.zip',zipBlob(files),'application/zip');msg(`${files.length} images séparées.`)};
-$('#xatlas').onclick=()=>{if(!library.size)return;dl(base()+'_atlas.json',atlasJSON(base()+'_planche.png',110),'application/json');msg('Atlas JSON (format Aseprite). Exporte aussi la planche PNG avec le même nom.')};
+$('#xatlas').onclick=async()=>{if(!library.size)return;const L=layoutOf(),n=L.pages.length,b=base();
+  if(n===1){dl(b+'_atlas.json',atlasJSON(b+'_planche.png',SPR.DEFAULT_MS,0,L),'application/json');msg('Atlas JSON (format Aseprite). Exporte aussi la planche PNG avec le même nom.');return}
+  const files=L.pages.map((_,p)=>({name:pageName(b,'atlas',p,n,'json'),data:enc.encode(atlasJSON(pageName(b,'planche',p,n),SPR.DEFAULT_MS,p,L))}));
+  dl(b+'_atlas.zip',zipBlob(files),'application/zip');msg(`La planche est coupée en ${n} pages (limites du navigateur) : ${n} atlas JSON dans le zip ; exporte aussi les ${n} planches PNG (« Planche PNG »).`)};
+/* ressource Godot 4 (SpriteFrames) : une AtlasTexture par case (région de la planche), une animation par ligne « nom_direction »,
+   vitesse = 1000 / durée de l'image, boucle selon l'animation. `sheets` = noms des PNG de la planche (un par page). load_steps = ressources + 1. */
+const godotName=s=>String(s).replace(/[^\w]/g,'_');
+function godotTres(L,sheets){
+  const ext=sheets.map((f,i)=>`[ext_resource type="Texture2D" path="res://${f}" id="${i+1}_sheet"]`),subs=[],anims=[];let id=0;
+  L.rows.forEach(r=>{const fr=r.fs.map((f,i)=>{id++;subs.push(`[sub_resource type="AtlasTexture" id="AtlasTexture_${id}"]\natlas = ExtResource("${r.page+1}_sheet")\nregion = Rect2(${(i+L.lab)*L.T}, ${r.y}, ${L.T}, ${L.T})\n`);return`{\n"duration": 1.0,\n"texture": SubResource("AtlasTexture_${id}")\n}`});
+    anims.push(`{\n"frames": [${fr.join(', ')}],\n"loop": ${r.R.loop!==false},\n"name": &"${godotName(r.name+'_'+r.d)}",\n"speed": ${(1000/(r.R.ms||SPR.DEFAULT_MS)).toFixed(2)}\n}`)});
+  return`[gd_resource type="SpriteFrames" load_steps=${ext.length+subs.length+1} format=3]\n\n${ext.join('\n')}\n\n${subs.join('\n')}\n[resource]\nanimations = [${anims.join(', ')}]\n`}
 $('#xgodot').onclick=async()=>{if(!library.size)return;msg('Préparation du pack Godot 4 / Unity…');try{
-  const b=base(),files=[],T=[...library.values()][0].T,c=sheetCanvasAll(false);
-  files.push({name:`${b}_spritesheet.png`,data:await bytesOf(await blobOf(c))});
-  files.push({name:`${b}_aseprite_atlas.json`,data:enc.encode(atlasJSON(`${b}_spritesheet.png`,110))});
-  // Godot 4 SpriteFrames .tres
-  const rows=rowsOf(),names=[...new Set(rows.map(r=>`${r.name}_${r.d}`))];
-  let godot=`[gd_resource type="SpriteFrames" load_steps=2 format=3]\n\n[ext_resource type="Texture2D" path="res://${b}_spritesheet.png" id="1"]\n\n[resource]\nanimations = [\n`;
-  names.forEach(n=>{godot+=`{\n  "frames": [],\n  "loop": true,\n  "name": "${n}",\n  "speed": 8.0\n},\n`});
-  godot+=`]\n`;
-  files.push({name:`${b}_spriteframes.tres`,data:enc.encode(godot)});
+  // pas de colonne d'étiquettes dans un pack moteur : les régions du .tres et de l'atlas partent de x = 0
+  const b=base(),files=[],L=layoutOf(false),n=L.pages.length,T=L.T,png=p=>pageName(b,'spritesheet',p,n);
+  for(let p=0;p<n;p++)files.push({name:png(p),data:await bytesOf(await blobOf(sheetPage(L,p,false)))},{name:pageName(b,'aseprite_atlas',p,n,'json'),data:enc.encode(atlasJSON(png(p),SPR.DEFAULT_MS,p,L))});
+  files.push({name:`${b}_spriteframes.tres`,data:enc.encode(godotTres(L,L.pages.map((_,p)=>png(p))))});
   files.push({name:`README_GODOT_UNITY.txt`,data:enc.encode(`Pack de sprites pour moteurs de jeux (Godot 4 & Unity)
 Modèle : ${b}
-Résolution cases : ${T}x${T} px
+Résolution cases : ${T}x${T} px  |  ${n} planche(s)  |  durées et boucles : voir l'atlas JSON et le .tres
 
 UTILISATION DANS GODOT 4 :
-1. Glisse ${b}_spritesheet.png et ${b}_aseprite_atlas.json dans ton dossier res://.
-2. Si tu utilises le plugin "Aseprite Wizard" ou import d'atlas JSON, clique droit sur le JSON > Importer comme SpriteFrames.
-3. Ou utilise un AnimatedSprite2D en chargeant ${b}_spriteframes.tres.
+1. Glisse ${n>1?'les planches PNG':b+'_spritesheet.png'}, le .tres (et l'atlas JSON) dans ton dossier res://.
+2. Un AnimatedSprite2D : propriété « Sprite Frames » = ${b}_spriteframes.tres (une animation par « nom_direction », ex. walk_e).
+   Chaque image est une AtlasTexture (région de la planche) ; vitesse = 1000 / durée de l'image ; boucle réglée par animation.
+3. Pixel art : Projet > Réglages > Rendu > Textures > Filtre par défaut = Nearest.
+4. L'atlas JSON (format Aseprite) contient aussi les ancrages (pieds, main, point de tir) et la boîte de collision de chaque image.
 
 UTILISATION DANS UNITY :
-1. Glisse ${b}_spritesheet.png dans ton dossier Assets.
-2. Dans l'inspecteur : Texture Type = Sprite (2D and UI), Sprite Mode = Multiple.
+1. Glisse ${n>1?'les planches PNG':b+'_spritesheet.png'} dans ton dossier Assets.
+2. Dans l'inspecteur : Texture Type = Sprite (2D and UI), Sprite Mode = Multiple, Filter Mode = Point.
 3. Clique sur "Sprite Editor" > Slice > Grid By Cell Size (${T} x ${T}) > Apply.
 4. Glisse les frames dans ta timeline d'animation.
 `)});
   dl(`${b}_godot_unity.zip`,zipBlob(files),'application/zip');
-  msg(`Pack Godot / Unity téléchargé (${files.length} fichiers : PNG, Atlas JSON, SpriteFrames, README).`);
+  msg(`Pack Godot / Unity téléchargé (${files.length} fichiers : ${n} PNG, atlas JSON, SpriteFrames .tres, README).`);
 }catch(e){msg('Erreur export Godot : '+e.message)}};
-$('#xgif').onclick=()=>{if(!result)return;const R=result,d=$('#adir').value||R.dirs[0],fs=R.frames.filter(f=>f.d===d).sort((a,b)=>a.f-b.f);dl(`${base()}_${safe(R.clip)}_${d}.gif`,gifBlob(fs,R.T,R.pal,Math.max(2,Math.round(256/R.T)),110));msg(`GIF animé « ${safe(R.clip)} », direction ${d}.`)};
-$('#dlpng').onclick=async()=>{if(!library.size)return;const c=sheetCanvasAll($('#xmag').checked);dl(base()+($('#xmag').checked?'_planche_magenta.png':'_planche.png'),await blobOf(c));msg(`Planche PNG : ${rowsOf().length} lignes (${library.size} animation(s) × ${result.dirs.length} direction(s)).`)};
+$('#xgif').onclick=()=>{if(!result)return;const R=result,d=$('#adir').value||R.dirs[0],fs=R.frames.filter(f=>f.d===d).sort((a,b)=>a.f-b.f);dl(`${base()}_${safe(R.clip)}_${d}.gif`,gifBlob(fs,R.T,R.pal,Math.max(2,Math.round(256/R.T)),R.ms||SPR.DEFAULT_MS));msg(`GIF animé « ${safe(R.clip)} », direction ${d}.`)};
+$('#dlpng').onclick=async()=>{if(!library.size)return;const mag=$('#xmag').checked,L=layoutOf(),n=L.pages.length,b=base(),stem=mag?'planche_magenta':'planche';
+  if(n===1){dl(pageName(b,stem,0,1),await blobOf(sheetPage(L,0,mag)));msg(`Planche PNG : ${L.rows.length} lignes (${library.size} animation(s) × ${result.dirs.length} direction(s)).`);return}
+  const files=[];for(let p=0;p<n;p++)files.push({name:pageName(b,stem,p,n),data:await bytesOf(await blobOf(sheetPage(L,p,mag)))});
+  dl(`${b}_${stem}s.zip`,zipBlob(files),'application/zip');msg(`La planche dépasse les limites d'un canvas : ${n} PNG (${L.W}×${L.pages[0].H} px chacun au plus) dans un zip.`)};
 $('#xall').onclick=async()=>{if(!clips.length){msg('Ce modèle n\'a pas d\'animation : seule la pose est rendue.');return}const keep=$('#clip').value;$('#xall').disabled=true;
   GENWARN.length=0;try{for(let i=0;i<clips.length;i++){$('#clip').value=String(i);$('#prog').textContent=`Animation ${i+1}/${clips.length} : ${clips[i].name}`;await generate();store()}}catch(e){$('#prog').textContent='Erreur : '+e.message}
-  $('#clip').value=keep;$('#xall').disabled=false;if($('#xcommon').checked)unifyPalette();msg(`${library.size} animation(s) dans la bibliothèque${$('#xcommon').checked?', palette commune de '+(result.pal.length)+' couleurs':''} : exporte le paquet ZIP.${GENWARN.length?'\n'+GENWARN.join('\n'):''}`)};
+  $('#clip').value=keep;$('#xall').disabled=false;if($('#xcommon').checked)unifyPalette();msg(`${library.size} animation(s) dans la bibliothèque${$('#xcommon').checked&&!result.full?', palette commune de '+(result.pal.length)+' couleurs':''} : exporte le paquet ZIP.${GENWARN.length?'\n'+GENWARN.join('\n'):''}`)};
 /* palette commune à toute la bibliothèque : mêmes couleurs d'une animation à l'autre (une seule table RGB565 sur la console) */
-function unifyPalette(){if(!library.size)return;const Rs=[...library.values()],px=[];for(const R of Rs)for(const fr of R.frames)for(let j=0;j<R.T*R.T;j++)if(fr.mask[j])px.push([fr.C[j*3]|0,fr.C[j*3+1]|0,fr.C[j*3+2]|0]);
-  const pal=medianCut(px,+$('#colors').value).map(p=>from565(to565(...p)));
-  for(const R of Rs){for(const fr of R.frames){for(let j=0;j<R.T*R.T;j++){if(!fr.mask[j])continue;let best=0,bd=1e9;for(let q=0;q<pal.length;q++){const p=pal[q],dd=(p[0]-fr.C[j*3])**2+(p[1]-fr.C[j*3+1])**2+(p[2]-fr.C[j*3+2])**2;if(dd<bd){bd=dd;best=q}}fr.rgba[j*4]=pal[best][0];fr.rgba[j*4+1]=pal[best][1];fr.rgba[j*4+2]=pal[best][2]}}R.pal=pal}
+function unifyPalette(){if(!library.size)return;const Rs=[...library.values()],key=Rs[0].palKey||'rgb565';
+  if(key==='full'){return[]}                                   // pleine couleur : rien à unifier
+  // un préréglage rétro reste TEL QUEL (4 teintes Game Boy…) ; seule la palette RGB565 est recalculée pour toute la bibliothèque
+  const all=Rs.flatMap(R=>R.frames),pal=paletteFor(key,all,Rs[0].T,+$('#colors').value);
+  for(const R of Rs){applyPalette(R.frames,R.T,pal,{dither:R.dither||'none',strength:R.dstr||0,soft:!!R.soft});R.pal=pal}
   if(result){showResult();refreshExport()}return pal}
 $('#xpal').onclick=()=>{if(!library.size)return;const p=unifyPalette();msg(`Palette commune : ${p.length} couleurs pour ${library.size} animation(s).`)};
 $('#xclear').onclick=()=>{library.clear();refreshExport();msg('Bibliothèque vidée.')};
-function refreshExport(){const n=library.size;$('#xlib').textContent=n?`Bibliothèque : ${[...library.keys()].join(', ')}`:'Bibliothèque vide : génère une animation (ou toutes).';for(const id of ['xzip','xdir','xframes','xatlas','xgif','dlpng','dlraw','dlh','dljson','xclear'])$('#'+id).disabled=!n}
+function refreshExport(){const n=library.size,any=[...library.values()],full=any.some(R=>R.full);$('#xlib').textContent=n?`Bibliothèque : ${[...library.keys()].join(', ')}`:'Bibliothèque vide : génère une animation (ou toutes).';
+  const why={xzip:'',xdir:'',xframes:'',xatlas:'',xgif:'',dlpng:'',dlraw:'',dlh:'',dljson:'',xclear:'',xgodot:''};
+  for(const id of Object.keys(why)){const b=$('#'+id);if(!b)continue;let off=!n,t=n?'':'Génère d\'abord une planche (« Générer les sprites »).';
+    if(n&&full&&['xgif','dlraw','dlh'].includes(id)){off=true;t='Indisponible en pleine couleur : ce format exige une palette (choisis une palette dans « Palette rétro »).'}
+    if(b.dataset.t0===undefined)b.dataset.t0=b.title;b.disabled=off;b.title=off&&t?t:b.dataset.t0}
+  drawDurs()}
+/* durée d'une image (ms) et boucle, réglables par animation de la bibliothèque (exportés dans l'atlas JSON et le .tres Godot) */
+function drawDurs(){const e=$('#xdurs');if(!e)return;e.innerHTML=[...library].map(([n,R])=>`<div class="row" style="margin:2px 0"><span style="min-width:90px">${n}</span><input type="number" class="dms" data-n="${n}" value="${R.ms||SPR.DEFAULT_MS}" min="10" step="10" style="width:72px" title="durée d'une image (ms)"> ms <label class="chip" style="margin:0"><input type="checkbox" class="dlp" data-n="${n}" ${R.loop!==false?'checked':''}> boucle</label></div>`).join('')}
+$('#xdurs').onchange=e=>{const R=library.get(e.target.dataset.n);if(!R)return;if(e.target.classList.contains('dms'))R.ms=Math.max(10,+e.target.value||SPR.DEFAULT_MS);else if(e.target.classList.contains('dlp'))R.loop=e.target.checked;if(R===result)animate()};
 const _go=$('#go').onclick;$('#go').onclick=()=>generate().then(()=>{store();$('#sheet').scrollIntoView({block:'nearest',behavior:'smooth'});msg('Résultat prêt : exporte avec le panneau « Exporter » (paquet ZIP recommandé).')}).catch(e=>{$('#prog').textContent='Erreur : '+e.message;console.error(e)});
-$('#dlraw').onclick=()=>{if(result)dl(base()+'_'+safe(result.clip)+'.raw',wordsOf(result).buffer)};
-$('#dlh').onclick=()=>{if(result)dl(base()+'_'+safe(result.clip)+'.h',headerOf(base()+'_'+safe(result.clip),result),'text/plain')};
+$('#dlraw').onclick=()=>{if(result){const o=rawOpts();dl(base()+'_'+safe(result.clip)+'.raw',wordsOf(result,o).buffer);msg(`.raw ${fmtName(o)}, ${result.T}×${result.T}, transparence 0x${o.key.toString(16).toUpperCase().padStart(4,'0')}.${rawWarn(result)}`)}};
+$('#dlh').onclick=()=>{if(result){const o=rawOpts();dl(base()+'_'+safe(result.clip)+'.h',headerOf(base()+'_'+safe(result.clip),result,o),'text/plain');msg(`En-tête C ${fmtName(o)}.${rawWarn(result)}`)}};
 $('#dljson').onclick=()=>{if(library.size)dl(base()+'_meta.json',metaJSON(),'application/json')};
+/* ---- interface : réglages qui dépendent de la palette et de la taille ---- */
+let autoFull=false,autoDither=false;      // réglages posés automatiquement (et défaits si l'utilisateur revient en arrière)
+function syncSpriteUI(){
+  const key=$('#palpreset').value,T=+$('#size').value,full=key==='full',fixed=!!RETRO[key],pc=isPC(T);
+  $('#colors').disabled=full||fixed;$('#dither').disabled=full;$('#dstr').disabled=full||$('#dither').value==='none';
+  $('#sep').disabled=pc;$('#thin').disabled=pc||T>SPR.THIN_MAX;
+  const plan=memoryPlan(T,+$('#ndir').value,+$('#frames').value,$('#sep').checked&&!pc);
+  $('#pcnote').textContent=(pc?`Mode Sprites PC : rendu interne ${SPR.SSAA*T}×${SPR.SSAA*T} px réduit par le navigateur, alpha doux, contour proportionnel (« séparer bras / jambes » inactif). .raw / .h / GIF sont faits pour la console. `:'')+(plan.level!=='ok'||pc?`Mémoire estimée : ~${fmtMo(plan.bytes)}${plan.level==='refuse'?' (trop : la génération sera refusée)':plan.level==='warn'?' (élevée)':''}.`:'')}
+$('#palpreset').onchange=()=>{const k=$('#palpreset').value;
+  if(RETRO[k]&&$('#dither').value==='none'){$('#dither').value='bayer4';autoDither=true}else if(!RETRO[k]&&autoDither){$('#dither').value='none';autoDither=false}
+  autoFull=false;syncSpriteUI()};
+$('#size').onchange=()=>{const pc=isPC(+$('#size').value);
+  if(pc&&$('#palpreset').value==='rgb565'){$('#palpreset').value='full';autoFull=true}else if(!pc&&autoFull&&$('#palpreset').value==='full'){$('#palpreset').value='rgb565';autoFull=false}
+  syncSpriteUI()};
+for(const id of['frames','ndir','dither','sep'])$('#'+id).addEventListener('input',syncSpriteUI);
+syncSpriteUI();
+window._sprites={SPR,RETRO,palName,toOklab,makeQuantizer,memoryPlan,layoutOf,sheetPage,atlasJSON,godotTres,wordsOf,headerOf,rawOpts,thickenThin,outlineFrames,frameAnchors,loopOf,unifyPalette,get result(){return result},get library(){return library}};
 refreshExport();
 // toute erreur d'un bouton d'export s'affiche sous les boutons (au lieu d'un échec silencieux)
 for(const id of ['xzip','xdir','xframes','xatlas','xgif','dlpng','dlraw','dlh','dljson']){const b=$('#'+id),f=b&&b.onclick;if(f)b.onclick=async function(...a){try{return await f.apply(this,a)}catch(e){msg('Échec : '+(e&&e.message||e));console.error(e)}}}
@@ -809,6 +1076,7 @@ wdRows();
 const ADIR='anims/',AN={cat:null,pack:null,sel:new Set(),files:new Map(),q:'',c:''};
 const amsg=(t,bad)=>{const e=$('#amsg');e.textContent=t;e.classList.toggle('bad',!!bad)};
 async function anInit(){try{AN.cat=await (await fetch(ADIR+'catalog.json')).json()}catch(e){return amsg('Catalogue indisponible : '+e.message,1)}
+  try{drawActs()}catch(e){}   // les menus de l'assistant proposent maintenant tout le catalogue (la sélection est conservée)
   await mineLoad();anPackSelect(AN.cat.packs[0].id)}
 const anPacks=()=>AN.cat.packs.concat(MYA.clips.length?[{id:'mine',label:'Mes animations (importées)',clips:MYA.clips,user:1}]:[]);
 function anPackSelect(id){const ps=anPacks();$('#apack').innerHTML=ps.map(p=>`<option value="${p.id}">${p.label} · ${p.clips.length}</option>`).join('');AN.pack=ps.find(p=>p.id===id)||ps[0];$('#apack').value=AN.pack.id;AN.c='';anDraw()}
@@ -1002,7 +1270,11 @@ function srcOptions(sel){const g=[];
   g.push('<optgroup label="Calculées (échelle, corde)"><option value="proc:ladder">Monter à l\'échelle</option><option value="proc:rope">Monter à la corde</option></optgroup>');
   if(AN.cat)for(const p of AN.cat.packs)g.push(`<optgroup label="${p.label}">${p.clips.map(c=>`<option value="${p.id}:${c.name}">${c.name.replace(/_/g,' ')} (${c.dur}s)</option>`).join('')}</optgroup>`);
   const mine=clips.filter(c=>!/^(UAL|KayKit|Calculé) · /.test(c.name));if(mine.length)g.push(`<optgroup label="Chargées dans cette page">${mine.map(c=>`<option value="clip:${c.name}">${c.name}</option>`).join('')}</optgroup>`);
-  return g.join('').replace(`value="${sel}"`,`value="${sel}" selected`)}
+  // la source du préréglage doit TOUJOURS être une option : sinon (catalogue pas encore chargé) le menu retombe sur la 1re option (« Monter à l'échelle »)
+  // et le clic direct sur « Générer » produisait des échelles partout
+  const esc=v=>String(v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'),e=esc(sel);let h=g.join('');
+  if(sel&&!h.includes(`value="${e}"`))h=`<optgroup label="Préréglage (animation à charger)"><option value="${e}">${esc(String(sel).split(':').slice(1).join(':').replace(/_/g,' '))}</option></optgroup>`+h;
+  return h.replace(`value="${e}"`,`value="${e}" selected`)}
 function drawActs(){
   $('#zacts').innerHTML=WZ.acts.map((a,i)=>`<div class="row zr" data-i="${i}" style="flex-wrap:nowrap;gap:4px"><input type="checkbox" class="zon" ${a.on?'checked':''}><input class="zlab" value="${a.label}" style="width:120px" title="nom de l'action (nom de la ligne dans la planche)"><select class="zsrc" style="max-width:190px">${srcOptions(a.src)}</select><select class="zdir">${Object.entries(DIRLAB).map(([k,v])=>`<option value="${k}" ${a.dir===k?'selected':''}>${v}</option>`).join('')}</select><input type="number" class="zn" value="${a.N}" min="1" max="24" style="width:54px" title="images"><button class="zdel" title="retirer" style="padding:2px 7px">✕</button></div>`).join('')}
 function readActs(){document.querySelectorAll('#zacts .zr').forEach(r=>{const a=WZ.acts[+r.dataset.i];a.on=r.querySelector('.zon').checked?1:0;a.label=r.querySelector('.zlab').value||a.id;a.src=r.querySelector('.zsrc').value;a.dir=r.querySelector('.zdir').value;a.N=+r.querySelector('.zn').value||1})}
