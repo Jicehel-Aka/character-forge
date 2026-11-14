@@ -136,16 +136,29 @@ import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {FBXLoader} from 'three/addons/loaders/FBXLoader.js';
 import {OBJLoader} from 'three/addons/loaders/OBJLoader.js';
+import {DRACOLoader} from 'three/addons/loaders/DRACOLoader.js';
+import {KTX2Loader} from 'three/addons/loaders/KTX2Loader.js';
+import {MeshoptDecoder} from 'three/addons/libs/meshopt_decoder.module.js';
 import {clone as cloneSk} from 'three/addons/utils/SkeletonUtils.js';
 const $=s=>document.querySelector(s);
 const DIRS=[["s",0],["se",45],["e",90],["ne",135],["n",180],["nw",-135],["w",-90],["sw",-45]];
 let M=null,clips=[],mixer=null,action=null,playing=true,result=null;
 
+
+/* Lecteur GLB avec décodeurs 100 % locaux (docs/vendor/three/addons/libs/) : Draco (géométrie), Meshopt (géométrie et animations), KTX2/Basis (textures).
+   Sans eux, un GLB compressé (Meshy, Sketchfab, gltf-transform…) échouait. Les décodeurs sont partagés et créés à la première utilisation. */
+let _draco=null,_ktx2=null;
+function newGLTF(){const l=new GLTFLoader();
+  if(!_draco)_draco=new DRACOLoader().setDecoderPath('./vendor/three/addons/libs/draco/gltf/');
+  l.setDRACOLoader(_draco);l.setMeshoptDecoder(MeshoptDecoder);
+  try{if(!_ktx2){_ktx2=new KTX2Loader().setTranscoderPath('./vendor/three/addons/libs/basis/');_ktx2.detectSupport(renderer)}l.setKTX2Loader(_ktx2)}catch(e){console.warn('KTX2 indisponible',e)}
+  return l}
+
 /* ---------- chargement ---------- */
 async function loadFile(f){
   const ext=f.name.split('.').pop().toLowerCase(),url=URL.createObjectURL(f);let root,an=[];
   try{
-    if(ext==='glb'||ext==='gltf'){const g=await new GLTFLoader().loadAsync(url);root=g.scene;an=g.animations}
+    if(ext==='glb'||ext==='gltf'){const g=await newGLTF().loadAsync(url);root=g.scene;an=g.animations}
     else if(ext==='fbx'){root=await new FBXLoader().loadAsync(url);
       const ims=[];root.traverse(n=>{if(n.isMesh)[].concat(n.material).forEach(m=>{for(const k of['map','normalMap','emissiveMap'])if(m[k])ims.push(m[k])})});
       for(let t=0;t<300;t++){if(ims.every(tx=>tx.image&&(tx.image.width||tx.image.naturalWidth)>0))break;await new Promise(r=>setTimeout(r,100))}
@@ -460,7 +473,7 @@ const hipH=(rs,fr)=>{const h=rs.find(r=>r.key==='hips'),f=rs.filter(r=>/foot$/.t
 async function readRig(f){
   const ext=f.name.split('.').pop().toLowerCase(),url=URL.createObjectURL(f);
   try{if(ext==='fbx'){const r=await new FBXLoader().loadAsync(url);return{root:r,anims:r.animations||[]}}
-    if(ext==='glb'||ext==='gltf'){const g=await new GLTFLoader().loadAsync(url);return{root:g.scene,anims:g.animations}}
+    if(ext==='glb'||ext==='gltf'){const g=await newGLTF().loadAsync(url);return{root:g.scene,anims:g.animations}}
     throw new Error('format non géré (FBX, GLB)')}finally{URL.revokeObjectURL(url)}}
 function refreshClips(sel){const s=$('#clip');s.innerHTML='<option value="">(pose seule)</option>'+clips.map((c,i)=>`<option value="${i}">${c.name||'clip '+i} (${c.duration.toFixed(2)} s)</option>`).join('');
   if(sel!=null){s.value=String(sel);play(sel)}
@@ -680,7 +693,7 @@ function wdTabs(){$('#wtabs').innerHTML=WTABS.map(t=>`<button data-tab="${t[0]}"
 $('#wtabs').onclick=e=>{const b=e.target.closest('[data-tab]');if(b){WD.tab=b.dataset.tab;wdTabs()}};
 $('#wgrid').onclick=e=>{const dv=e.target.dataset&&e.target.dataset.vis;if(dv){STORE.setVis(dv,VIS.of(dv)==='public'?'private':'public').then(wdMineLoad,er=>wmsg('Échec : '+er.message,1));return}const d=e.target.dataset&&e.target.dataset.del;if(d){STORE.del(d).then(wdMineLoad,er=>wmsg('Suppression : '+er.message,1));return}const b=e.target.closest('.wdi');if(!b)return;const en=wdList(WD.tab).find(x=>x.id===b.dataset.id);wdAdd(en).catch(er=>wmsg('Échec : '+er.message,1))};
 function wmsg(t,bad){const e=$('#wmsg');e.textContent=t;e.classList.toggle('bad',!!bad)}
-async function wdLoad(file){let g=WD.cache.get(file);if(!g){g=await new GLTFLoader().loadAsync(WDIR+file);WD.cache.set(file,g)}return g}
+async function wdLoad(file){let g=WD.cache.get(file);if(!g){g=await newGLTF().loadAsync(WDIR+file);WD.cache.set(file,g)}return g}
 const firstSkinned=r=>{let s=null;r.traverse(o=>{if(!s&&o.isSkinnedMesh&&o.visible)s=o});return s};
 function charInfo(){const T=M.userData.rig.filter(r=>!r.dup),fr=frameOf(T),up=fr?fr.up.clone():new THREE.Vector3(0,1,0),hd=T.find(r=>r.key==='head'),ft=T.filter(r=>/foot$/.test(r.key));
   let H=0;if(hd&&ft.length)H=hd.p.clone().sub(ft.reduce((a,r)=>a.add(r.p),new THREE.Vector3()).multiplyScalar(1/ft.length)).dot(up)/.83;
@@ -775,7 +788,7 @@ async function wdSavePiece(m,slot,pvis='private'){
   const buf=await new Promise((ok,ko)=>new GLTFExporter().parse(E,ok,ko,{binary:true,onlyVisible:false,maxTextureSize:1024}));
   await STORE.put('piece:'+slot+':'+nm,buf,pvis);await wdMineLoad();WD.tab='mes';wdTabs();wmsg(`« ${nm} » (${SLOTL[slot]||slot}, ${visIcon(pvis)} ${pvis==='public'?'public':'privé'}) rangé dans Ma banque (${(buf.byteLength/1048576).toFixed(1)} Mo). Pour l'enfiler : choisis un autre personnage, onglet « Ma banque ».${CLOUD.msg?' '+CLOUD.msg:CLOUD.cfg.on?' Copié aussi dans le dépôt GitHub.':''}`)}
 async function wdMineLoad(){try{const ks=await STORE.keys();if(CLOUD.msg)wmsg(CLOUD.msg,1);WD.mine=ks.filter(k=>String(k).startsWith('piece:')).map(k=>{const[,sl,...r]=String(k).split(':');return{id:k,idb:k,name:r.join(':'),slot:sl,cat:sl,kind:'part',source:'ma banque',vis:VIS.of(k)}})}catch(e){WD.mine=[]}wdTabs()}
-async function wdLoadIdb(k){const buf=await STORE.get(k);if(!buf)throw new Error('pièce introuvable');return new Promise((ok,ko)=>new GLTFLoader().parse(buf,'',ok,ko))}
+async function wdLoadIdb(k){const buf=await STORE.get(k);if(!buf)throw new Error('pièce introuvable');return new Promise((ok,ko)=>newGLTF().parse(buf,'',ok,ko))}
 function wdReset(){WD.eq=[];wdRows();wdPanel()}
 $('#wclear').onclick=()=>{for(const it of [...WD.eq])wdRemove(it);wmsg('Garde-robe vidée.')};
 const SLOTL={cheveux:'Cheveux',haut:'Haut',bas:'Bas',chaussures:'Chaussures',tete:'Tête / casque',gants:'Gants',armure:'Armure',arme:'Arme',bouclier:'Bouclier',sac:'Sac',accessoire:'Accessoire'},SLOTI={cheveux:'💇',haut:'👕',bas:'👖',chaussures:'👟',tete:'🎩',gants:'🧤',armure:'🛡️',arme:'⚔️',bouclier:'🛡️',sac:'🎒',accessoire:'🧣'};
@@ -901,6 +914,12 @@ anInit();
 // ---- export du modèle (squelette ajouté, vêtements, animations) en GLB ----
 // La scène de travail a des échelles étranges (squelette Mixamo en cm réduit par un parent, normalisation de la vue) : on reconstruit
 // un squelette « propre » (positions et rotations monde, échelle 1) et des maillages liés à ce squelette, sinon le GLB s'ouvre vide.
+// Copie de géométrie dont tous les attributs (hors index et peau) sont des Float32 simples : un GLB quantifié (Meshopt, KHR_mesh_quantization) ou
+// entrelacé donne sinon des bufferViews dont le byteStride n'est pas multiple de 4 (invalide) à l'écriture par GLTFExporter.
+function plainGeom(src){const g=src.clone(),get=['getX','getY','getZ','getW'];
+  for(const k of Object.keys(g.attributes)){if(k==='skinIndex'||k==='skinWeight')continue;const a=g.attributes[k];
+    if(a.isInterleavedBufferAttribute||a.normalized||a.array.constructor!==Float32Array){const n=a.itemSize,arr=new Float32Array(a.count*n);for(let i=0;i<a.count;i++)for(let c=0;c<n;c++)arr[i*n+c]=a[get[c]](i);g.setAttribute(k,new THREE.BufferAttribute(arr,n))}}
+  return g}
 function bakeForExport(root,clipsIn){
   root.updateMatrixWorld(true);const sms=[],rigid=[],allB=new Set();
   root.traverse(o=>{if(o.isBone)allB.add(o);if(!o.visible&&o!==root)return;if(o.isSkinnedMesh){let v=true,a=o;while(a){if(!a.visible)v=false;a=a.parent}if(v)sms.push(o)}else if(o.isMesh){let v=true,a=o;while(a){if(!a.visible)v=false;a=a.parent}if(v)rigid.push(o)}});
@@ -914,7 +933,7 @@ function bakeForExport(root,clipsIn){
   const worldOf=n=>new THREE.Matrix4().compose(wt.get(n).p,wt.get(n).q,new THREE.Vector3(1,1,1));
   for(const m of sms){const bones=m.skeleton.bones.map(b=>mk(b));
     // sommets cuits en pose de repos, dans le repère monde : indépendant des conventions de liaison (bindMatrix, échelles) du fichier d'origine
-    m.skeleton.update();const g=m.geometry.clone(),P=m.geometry.attributes.position,N=m.geometry.attributes.normal,n=P.count,pa=new Float32Array(n*3),na=N?new Float32Array(n*3):null;
+    m.skeleton.update();const g=plainGeom(m.geometry),P=m.geometry.attributes.position,N=m.geometry.attributes.normal,n=P.count,pa=new Float32Array(n*3),na=N?new Float32Array(n*3):null;
     const v=new THREE.Vector3(),w=new THREE.Vector3(),nm3=new THREE.Matrix3().getNormalMatrix(m.matrixWorld);g.computeBoundingSphere();const eps=(g.boundingSphere?g.boundingSphere.radius:1)*1e-3;
     for(let i=0;i<n;i++){v.fromBufferAttribute(P,i);const p0=v.clone();m.applyBoneTransform(i,v);v.applyMatrix4(m.matrixWorld);pa[3*i]=v.x;pa[3*i+1]=v.y;pa[3*i+2]=v.z;
       if(na){w.fromBufferAttribute(N,i).multiplyScalar(eps).add(p0);m.applyBoneTransform(i,w);w.applyMatrix4(m.matrixWorld).sub(v).normalize();na[3*i]=w.x;na[3*i+1]=w.y;na[3*i+2]=w.z}}
@@ -922,7 +941,7 @@ function bakeForExport(root,clipsIn){
     const inv=bones.map(nb_=>new THREE.Matrix4().copy(worldOf(nb_)).invert());
     const ns=new THREE.SkinnedMesh(g,m.material);ns.name=m.name;ns.frustumCulled=false;E.add(ns);ns.bind(new THREE.Skeleton(bones,inv),new THREE.Matrix4())}
   for(const m of rigid){let a=m.parent,bone=null;while(a){if(a.isBone){bone=a;break}a=a.parent}
-    const nm=new THREE.Mesh(m.geometry,m.material);nm.name=m.name;const L=new THREE.Matrix4();
+    const nm=new THREE.Mesh(plainGeom(m.geometry),m.material);nm.name=m.name;const L=new THREE.Matrix4();
     if(bone&&nb.has(bone)){L.copy(worldOf(nb.get(bone))).invert().multiply(m.matrixWorld);nb.get(bone).add(nm)}else{L.copy(m.matrixWorld);E.add(nm)}
     L.decompose(nm.position,nm.quaternion,nm.scale)}
   const byName=new Map();allB.forEach(b=>{if(!byName.has(b.name))byName.set(b.name,b)});

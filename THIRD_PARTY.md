@@ -43,3 +43,14 @@ Animations **CC0 1.0** (aucune attribution requise ; crédit volontaire). Les GL
 ## three.js GLTFExporter / TextureUtils (docs/vendor/three/addons/)
 Copiés de three.js r160 (MIT), même version que le reste de `docs/vendor/three`, pour le bouton « Télécharger le modèle avec squelette (GLB) ».
 | KayKit Character Pack : Adventurers 1.0 (personnages) | Kay Lousberg | CC0 1.0 | banque de personnages `docs/bank/` (Knight, Barbarian, Mage, Rogue, Rogue Hooded, animations retirées) | github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0 |
+
+## Décodeurs GLB locaux de `modele.html` (docs/vendor/three/addons/, novembre 2026)
+Lecture des GLB compressés (Draco, Meshopt, KTX2/Basis), 100 % hors ligne : fichiers copiés tels quels du paquet npm `three@0.160.0` (`examples/jsm/`), la même version que le reste de `docs/vendor/three`.
+| Fichiers | Origine | Licence |
+|---|---|---|
+| `loaders/DRACOLoader.js`, `loaders/KTX2Loader.js`, `utils/WorkerPool.js` | three.js r160 | MIT |
+| `libs/draco/gltf/draco_decoder.js`, `draco_decoder.wasm`, `draco_wasm_wrapper.js` | Google Draco (build « glTF ») | Apache 2.0 |
+| `libs/meshopt_decoder.module.js` | meshoptimizer (Arseny Kapoulkine) 0.18 | MIT |
+| `libs/basis/basis_transcoder.js`, `basis_transcoder.wasm` | Binomial Basis Universal | Apache 2.0 |
+| `libs/ktx-parse.module.js` | donmccurdy/KTX-Parse | MIT |
+| `libs/zstddec.module.js` | donmccurdy/zstddec (décodeur Zstandard, Facebook) | MIT / BSD |
