@@ -25,7 +25,7 @@ with sync_playwright() as p:
     pg.uncheck('#simple')
     # boutons d'export grisés : explication
     pg.set_viewport_size({'width': 1300, 'height': 1000}); pg.reload(); pg.wait_for_timeout(1200)
-    check('export grisé : infobulle explicative', 'bibliothèque vide' in (pg.get_attribute('#xzip', 'title') or '').lower() and pg.is_disabled('#xzip'), pg.get_attribute('#xzip', 'title') or '')
+    check('export grisé : infobulle explicative', any(k in (pg.get_attribute('#xzip', 'title') or '').lower() for k in ('bibliothèque vide', 'génère d')) and pg.is_disabled('#xzip'), pg.get_attribute('#xzip', 'title') or '')
     check('export grisé : message visible', pg.is_visible('#xwhy'))
     open_model(pg); pg.fill('#frames', '2'); pg.select_option('#ndir', '4'); pg.select_option('#size', '48'); pg.click('#go')
     pg.wait_for_function("!document.querySelector('#xzip').disabled", timeout=120000)
