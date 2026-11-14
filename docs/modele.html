@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- CSP : tout est local (three.js, décodeurs, bibliothèques d'animations) sauf l'API GitHub de la banque. 'unsafe-inline' reste nécessaire (script et styles en ligne),
+     donc la vraie protection contre l'injection est esc() ('unsafe-eval' reste admis : les tests Playwright évaluent leurs expressions par eval) ; la CSP borne surtout où un script pourrait envoyer des données (connect-src, img-src, object-src, base-uri). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' blob: data: https://api.github.com; object-src 'none'; base-uri 'self'; form-action 'none'">
 <title>character-forge — modèle 3D vers sprites</title>
 <style>
 :root{--bg:#f6f5f2;--panel:#fff;--ink:#1d1d1b;--mute:#6b6a66;--line:#d9d6cf;--acc:#2f6f4f;--acc-ink:#fff;--bad:#b3261e}
@@ -76,6 +79,7 @@ code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding
     <p class="mute" style="margin:0 0 6px">Sans ça, la banque reste dans ce navigateur seulement. Avec un dépôt GitHub dédié, tes personnages et vêtements sont conservés, versionnés et disponibles sur tous tes appareils. Lecture sans identifiant si le dépôt est public ; l'écriture demande un jeton limité à ce seul dépôt, gardé dans ce navigateur uniquement.</p>
     <div class="row"><label class="chip" style="margin:0"><input type="checkbox" id="con"> activer</label><input id="cown" size="14" placeholder="compte" title="compte ou organisation GitHub"> / <input id="crepo" size="20" placeholder="dépôt public" title="éléments 🌐 publics"><input id="cprepo" size="20" placeholder="dépôt privé" title="éléments 🔒 privés : doit être un dépôt PRIVÉ (vérifié), même jeton"><input id="cbr" size="8" placeholder="branche"></div>
     <div class="row"><input id="ctok" type="password" size="38" placeholder="jeton GitHub (github_pat_…) pour enregistrer" autocomplete="off"><button id="ctest">Tester</button><button id="csync" class="primary" title="envoie dans le dépôt tout ce qui n'existe qu'en local : personnages, vêtements, animations importées">Tout sauvegarder dans le dépôt</button></div>
+    <p class="mute" id="ctokwarn" style="margin:4px 0 0">⚠ Le jeton est enregistré <b>en clair</b> dans le stockage local de ce navigateur : n'utilise qu'un jeton limité à ce seul dépôt (Contents : lecture/écriture), jamais sur un ordinateur partagé, et révoque-le sur GitHub si tu as un doute.</p>
     <details class="mute"><summary>Comment créer le dépôt et le jeton (2 minutes)</summary><ol style="margin:4px 0 0 18px;padding:0"><li>github.com → New repository → nom <code>character-forge-bank</code>, <b>Public</b>, coche « Add a README ».</li><li>Settings → Developer settings → Personal access tokens → <b>Fine-grained tokens</b> → Generate : « Only select repositories » → ce dépôt ; Permissions → Repository → <b>Contents : Read and write</b>.</li><li>Colle le jeton ci-dessus, coche « activer », clique « Tester ».</li></ol></details>
     <p class="mute" id="cmsg" style="margin:6px 0 0"></p>
   </div>
@@ -141,6 +145,8 @@ import {KTX2Loader} from 'three/addons/loaders/KTX2Loader.js';
 import {MeshoptDecoder} from 'three/addons/libs/meshopt_decoder.module.js';
 import {clone as cloneSk} from 'three/addons/utils/SkeletonUtils.js';
 const $=s=>document.querySelector(s);
+// Échappement HTML : TOUT nom venu d'un fichier importé (os, animations, pièces, banque, catalog.json distant) passe par esc() avant d'entrer dans un innerHTML.
+const esc=s=>String(s??'').replace(/[&<>"'`]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;'}[c]));
 const DIRS=[["s",0],["se",45],["e",90],["ne",135],["n",180],["nw",-135],["w",-90],["sw",-45]];
 let M=null,clips=[],mixer=null,action=null,playing=true,result=null;
 
@@ -196,7 +202,7 @@ function setup(root,an,name){
   if(M)pivot.remove(M);M=root;clips=an.map(c=>{c.tracks=c.tracks.filter(t=>/\.(position|quaternion)$/.test(t.name)&&!Array.from(t.values).some(x=>!isFinite(x)));return c}).filter(c=>c.tracks.length);
   const n=normalise(root);root.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(root,true);root.position.set(-(b.min.x+b.max.x)/2,-b.min.y,-(b.min.z+b.max.z)/2);pivot.add(root);
   root.userData.name=name;root.userData.rig=restState(root);wdReset();
-  mixer=new THREE.AnimationMixer(root);action=null;const sel=$('#clip');sel.innerHTML='<option value="">(pose seule)</option>'+clips.map((c,i)=>`<option value="${i}">${c.name||'clip '+i} (${c.duration.toFixed(2)} s)</option>`).join('');
+  mixer=new THREE.AnimationMixer(root);action=null;const sel=$('#clip');sel.innerHTML='<option value="">(pose seule)</option>'+clips.map((c,i)=>`<option value="${i}">${esc(c.name||'clip '+i)} (${c.duration.toFixed(2)} s)</option>`).join('');
   if(clips.length){sel.value='0';play(0)}
   let tris=0;root.traverse(o=>{if(o.isMesh){const g=o.geometry;tris+=(g.index?g.index.count:g.attributes.position.count)/3}});
   $('#info').textContent=`${name} · ${n.bones} os · ${Math.round(tris).toLocaleString('fr')} triangles · ${clips.length} animation(s)`+(n.bones?'':' · pas de squelette : pose seule (voir « À savoir »)');
@@ -475,7 +481,7 @@ async function readRig(f){
   try{if(ext==='fbx'){const r=await new FBXLoader().loadAsync(url);return{root:r,anims:r.animations||[]}}
     if(ext==='glb'||ext==='gltf'){const g=await newGLTF().loadAsync(url);return{root:g.scene,anims:g.animations}}
     throw new Error('format non géré (FBX, GLB)')}finally{URL.revokeObjectURL(url)}}
-function refreshClips(sel){const s=$('#clip');s.innerHTML='<option value="">(pose seule)</option>'+clips.map((c,i)=>`<option value="${i}">${c.name||'clip '+i} (${c.duration.toFixed(2)} s)</option>`).join('');
+function refreshClips(sel){const s=$('#clip');s.innerHTML='<option value="">(pose seule)</option>'+clips.map((c,i)=>`<option value="${i}">${esc(c.name||'clip '+i)} (${c.duration.toFixed(2)} s)</option>`).join('');
   if(sel!=null){s.value=String(sel);play(sel)}
   $('#info').textContent=$('#info').textContent.replace(/\d+ animation\(s\)/,clips.length+' animation(s)')}
 function convertClip(S,clip,o){
@@ -689,7 +695,7 @@ const wfrac=(id,d)=>/dagger|wand/.test(id)?(/wand/.test(id)?.2:.18):/spear/.test
 fetch(WDIR+'catalog.json').then(r=>r.json()).then(c=>{WD.CAT=c;wdTabs();wdMineLoad()}).catch(()=>{$('#wmsg').textContent='Catalogue de la garde-robe introuvable.'});
 function wdList(tab){if(tab==='mes')return WD.mine;const t=WTABS.find(x=>x[0]===tab),c=WD.CAT;if(!c)return[];return(t[2]!=='part'?c.items.filter(i=>i.cat===tab&&!/arrow/.test(i.id)).map(i=>({...i,kind:'item'})):[]).concat(t[2]!=='item'?c.parts.filter(p=>p.slot===tab).map(p=>({...p,kind:'part',cat:p.slot})):[])}
 function wdTabs(){$('#wtabs').innerHTML=WTABS.map(t=>`<button data-tab="${t[0]}" class="${t[0]===WD.tab?'primary':''}">${t[1]}</button>`).join('');
-  $('#wgrid').innerHTML=wdList(WD.tab).map(e=>`<button class="wdi" data-id="${e.id}" data-kind="${e.kind}" title="${e.name} · ${e.source}" style="padding:2px;display:flex;flex-direction:column;align-items:center;font-size:11px;line-height:1.1">${e.idb?`<span style="width:72px;height:72px;background:#8a8a8a;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:30px">${SLOTI[e.slot]||"👕"}</span><span>${e.name}</span><span class="mute">${SLOTL[e.slot]||e.slot}</span><span data-vis="${e.idb}" title="bascule privé / public" style="cursor:pointer">${visIcon(e.vis)}</span><span data-del="${e.idb}" title="supprimer de la banque" style="cursor:pointer">✕</span>`:`<img src="${WDIR}thumbs/${e.id}.png" width="72" height="72" loading="lazy" alt="" style="background:#8a8a8a;border-radius:4px"><span>${e.name}</span>`}</button>`).join('')}
+  $('#wgrid').innerHTML=wdList(WD.tab).map(e=>`<button class="wdi" data-id="${esc(e.id)}" data-kind="${esc(e.kind)}" title="${esc(e.name)} · ${esc(e.source)}" style="padding:2px;display:flex;flex-direction:column;align-items:center;font-size:11px;line-height:1.1">${e.idb?`<span style="width:72px;height:72px;background:#8a8a8a;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:30px">${SLOTI[e.slot]||"👕"}</span><span>${esc(e.name)}</span><span class="mute">${esc(SLOTL[e.slot]||e.slot)}</span><span data-vis="${esc(e.idb)}" title="bascule privé / public" style="cursor:pointer">${visIcon(e.vis)}</span><span data-del="${esc(e.idb)}" title="supprimer de la banque" style="cursor:pointer">✕</span>`:`<img src="${WDIR}thumbs/${esc(e.id)}.png" width="72" height="72" loading="lazy" alt="" style="background:#8a8a8a;border-radius:4px"><span>${esc(e.name)}</span>`}</button>`).join('')}
 $('#wtabs').onclick=e=>{const b=e.target.closest('[data-tab]');if(b){WD.tab=b.dataset.tab;wdTabs()}};
 $('#wgrid').onclick=e=>{const dv=e.target.dataset&&e.target.dataset.vis;if(dv){STORE.setVis(dv,VIS.of(dv)==='public'?'private':'public').then(wdMineLoad,er=>wmsg('Échec : '+er.message,1));return}const d=e.target.dataset&&e.target.dataset.del;if(d){STORE.del(d).then(wdMineLoad,er=>wmsg('Suppression : '+er.message,1));return}const b=e.target.closest('.wdi');if(!b)return;const en=wdList(WD.tab).find(x=>x.id===b.dataset.id);wdAdd(en).catch(er=>wmsg('Échec : '+er.message,1))};
 function wmsg(t,bad){const e=$('#wmsg');e.textContent=t;e.classList.toggle('bad',!!bad)}
@@ -711,8 +717,8 @@ function wdPlace(it){const T=M.userData.rig,tk=k=>T.find(r=>r.key===k&&!r.dup),b
   const qb=be.q.clone().invert();it.wrapper.scale.setScalar(it.base*it.p.scale/sc);it.wrapper.quaternion.copy(qb).multiply(ci.Q).multiply(it.p.rot);
   const o=it.def.off,v=ci.lat.clone().multiplyScalar(it.p.off[0]+o[0]).addScaledVector(ci.up,it.p.off[1]+o[1]).addScaledVector(ci.front,it.p.off[2]+o[2]).multiplyScalar(ci.H);
   it.wrapper.position.copy(v.applyQuaternion(qb)).divideScalar(sc)}
-function wdRows(){$('#weq').innerHTML=WD.eq.map((it,i)=>it.kind==='part'?`<div class="row" data-i="${i}"><b>${it.slotLabel}</b> ${it.name}<button data-act="del">✕</button></div>`:
-  `<div class="row" data-i="${i}" style="gap:4px"><b>${it.name}</b><select data-act="bone">${WBONES.map(b=>`<option value="${b[0]}" ${b[0]===it.p.bone?'selected':''}>${b[1]}</option>`).join('')}</select>
+function wdRows(){$('#weq').innerHTML=WD.eq.map((it,i)=>it.kind==='part'?`<div class="row" data-i="${i}"><b>${esc(it.slotLabel)}</b> ${esc(it.name)}<button data-act="del">✕</button></div>`:
+  `<div class="row" data-i="${i}" style="gap:4px"><b>${esc(it.name)}</b><select data-act="bone">${WBONES.map(b=>`<option value="${b[0]}" ${b[0]===it.p.bone?'selected':''}>${b[1]}</option>`).join('')}</select>
    <label class="mute" style="margin:0">taille <input type="range" data-act="scale" min="40" max="220" value="${Math.round(it.p.scale*100)}" style="width:80px"></label>
    <label class="mute" style="margin:0">→ <input type="range" data-act="ox" min="-30" max="30" value="${Math.round(it.p.off[0]*100)}" style="width:60px"></label><label class="mute" style="margin:0">↑ <input type="range" data-act="oy" min="-30" max="30" value="${Math.round(it.p.off[1]*100)}" style="width:60px"></label><label class="mute" style="margin:0">⇥ <input type="range" data-act="oz" min="-30" max="30" value="${Math.round(it.p.off[2]*100)}" style="width:60px"></label>
    <button data-act="rx" title="tourner de 90° autour de X">⟲X</button><button data-act="ry" title="tourner de 90° autour de Y">⟲Y</button><button data-act="rz" title="tourner de 90° autour de Z">⟲Z</button><button data-act="del">✕</button></div>`).join('');
@@ -738,10 +744,10 @@ function wdModeOf(mt){return mt.alphaTest>0?'mask':mt.transparent?'blend':'opaqu
 function wdPanel(){const box=$('#wown');if(!box)return;WO.list=[];
   M&&M.traverse(m=>{if(m.isMesh&&m.geometry&&m.geometry.attributes.position&&!m.userData.noedit)WO.list.push(m)});
   if(!WO.list.length){box.innerHTML='';return}
-  const opt=(a,v)=>a.map(x=>`<option value="${x[0]}" ${x[0]===v?'selected':''}>${x[1]}</option>`).join('');
+  const opt=(a,v)=>a.map(x=>`<option value="${esc(x[0])}" ${x[0]===v?'selected':''}>${esc(x[1])}</option>`).join('');
   box.innerHTML=`<div class="mute" style="margin:6px 0 2px"><b>Vêtements et parties du modèle</b> — décoche pour ôter, ou règle la couleur, la texture et la transparence ; « Banque » range la pièce pour la réutiliser.</div>
   <div style="max-height:300px;overflow:auto;border:1px solid #0003;border-radius:6px;padding:4px">`+WO.list.map((m,i)=>{const mt=wmats(m)[0],hex=mt.color?'#'+mt.color.getHexString():'#cccccc',tri=((m.geometry.index?m.geometry.index.count:m.geometry.attributes.position.count)/3)|0;
-    return `<div class="row" data-m="${i}" style="gap:4px;flex-wrap:wrap;border-bottom:1px solid #0002;padding:3px 0"><label style="margin:0;min-width:130px"><input type="checkbox" data-a="vis" ${m.visible?'checked':''}> <b>${m.userData.wd?'👕 ':''}${m.name||('pièce '+(i+1))}</b></label><span class="mute">${tri} tri${m.isSkinnedMesh?'':' · rigide'}</span>
+    return `<div class="row" data-m="${i}" style="gap:4px;flex-wrap:wrap;border-bottom:1px solid #0002;padding:3px 0"><label style="margin:0;min-width:130px"><input type="checkbox" data-a="vis" ${m.visible?'checked':''}> <b>${m.userData.wd?'👕 ':''}${esc(m.name||('pièce '+(i+1)))}</b></label><span class="mute">${tri} tri${m.isSkinnedMesh?'':' · rigide'}</span>
       <input type="color" data-a="col" value="${hex}" title="couleur"><label class="chip" style="margin:0" title="remplace la texture par cette couleur unie"><input type="checkbox" data-a="solid"> unie</label><button data-a="tex" title="applique une image comme texture">Texture…</button><button data-a="rtex" title="rétablit la texture et la couleur d'origine">↺</button>
       <select data-a="mode" title="transparence : opaque, découpé (bords nets, sans tri), fondu (translucide)">${opt([['opaque','opaque'],['mask','découpé'],['blend','fondu']],wdModeOf(mt))}</select><label class="mute" style="margin:0">opacité <input type="range" data-a="op" min="0" max="100" value="${Math.round((mt.opacity??1)*100)}" style="width:70px"></label>
       <label class="chip" style="margin:0"><input type="checkbox" data-a="dbl" ${mt.side===THREE.DoubleSide?'checked':''}> double face</label>
@@ -824,11 +830,11 @@ const amsg=(t,bad)=>{const e=$('#amsg');e.textContent=t;e.classList.toggle('bad'
 async function anInit(){try{AN.cat=await (await fetch(ADIR+'catalog.json')).json()}catch(e){return amsg('Catalogue indisponible : '+e.message,1)}
   await mineLoad();anPackSelect(AN.cat.packs[0].id)}
 const anPacks=()=>AN.cat.packs.concat(MYA.clips.length?[{id:'mine',label:'Mes animations (importées)',clips:MYA.clips,user:1}]:[]);
-function anPackSelect(id){const ps=anPacks();$('#apack').innerHTML=ps.map(p=>`<option value="${p.id}">${p.label} · ${p.clips.length}</option>`).join('');AN.pack=ps.find(p=>p.id===id)||ps[0];$('#apack').value=AN.pack.id;AN.c='';anDraw()}
+function anPackSelect(id){const ps=anPacks();$('#apack').innerHTML=ps.map(p=>`<option value="${esc(p.id)}">${esc(p.label)} · ${p.clips.length}</option>`).join('');AN.pack=ps.find(p=>p.id===id)||ps[0];$('#apack').value=AN.pack.id;AN.c='';anDraw()}
 function anShown(){const q=AN.q.toLowerCase();return AN.pack.clips.filter(c=>(!AN.c||c.cat===AN.c)&&(!q||c.name.toLowerCase().includes(q)))}
 function anDraw(){const P=AN.pack,cats=[...new Set(P.clips.map(c=>c.cat))];
-  $('#acats').innerHTML=['',...cats].map(c=>`<button data-c="${c}" class="${AN.c===c?'primary':''}" style="padding:2px 8px">${c||'Tout'}</button>`).join('');
-  $('#alist').innerHTML=anShown().map(c=>`<button class="aci ${AN.sel.has(P.id+'|'+c.name)?'primary':''}" data-n="${c.name}" title="${c.cat} · ${c.dur} s" style="padding:2px 8px;font-size:12px">${P.id==='mine'?visIcon(c.vis)+' ':''}${c.name.replace(/_/g,' ')} <span class="mute">${c.dur}s</span></button>`).join('')||'<span class="mute">Aucune animation.</span>';
+  $('#acats').innerHTML=['',...cats].map(c=>`<button data-c="${esc(c)}" class="${AN.c===c?'primary':''}" style="padding:2px 8px">${esc(c||'Tout')}</button>`).join('');
+  $('#alist').innerHTML=anShown().map(c=>`<button class="aci ${AN.sel.has(P.id+'|'+c.name)?'primary':''}" data-n="${esc(c.name)}" title="${esc(c.cat)} · ${esc(c.dur)} s" style="padding:2px 8px;font-size:12px">${P.id==='mine'?visIcon(c.vis)+' ':''}${esc(c.name.replace(/_/g,' '))} <span class="mute">${c.dur}s</span></button>`).join('')||'<span class="mute">Aucune animation.</span>';
   $('#aadd').textContent=`Ajouter la sélection (${AN.sel.size})`;$('#adel').hidden=P.id!=='mine';$('#avisb').hidden=P.id!=='mine'}
 async function anAdd(pack,names){
   if(!M||!M.userData.rig||!M.userData.rig.length)return amsg('Ce modèle n\'a pas de squelette : ajoute d\'abord un squelette (carte du dessus), ou ouvre un modèle animé.',1);
@@ -1036,11 +1042,11 @@ const WZ={type:'plat',acts:JSON.parse(JSON.stringify(PRESETS.plat.acts))};
 const zsay=(t,bad)=>{const e=$('#zmsg');e.textContent=t;e.classList.toggle('bad',!!bad)};
 function srcOptions(sel){const g=[];
   g.push('<optgroup label="Calculées (échelle, corde)"><option value="proc:ladder">Monter à l\'échelle</option><option value="proc:rope">Monter à la corde</option></optgroup>');
-  if(AN.cat)for(const p of AN.cat.packs)g.push(`<optgroup label="${p.label}">${p.clips.map(c=>`<option value="${p.id}:${c.name}">${c.name.replace(/_/g,' ')} (${c.dur}s)</option>`).join('')}</optgroup>`);
-  const mine=clips.filter(c=>!/^(UAL|KayKit|Calculé) · /.test(c.name));if(mine.length)g.push(`<optgroup label="Chargées dans cette page">${mine.map(c=>`<option value="clip:${c.name}">${c.name}</option>`).join('')}</optgroup>`);
-  return g.join('').replace(`value="${sel}"`,`value="${sel}" selected`)}
+  if(AN.cat)for(const p of AN.cat.packs)g.push(`<optgroup label="${esc(p.label)}">${p.clips.map(c=>`<option value="${esc(p.id)}:${esc(c.name)}">${esc(c.name.replace(/_/g,' '))} (${esc(c.dur)}s)</option>`).join('')}</optgroup>`);
+  const mine=clips.filter(c=>!/^(UAL|KayKit|Calculé) · /.test(c.name));if(mine.length)g.push(`<optgroup label="Chargées dans cette page">${mine.map(c=>`<option value="clip:${esc(c.name)}">${esc(c.name)}</option>`).join('')}</optgroup>`);
+  return g.join('').replace(`value="${esc(sel)}"`,()=>`value="${esc(sel)}" selected`)}
 function drawActs(){
-  $('#zacts').innerHTML=WZ.acts.map((a,i)=>`<div class="row zr" data-i="${i}" style="flex-wrap:nowrap;gap:4px"><input type="checkbox" class="zon" ${a.on?'checked':''}><input class="zlab" value="${a.label}" style="width:120px" title="nom de l'action (nom de la ligne dans la planche)"><select class="zsrc" style="max-width:190px">${srcOptions(a.src)}</select><select class="zdir">${Object.entries(DIRLAB).map(([k,v])=>`<option value="${k}" ${a.dir===k?'selected':''}>${v}</option>`).join('')}</select><input type="number" class="zn" value="${a.N}" min="1" max="24" style="width:54px" title="images"><button class="zdel" title="retirer" style="padding:2px 7px">✕</button></div>`).join('')}
+  $('#zacts').innerHTML=WZ.acts.map((a,i)=>`<div class="row zr" data-i="${i}" style="flex-wrap:nowrap;gap:4px"><input type="checkbox" class="zon" ${a.on?'checked':''}><input class="zlab" value="${esc(a.label)}" style="width:120px" title="nom de l'action (nom de la ligne dans la planche)"><select class="zsrc" style="max-width:190px">${srcOptions(a.src)}</select><select class="zdir">${Object.entries(DIRLAB).map(([k,v])=>`<option value="${k}" ${a.dir===k?'selected':''}>${v}</option>`).join('')}</select><input type="number" class="zn" value="${a.N}" min="1" max="24" style="width:54px" title="images"><button class="zdel" title="retirer" style="padding:2px 7px">✕</button></div>`).join('')}
 function readActs(){document.querySelectorAll('#zacts .zr').forEach(r=>{const a=WZ.acts[+r.dataset.i];a.on=r.querySelector('.zon').checked?1:0;a.label=r.querySelector('.zlab').value||a.id;a.src=r.querySelector('.zsrc').value;a.dir=r.querySelector('.zdir').value;a.N=+r.querySelector('.zn').value||1})}
 function setType(t){WZ.type=t;WZ.acts=JSON.parse(JSON.stringify(PRESETS[t].acts));$('#zpitch').value=PRESETS[t].pitch;drawActs()}
 $('#ztype').onchange=e=>setType(e.target.value);
@@ -1098,7 +1104,7 @@ const STORE={
 async function bankInit(){
   try{BANK.chars=(await (await fetch('bank/catalog.json')).json()).characters}catch(e){BANK.chars=[]}
   try{BANK.mine=(await STORE.keys()).filter(k=>!/^(piece:|anim:|animidx$)/.test(k))}catch(e){BANK.mine=[]}
-  $('#zchar').innerHTML=`<optgroup label="Banque (libre de droits)">${BANK.chars.map(c=>`<option value="b:${c.id}">${c.name} · ${c.source}</option>`).join('')}</optgroup>`+(BANK.mine.length?`<optgroup label="Mes personnages (🔒 privé · 🌐 public)">${BANK.mine.map(k=>`<option value="m:${k}">${visIcon(VIS.of(k))} ${k}</option>`).join('')}</optgroup>`:'')}
+  $('#zchar').innerHTML=`<optgroup label="Banque (libre de droits)">${BANK.chars.map(c=>`<option value="b:${esc(c.id)}">${esc(c.name)} · ${esc(c.source)}</option>`).join('')}</optgroup>`+(BANK.mine.length?`<optgroup label="Mes personnages (🔒 privé · 🌐 public)">${BANK.mine.map(k=>`<option value="m:${esc(k)}">${visIcon(VIS.of(k))} ${esc(k)}</option>`).join('')}</optgroup>`:'')}
 $('#zload').onclick=async()=>{const v=$('#zchar').value;if(!v)return;zsay('Chargement…');
   try{let f;if(v[0]==='b'){const c=BANK.chars.find(x=>x.id===v.slice(2)),r=await fetch('bank/'+c.file);if(!r.ok)throw new Error('HTTP '+r.status);f=new File([await r.blob()],c.file)}
     else{const buf=await STORE.get(v.slice(2));if(!buf)throw new Error('introuvable');f=new File([buf],v.slice(2)+'.glb')}
@@ -1659,6 +1665,7 @@ $('#ctest').onclick=async()=>{cloudRead();CLOUD.cfg.on=true;$('#con').checked=tr
     cmsg(out.join(' | '),bad);await wdMineLoad();await bankInit()}catch(e){cmsg('Échec : '+e.message,1)}};
 $('#csync').onclick=async()=>{cloudRead();try{await cloudBackup();await wdMineLoad();await bankInit()}catch(e){cmsg('Échec : '+e.message,1)}};
 window._test={softCands,softComps,softBuild,softUndo,softBake,softBakeAll,softColliders,softScan,physRun,SOFT_PRE,wdSaveAttach,wdEquipAttach,armSoon,armFix,armFixSetup,armFixClip,THREE,skinSparse,skinPosed,torsoModel,torsoRho,skinFix,skinMeshes,skinData,skinRules,skinStretch,skinPoses,cloudBackup,mineLoad,sheetCanvasAll,atlasJSON,zipImport,zipReport,MYA,anPackSelect,STORE,CLOUD,wdPanel,wdSavePiece,get WO(){return WO},wdMineLoad,closeGeometry,closeModel,closeReport,rigAnalyse,rigReport,setClipTime:(i,t)=>{$("#clip").value=String(i);play(i);playing=false;mixer.setTime(t)},exportGLB:()=>$('#bglb').onclick(),anAdd,AN,wdAdd,get WD(){return WD},generate,get result(){return result},setup,loadFile,addAnims,addSkeleton,get clips(){return clips},get M(){return M},get library(){return library}};
+Object.defineProperties(window._test,{wdRows:{value:wdRows},wdTabs:{value:wdTabs},anDraw:{value:anDraw},drawActs:{value:drawActs},esc:{value:esc},bankInit:{value:bankInit},WZ:{get:()=>WZ},MYA:{get:()=>MYA}});   // accès paresseux (WZ, MYA sont déclarés plus bas)
 </script>
 </body>
 </html>
