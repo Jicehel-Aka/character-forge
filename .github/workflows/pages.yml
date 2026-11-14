@@ -1,0 +1,46 @@
+# Déploiement GitHub Pages par Actions : DÉSACTIVÉ PAR DÉFAUT (déclenchement manuel seulement).
+#
+# Mode actuel (par défaut) : Settings > Pages > Source « Deploy from a branch », branche main, dossier /docs.
+# Dans ce mode, ce workflow n'est jamais utile : le site publié est le contenu committé de docs/
+# (régénéré en local par « npm run build »).
+#
+# Pour passer à ce workflow (le site est alors recompilé à chaque déploiement) :
+#   1. Settings > Pages > Source : choisir « GitHub Actions ».
+#   2. Dans ce fichier, décommenter le bloc « push » ci-dessous (pour un déploiement à chaque push sur main).
+#      Sans cela, lance-le à la main : onglet Actions > pages > Run workflow.
+# Retour au mode « branche /docs » : Settings > Pages > Source : « Deploy from a branch », main, /docs.
+name: pages
+on:
+  workflow_dispatch:
+  # push:
+  #   branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: "22", cache: npm}
+      - run: npm ci
+      - run: npm run lint
+      # Recompile l'app React dans docs/ (n'efface pas les pages autonomes) ; le serveur Express n'est pas déployé.
+      - run: npm run build:app
+      - run: touch docs/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with: {path: docs}
+      - id: deployment
+        uses: actions/deploy-pages@v4
