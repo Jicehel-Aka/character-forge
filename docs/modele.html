@@ -14,7 +14,7 @@
 header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
 h1{font-size:18px;margin:0}h2{font-size:15px;margin:0 0 8px}
 main{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px;padding:16px;max-width:1400px;margin:auto}
-@media (max-width:980px){main{grid-template-columns:1fr}}
+@media (max-width:980px){main{grid-template-columns:minmax(0,1fr)}}   /* minmax(0,…) : sinon la colonne s'élargit au contenu le plus large (602 px sur un écran de 390) */
 .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
 a{color:var(--acc)}button,select,input{font:inherit;color:var(--ink)}
 button{background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:6px 10px;cursor:pointer}button:hover{border-color:var(--acc)}
@@ -24,6 +24,23 @@ label{display:block;margin:6px 0 2px;color:var(--mute);font-size:13px}.row{displ
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px}.mute{color:var(--mute);font-size:13px}.bad{color:var(--bad)}
 #view{width:100%;aspect-ratio:4/3;border-radius:8px;border:1px solid var(--line);background:#8c8c8c;display:block}
 #sheet,#anim{image-rendering:pixelated;border:1px solid var(--line);border-radius:6px;max-width:100%;background:repeating-conic-gradient(#ccc 0 25%,#eee 0 50%) 0 0/16px 16px}
+/* mobile : rien ne dépasse de l'écran, cibles tactiles >= 40 px, lignes d'actions qui passent à la ligne */
+html,body{max-width:100%;overflow-x:hidden}.card,.row,#zacts{min-width:0}
+@media (max-width:600px){
+  main{padding:10px 8px;gap:10px}
+  button,select,input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):not([type=file]){min-height:40px}
+  input[type=checkbox],input[type=radio]{width:22px;height:22px}input[type=range]{min-height:32px}summary{min-height:40px;display:flex;align-items:center}
+  select,#zchar,#zacts .zsrc,#zacts .zlab{max-width:100%!important;width:100%}
+  .zr{flex-wrap:wrap!important}.zr .zsrc{flex:1 1 100%}.zr .zlab{flex:1 1 120px;width:auto!important}
+  .row>label.chip{min-height:40px;display:inline-flex;align-items:center}
+  .grid2{grid-template-columns:1fr}
+}
+/* confort : cartes repliables (clic sur le titre) et mode simple (masque les cartes avancées) */
+.card>h2[data-fold]{cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;min-height:28px}
+.card>h2[data-fold]::before{content:"▾";color:var(--mute);width:1em}.card.folded>h2[data-fold]::before{content:"▸"}
+.card.folded>:not(h2){display:none!important}.card.folded>h2{margin-bottom:0}
+body.simple #rcard,body.simple #acard,body.simple #wcard,body.simple #ccard{display:none}
+#xwhy{border-left:3px solid var(--acc);padding-left:8px}
 code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:0 4px;font-size:13px}
 </style>
 <script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.js","three/addons/":"./vendor/three/addons/"}}</script>
@@ -828,7 +845,8 @@ wdRows();
 const ADIR='anims/',AN={cat:null,pack:null,sel:new Set(),files:new Map(),q:'',c:''};
 const amsg=(t,bad)=>{const e=$('#amsg');e.textContent=t;e.classList.toggle('bad',!!bad)};
 async function anInit(){try{AN.cat=await (await fetch(ADIR+'catalog.json')).json()}catch(e){return amsg('Catalogue indisponible : '+e.message,1)}
-  await mineLoad();anPackSelect(AN.cat.packs[0].id)}
+  await mineLoad();anPackSelect(AN.cat.packs[0].id);
+  try{drawActs()}catch(e){}}   // les listes d'animations de l'assistant ont été dessinées avant l'arrivée du catalogue : sans ce redessin, readActs() relisait « proc:ladder » pour toutes les actions
 const anPacks=()=>AN.cat.packs.concat(MYA.clips.length?[{id:'mine',label:'Mes animations (importées)',clips:MYA.clips,user:1}]:[]);
 function anPackSelect(id){const ps=anPacks();$('#apack').innerHTML=ps.map(p=>`<option value="${esc(p.id)}">${esc(p.label)} · ${p.clips.length}</option>`).join('');AN.pack=ps.find(p=>p.id===id)||ps[0];$('#apack').value=AN.pack.id;AN.c='';anDraw()}
 function anShown(){const q=AN.q.toLowerCase();return AN.pack.clips.filter(c=>(!AN.c||c.cat===AN.c)&&(!q||c.name.toLowerCase().includes(q)))}
@@ -1664,6 +1682,31 @@ $('#ctest').onclick=async()=>{cloudRead();CLOUD.cfg.on=true;$('#con').checked=tr
     if(!CLOUD.cfg.prepo)out.push('Aucun dépôt privé configuré : les éléments 🔒 restent dans ce navigateur.');
     cmsg(out.join(' | '),bad);await wdMineLoad();await bankInit()}catch(e){cmsg('Échec : '+e.message,1)}};
 $('#csync').onclick=async()=>{cloudRead();try{await cloudBackup();await wdMineLoad();await bankInit()}catch(e){cmsg('Échec : '+e.message,1)}};
+
+/* ---------- confort : cartes repliables, mode simple, pourquoi un bouton d'export est grisé ---------- */
+(()=>{
+  const ls={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+  // 1. cartes repliables (clic ou Entrée/Espace sur le titre) ; l'état est mémorisé par navigateur
+  document.querySelectorAll('.card').forEach(c=>{const h=c.querySelector(':scope>h2');if(!h)return;const key='cf-fold:'+(c.id||h.textContent.trim().slice(0,24));
+    h.dataset.fold='1';h.tabIndex=0;h.setAttribute('role','button');h.title='clique pour replier / déplier';
+    const set=f=>{c.classList.toggle('folded',f);h.setAttribute('aria-expanded',String(!f));ls.set(key,f?'1':'0')};
+    h.setAttribute('aria-expanded','true');if(ls.get(key)==='1')set(true);
+    h.onclick=()=>set(!c.classList.contains('folded'));h.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();h.onclick()}}});
+  // 2. mode simple : l'assistant, le résultat et l'export suffisent pour un premier sprite ; les cartes avancées (autres fichiers, bibliothèque, garde-robe, GitHub) se masquent
+  const hr=document.querySelector('header .row'),lab=document.createElement('label'),cb=document.createElement('input');
+  lab.className='chip';lab.style.margin='0';lab.title='masque les cartes avancées (squelette d\'autres fichiers, bibliothèque, garde-robe, stockage GitHub) : il reste l\'assistant, le rendu et l\'export';
+  cb.type='checkbox';cb.id='simple';lab.append(cb,' Mode simple');if(hr)hr.append(lab);
+  const apply=()=>{document.body.classList.toggle('simple',cb.checked);ls.set('cf-simple',cb.checked?'1':'0')};
+  cb.checked=ls.get('cf-simple')==='1';cb.onchange=apply;apply();
+  // 3. boutons d'export grisés : explication visible sous le panneau + infobulle sur chaque bouton, tenues à jour par un observateur (indépendant de refreshExport)
+  const xc=document.querySelector('#xcard'),why=document.createElement('p');why.id='xwhy';why.className='mute';why.style.margin='6px 0 0';why.hidden=true;
+  why.textContent='Boutons grisés : il n\'y a encore rien à exporter. 1) ouvre un modèle (ou « Essayer avec un exemple »), 2) clique « Générer toutes les animations » (ou « Générer les actions cochées » dans l\'assistant). Les boutons se dégrisent dès qu\'une animation est prête.';
+  if(xc){xc.insertBefore(why,xc.querySelector('#xmsg')||null);
+    const sync=()=>{let any=false;xc.querySelectorAll('button').forEach(b=>{if(b.id==='xall')return;if(b.disabled){any=true;if(b.dataset.t0===undefined)b.dataset.t0=b.title||'';b.title='Grisé : bibliothèque vide. Génère d\'abord une animation (bouton « Générer toutes les animations »).'}
+        else if(b.dataset.t0!==undefined){b.title=b.dataset.t0;delete b.dataset.t0}});why.hidden=!any};
+    new MutationObserver(sync).observe(xc,{attributes:true,attributeFilter:['disabled'],subtree:true});sync()}
+  const wc=document.querySelector('#wclear');if(wc)new MutationObserver(()=>{wc.title=wc.disabled?'Rien à retirer : aucune pièce de la garde-robe n\'est équipée.':''}).observe(wc,{attributes:true,attributeFilter:['disabled']});
+})();
 window._test={softCands,softComps,softBuild,softUndo,softBake,softBakeAll,softColliders,softScan,physRun,SOFT_PRE,wdSaveAttach,wdEquipAttach,armSoon,armFix,armFixSetup,armFixClip,THREE,skinSparse,skinPosed,torsoModel,torsoRho,skinFix,skinMeshes,skinData,skinRules,skinStretch,skinPoses,cloudBackup,mineLoad,sheetCanvasAll,atlasJSON,zipImport,zipReport,MYA,anPackSelect,STORE,CLOUD,wdPanel,wdSavePiece,get WO(){return WO},wdMineLoad,closeGeometry,closeModel,closeReport,rigAnalyse,rigReport,setClipTime:(i,t)=>{$("#clip").value=String(i);play(i);playing=false;mixer.setTime(t)},exportGLB:()=>$('#bglb').onclick(),anAdd,AN,wdAdd,get WD(){return WD},generate,get result(){return result},setup,loadFile,addAnims,addSkeleton,get clips(){return clips},get M(){return M},get library(){return library}};
 Object.defineProperties(window._test,{wdRows:{value:wdRows},wdTabs:{value:wdTabs},anDraw:{value:anDraw},drawActs:{value:drawActs},esc:{value:esc},bankInit:{value:bankInit},WZ:{get:()=>WZ},MYA:{get:()=>MYA}});   // accès paresseux (WZ, MYA sont déclarés plus bas)
 </script>
