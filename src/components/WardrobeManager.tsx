@@ -1,17 +1,12 @@
 import React, { useState } from 'react';
 import {
   Sparkles,
-  User,
-  Shield,
-  Sword,
-  Eye,
   Scissors,
   RotateCcw,
   Check,
   X,
   Layers,
   HelpCircle,
-  AlertTriangle,
 } from 'lucide-react';
 import { WardrobeSlot, WardrobeItem, CharacterWardrobeState } from '../types/wardrobe';
 import { WARDROBE_LIBRARY, INITIAL_WARDROBE_STATE, NUDE_BASE_WARDROBE_STATE } from '../data/wardrobeLibrary';

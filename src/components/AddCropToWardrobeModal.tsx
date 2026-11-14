@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Check, Sparkles, Scissors, Plus } from 'lucide-react';
+import { X, Check, Sparkles } from 'lucide-react';
 import { WardrobeSlot, WardrobeItem } from '../types/wardrobe';
 import { DetectedElement } from '../types/assets';
 

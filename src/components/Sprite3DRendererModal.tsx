@@ -21,7 +21,7 @@ import {
   SpriteRenderConfig,
 } from '../utils/spriteRenderer3D';
 import { TransferableAnimationId } from '../types/characterBank';
-import type { CharacterRigBones } from './ThreeCharacterViewport';
+import type { CharacterRigBones } from '../types/rig';
 
 interface Props {
   isOpen: boolean;

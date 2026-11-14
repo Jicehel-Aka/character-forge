@@ -1,16 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import * as THREE from 'three';
 import {
   Sparkles,
   Upload,
-  Download,
   Layers,
   Cpu,
   Film,
-  Crosshair,
-  RefreshCw,
-  Sliders,
-  Check,
   AlertCircle,
   FileImage,
   Box,
@@ -19,10 +14,8 @@ import {
   Sword,
   Trees,
   PlusCircle,
-  HelpCircle,
   Scissors,
   Camera,
-  RotateCcw,
   Archive,
   FolderArchive,
   Users,
@@ -37,7 +30,7 @@ import {
   AssetCreationIntent,
   Model3DViewMode,
 } from './types/assets';
-import { WardrobeItem, WardrobeSlot, CharacterWardrobeState, MultiViewAngle } from './types/wardrobe';
+import { WardrobeItem, CharacterWardrobeState, MultiViewAngle } from './types/wardrobe';
 import { INITIAL_WARDROBE_STATE } from './data/wardrobeLibrary';
 import { SAMPLE_PRESETS } from './data/samples';
 import { cropElement, ChromaKeyOptions, sliceGrid } from './utils/imageProcessing';
@@ -53,7 +46,6 @@ import { MultiViewManager } from './components/MultiViewManager';
 import { AddCropToWardrobeModal } from './components/AddCropToWardrobeModal';
 import { CharacterBankModal } from './components/CharacterBankModal';
 import { BankCharacter, BankPropObject } from './types/characterBank';
-import { BANK_CHARACTERS } from './data/characterBank';
 import {
   AnatomicalProportions,
   DEFAULT_PROPORTIONS,
@@ -65,33 +57,27 @@ import { Forge3DCreatorPanel, ActiveForgedModel } from './components/Forge3DCrea
 import { CharacterPosePreset, PoseJointMap } from './types/poses';
 import { POSE_LIBRARY } from './data/poseLibrary';
 import { GitHubPublishModal } from './components/GitHubPublishModal';
-import meshyKarateFront from './assets/images/meshy_karate_front_1794213134683.jpg';
-import meshyKarateBack from './assets/images/meshy_karate_back_1794213151085.jpg';
+import { useServerStatus } from './hooks/useServerStatus';
+import { apiFetch, probeServer, readApiError, ServerUnavailableError, MSG_STATIC_MODE, MSG_NO_GEMINI } from './utils/serverApi';
+import { meshyKarateFront, meshyKarateBack, normalizeSampleAssetUrl } from './utils/sampleAssets';
+import { readStored, readStoredJson } from './utils/safeStorage';
+import { usePersistedJson, usePersistedString } from './hooks/usePersistedEffect';
 
-const LEGACY_SAMPLE_ASSET_MAP: Record<string, string> = {
-  '/src/assets/images/meshy_karate_front_1794213134683.jpg': meshyKarateFront,
-  '/src/assets/images/meshy_karate_back_1794213151085.jpg': meshyKarateBack,
-  '/src/assets/images/sample_retro_game_1794137120269.jpg': SAMPLE_PRESETS[1]?.imageUrl || meshyKarateFront,
-  '/src/assets/images/sample_character_bd_1794137120622.jpg': SAMPLE_PRESETS[2]?.imageUrl || meshyKarateFront,
-  '/src/assets/images/sample_spritesheet_1794137121788.jpg': SAMPLE_PRESETS[3]?.imageUrl || meshyKarateFront,
-};
-
-function normalizeSampleAssetUrl(url: string | null | undefined): string | null {
-  if (!url) return null;
-  return LEGACY_SAMPLE_ASSET_MAP[url] || url;
-}
+type ActiveTab = 'canvas' | 'character_3d' | 'multiview' | 'wardrobe' | 'animation' | 'rgb565';
+const ACTIVE_TABS: ActiveTab[] = ['canvas', 'character_3d', 'multiview', 'wardrobe', 'animation', 'rgb565'];
 
 export default function App() {
   // Current active sample or uploaded image (with localStorage persistence)
   const [selectedPresetId, setSelectedPresetId] = useState<string>(() => {
-    return localStorage.getItem('characterai_selected_preset_id') || SAMPLE_PRESETS[0].id;
+    return readStored('characterai_selected_preset_id') || SAMPLE_PRESETS[0].id;
   });
   const [currentImageUrl, setCurrentImageUrl] = useState<string>(() => {
-    const saved = localStorage.getItem('characterai_current_image_url');
+    const saved = readStored('characterai_current_image_url');
     return normalizeSampleAssetUrl(saved) || SAMPLE_PRESETS[0].imageUrl;
   });
-  const [activeTab, setActiveTab] = useState<'canvas' | 'character_3d' | 'multiview' | 'wardrobe' | 'animation' | 'rgb565'>(() => {
-    return (localStorage.getItem('characterai_active_tab') as any) || 'character_3d';
+  const [activeTab, setActiveTab] = useState<ActiveTab>(() => {
+    const saved = readStored('characterai_active_tab');
+    return ACTIVE_TABS.includes(saved as ActiveTab) ? (saved as ActiveTab) : 'character_3d';
   });
   const [viewport3DMode, setViewport3DMode] = useState<Model3DViewMode>('character');
 
@@ -107,34 +93,14 @@ export default function App() {
   const [activePoseId, setActivePoseId] = useState<string | null>(POSE_LIBRARY[0].id);
   const [poseJoints, setPoseJoints] = useState<PoseJointMap>(POSE_LIBRARY[0].joints);
   const [isPoseModeActive, setIsPoseModeActive] = useState<boolean>(false);
-  const [customPoses, setCustomPoses] = useState<CharacterPosePreset[]>(() => {
-    const saved = localStorage.getItem('characterai_custom_poses');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        // ignore
-      }
-    }
-    return [];
-  });
+  const [customPoses, setCustomPoses] = useState<CharacterPosePreset[]>(() => readStoredJson('characterai_custom_poses', []));
 
   // Forged 3D Object (Text-to-3D / Fixed-View Visual Hull) State
   const [activeForgedModel, setActiveForgedModel] = useState<ActiveForgedModel | null>(null);
   const [customEquippedProp, setCustomEquippedProp] = useState<THREE.Group | null>(null);
 
   // Humanoid Anatomical Proportions & Morphing State
-  const [proportions, setProportions] = useState<AnatomicalProportions>(() => {
-    const saved = localStorage.getItem('characterai_anatomical_proportions');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        // ignore
-      }
-    }
-    return DEFAULT_PROPORTIONS;
-  });
+  const [proportions, setProportions] = useState<AnatomicalProportions>(() => readStoredJson('characterai_anatomical_proportions', DEFAULT_PROPORTIONS));
   const [showGhostOverlay, setShowGhostOverlay] = useState<boolean>(true);
   const [ghostOpacity, setGhostOpacity] = useState<number>(0.45);
   const [projectTextureOnMannequin, setProjectTextureOnMannequin] = useState<boolean>(false);
@@ -142,30 +108,10 @@ export default function App() {
   const [isCalibratingProportions, setIsCalibratingProportions] = useState<boolean>(false);
 
   // Modular Wardrobe Customization State
-  const [wardrobeState, setWardrobeState] = useState<CharacterWardrobeState>(() => {
-    const saved = localStorage.getItem('characterai_wardrobe_state');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        // ignore
-      }
-    }
-    return INITIAL_WARDROBE_STATE;
-  });
+  const [wardrobeState, setWardrobeState] = useState<CharacterWardrobeState>(() => readStoredJson('characterai_wardrobe_state', INITIAL_WARDROBE_STATE));
 
   // Custom items extracted by the user and added to the wardrobe library
-  const [customWardrobeItems, setCustomWardrobeItems] = useState<WardrobeItem[]>(() => {
-    const saved = localStorage.getItem('characterai_custom_wardrobe_items');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        // ignore
-      }
-    }
-    return [];
-  });
+  const [customWardrobeItems, setCustomWardrobeItems] = useState<WardrobeItem[]>(() => readStoredJson('characterai_custom_wardrobe_items', []));
 
   // Multi-View Turnaround Angles (Face, Profil G, Profil D, Dos, Dessus, Dessous, 3/4)
   const [multiViews, setMultiViews] = useState<Record<MultiViewAngle, string | null>>(() => {
@@ -179,7 +125,7 @@ export default function App() {
       three_quarter: null,
     };
 
-    const saved = localStorage.getItem('characterai_multiviews');
+    const saved = readStored('characterai_multiviews');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -244,6 +190,8 @@ export default function App() {
   });
 
   // UI state
+  const serverStatus = useServerStatus();
+  const aiAvailable = serverStatus.reachable && serverStatus.geminiConfigured;
   const [isAnalyzingAI, setIsAnalyzingAI] = useState<boolean>(false);
   const [aiAnalysisSummary, setAiAnalysisSummary] = useState<string | null>(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
@@ -253,10 +201,8 @@ export default function App() {
     height: 600,
   });
 
-  // Sync proportions to localStorage
-  useEffect(() => {
-    localStorage.setItem('characterai_anatomical_proportions', JSON.stringify(proportions));
-  }, [proportions]);
+  // Persistance locale (jamais bloquante : voir utils/safeStorage)
+  usePersistedJson('characterai_anatomical_proportions', proportions);
 
   // 1-Click Auto-Calibration of Humanoid Mannequin Proportions
   const handleAutoCalibrateMannequin = async () => {
@@ -272,28 +218,13 @@ export default function App() {
     }
   };
 
-  // Save changes to localStorage so user uploads are never replaced
-  useEffect(() => {
-    localStorage.setItem('characterai_current_image_url', currentImageUrl);
-    localStorage.setItem('characterai_selected_preset_id', selectedPresetId);
-    localStorage.setItem('characterai_active_tab', activeTab);
-  }, [currentImageUrl, selectedPresetId, activeTab]);
-
-  useEffect(() => {
-    localStorage.setItem('characterai_wardrobe_state', JSON.stringify(wardrobeState));
-  }, [wardrobeState]);
-
-  useEffect(() => {
-    localStorage.setItem('characterai_custom_wardrobe_items', JSON.stringify(customWardrobeItems));
-  }, [customWardrobeItems]);
-
-  useEffect(() => {
-    localStorage.setItem('characterai_multiviews', JSON.stringify(multiViews));
-  }, [multiViews]);
-
-  useEffect(() => {
-    localStorage.setItem('characterai_custom_poses', JSON.stringify(customPoses));
-  }, [customPoses]);
+  usePersistedString('characterai_current_image_url', currentImageUrl);
+  usePersistedString('characterai_selected_preset_id', selectedPresetId);
+  usePersistedString('characterai_active_tab', activeTab);
+  usePersistedJson('characterai_wardrobe_state', wardrobeState);
+  usePersistedJson('characterai_custom_wardrobe_items', customWardrobeItems);
+  usePersistedJson('characterai_multiviews', multiViews);
+  usePersistedJson('characterai_custom_poses', customPoses);
 
   // Load and slice elements whenever image or chroma key changes
   useEffect(() => {
@@ -381,9 +312,18 @@ export default function App() {
 
   // Call Server-Side Gemini Vision API
   const triggerAIAnalysis = async (base64Override?: string, intentOverride?: AssetCreationIntent) => {
-    setIsAnalyzingAI(true);
     setAiAnalysisSummary(null);
 
+    // Pas de serveur (GitHub Pages) ou pas de clé Gemini : message clair, aucune requête inutile.
+    const probe = await probeServer();
+    if (!probe.reachable || !probe.geminiConfigured) {
+      setAiAnalysisSummary(
+        `${probe.reachable ? MSG_NO_GEMINI : MSG_STATIC_MODE} Découpage heuristique actif.`
+      );
+      return;
+    }
+
+    setIsAnalyzingAI(true);
     try {
       let imagePayload = base64Override || currentImageUrl;
 
@@ -403,7 +343,7 @@ export default function App() {
         imagePayload = canvas.toDataURL('image/jpeg', 0.85);
       }
 
-      const response = await fetch('/api/extract/ai', {
+      const response = await apiFetch('api/extract/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -414,7 +354,7 @@ export default function App() {
       });
 
       if (!response.ok) {
-        throw new Error(`Server returned ${response.status}`);
+        throw new Error(await readApiError(response));
       }
 
       const data = await response.json();
@@ -427,7 +367,7 @@ export default function App() {
         });
 
         const croppedWithImages = await Promise.all(
-          data.elements.map(async (el: any, index: number) => {
+          (data.elements as Array<Partial<DetectedElement> & { box_2d: [number, number, number, number] }>).map(async (el, index) => {
             const { dataUrl } = await cropElement(img, el.box_2d, chromaKey);
             return {
               id: el.id || `ai_el_${index}`,
@@ -459,10 +399,14 @@ export default function App() {
         data.summary ||
           `Analyse IA terminée : ${data.elements?.length || 0} assets identifiés et découpés.`
       );
-    } catch (err: any) {
-      console.warn('AI analysis API returned error or fallback:', err);
+    } catch (err: unknown) {
+      console.warn("Analyse IA indisponible :", err);
+      const reason =
+        err instanceof ServerUnavailableError || err instanceof Error
+          ? err.message
+          : 'Erreur inconnue.';
       setAiAnalysisSummary(
-        "Mode Heuristique Actif : Découpage intelligent par contours et géométrie vectorielle."
+        `Analyse IA indisponible : ${reason} Mode heuristique actif (découpage par contours et géométrie).`
       );
     } finally {
       setIsAnalyzingAI(false);
@@ -746,15 +690,33 @@ export default function App() {
             <span>+ Importer</span>
           </button>
 
-          {/* Quick open standalone modele.html */}
+          {/* Pages autonomes (servies telles quelles depuis docs/) */}
+          <a
+            href="./atelier.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 sm:py-2 text-xs text-slate-300 hover:text-white bg-slate-900 border border-slate-700 hover:border-slate-500 rounded-lg transition-colors whitespace-nowrap"
+            title="Ouvrir la page autonome « Fiche en pied » (détourage, vues de face / profil / dos) dans un nouvel onglet"
+          >
+            <span>Fiche en pied ↗</span>
+          </a>
           <a
             href="./modele.html"
             target="_blank"
             rel="noopener noreferrer"
             className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 sm:py-2 text-xs text-slate-300 hover:text-white bg-slate-900 border border-slate-700 hover:border-slate-500 rounded-lg transition-colors whitespace-nowrap"
-            title="Ouvrir la page autonome modele.html dans un nouvel onglet"
+            title="Ouvrir la page autonome « Modèle 3D → sprites » dans un nouvel onglet"
           >
-            <span>modele.html ↗</span>
+            <span>Modèle 3D → sprites ↗</span>
+          </a>
+          <a
+            href="./3d.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 sm:py-2 text-xs text-slate-300 hover:text-white bg-slate-900 border border-slate-700 hover:border-slate-500 rounded-lg transition-colors whitespace-nowrap"
+            title="Ouvrir la page « Chaîne 3D » (documentation de la chaîne complète) dans un nouvel onglet"
+          >
+            <span>Chaîne 3D ↗</span>
           </a>
 
           {/* Bulk Export ZIP Pack */}
@@ -883,13 +845,34 @@ export default function App() {
 
           <button
             onClick={() => triggerAIAnalysis()}
-            disabled={isAnalyzingAI}
+            disabled={isAnalyzingAI || (serverStatus.checked && !aiAvailable)}
+            title={
+              !serverStatus.checked
+                ? 'Détection du serveur en cours...'
+                : !serverStatus.reachable
+                  ? MSG_STATIC_MODE
+                  : !serverStatus.geminiConfigured
+                    ? MSG_NO_GEMINI
+                    : "Analyse d'image par l'agent IA (Gemini)"
+            }
             className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white rounded-lg font-semibold shadow-sm transition-all disabled:opacity-50"
           >
             <Sparkles className={`w-3.5 h-3.5 ${isAnalyzingAI ? 'animate-spin' : ''}`} />
             <span>{isAnalyzingAI ? 'Analyse par Agent IA...' : 'Analyser par Agent IA'}</span>
           </button>
         </div>
+
+        {/* Bandeau mode statique (GitHub Pages / pas de serveur) */}
+        {serverStatus.checked && !serverStatus.reachable && (
+          <div
+            role="status"
+            data-testid="static-mode-banner"
+            className="p-3 bg-amber-950/50 border border-amber-700/50 rounded-xl text-xs text-amber-100 flex items-start gap-2"
+          >
+            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <span>{MSG_STATIC_MODE}</span>
+          </div>
+        )}
 
         {/* AI Summary Banner if present */}
         {aiAnalysisSummary && (

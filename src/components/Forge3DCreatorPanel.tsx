@@ -1,3 +1,4 @@
+import { useServerStatus } from '../hooks/useServerStatus';
 import React, { useEffect, useState } from 'react';
 import * as THREE from 'three';
 import {
@@ -6,7 +7,6 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
-  Cpu,
   Download,
   HelpCircle,
   Layers,
@@ -75,6 +75,7 @@ export const Forge3DCreatorPanel: React.FC<Props> = ({
   // Text-to-3D states
   const [prompt, setPrompt] = useState<string>(TEXT_TO_3D_EXAMPLES[0].prompt);
   const [preferAI, setPreferAI] = useState<boolean>(true);
+  const serverStatus = useServerStatus();
   const [isGeneratingText3D, setIsGeneratingText3D] = useState<boolean>(false);
   const [lastTextResult, setLastTextResult] = useState<TextTo3DResult | null>(null);
 
@@ -115,7 +116,7 @@ export const Forge3DCreatorPanel: React.FC<Props> = ({
     setIsGeneratingText3D(true);
     setStatusMsg(null);
     try {
-      const result = await generate3DFromDescription(prompt, preferAI);
+      const result = await generate3DFromDescription(prompt, preferAI && serverStatus.reachable);
       setLastTextResult(result);
       onDisplayForgedModel({
         mesh: result.mesh,
@@ -127,10 +128,10 @@ export const Forge3DCreatorPanel: React.FC<Props> = ({
         exportGlbBlob: result.exportGlbBlob,
       });
       setStatusMsg(
-        `Objet "${result.title}" forgé (${result.partCount} sous-ensembles, ${result.triangleCount.toLocaleString()} triangles).`
+        `${result.aiWarning ? `⚠ ${result.aiWarning}\n` : ''}Objet "${result.title}" forgé (${result.partCount} sous-ensembles, ${result.triangleCount.toLocaleString()} triangles).`
       );
-    } catch (err: any) {
-      setStatusMsg(err?.message || 'Erreur lors de la création 3D par description.');
+    } catch (err: unknown) {
+      setStatusMsg(err instanceof Error && err.message ? err.message : 'Erreur lors de la création 3D par description.');
     } finally {
       setIsGeneratingText3D(false);
     }
@@ -173,8 +174,8 @@ export const Forge3DCreatorPanel: React.FC<Props> = ({
       setStatusMsg(
         `Objet 3D sculpté avec succès (${res.triangleCount.toLocaleString()} triangles). Exportable en .GLB / .OBJ !`
       );
-    } catch (err: any) {
-      setStatusMsg(err?.message || 'Impossible de sculpter depuis les vues actuelles.');
+    } catch (err: unknown) {
+      setStatusMsg((err instanceof Error && err.message) || 'Impossible de sculpter depuis les vues actuelles.');
     } finally {
       setIsSculptingViews(false);
     }
@@ -192,8 +193,8 @@ export const Forge3DCreatorPanel: React.FC<Props> = ({
           ? `Corrections appliquées : ${actionsSummary.join(' · ')}`
           : 'Vues vérifiées et normalisées.'
       );
-    } catch (err: any) {
-      setStatusMsg(err?.message || 'Erreur lors de la correction automatique.');
+    } catch (err: unknown) {
+      setStatusMsg((err instanceof Error && err.message) || 'Erreur lors de la correction automatique.');
     } finally {
       setIsRepairing(false);
     }
@@ -374,7 +375,7 @@ export const Forge3DCreatorPanel: React.FC<Props> = ({
       {statusMsg && (
         <div className="p-2.5 rounded-xl bg-sky-950/70 border border-sky-500/40 text-sky-200 text-[11px] flex items-center gap-2">
           <Sparkles className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-          <span>{statusMsg}</span>
+          <span className="whitespace-pre-line">{statusMsg}</span>
         </div>
       )}
 
@@ -404,11 +405,16 @@ export const Forge3DCreatorPanel: React.FC<Props> = ({
               <label className="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={preferAI}
+                  checked={preferAI && serverStatus.reachable}
+                  disabled={serverStatus.checked && !serverStatus.reachable}
                   onChange={(e) => setPreferAI(e.target.checked)}
                   className="accent-sky-500 rounded"
                 />
-                <span>Assisté par IA Gemini (repli procédural auto)</span>
+                <span>
+                  {serverStatus.checked && !serverStatus.reachable
+                    ? 'IA Gemini indisponible (mode statique, aucun serveur) : synthèse procédurale seule'
+                    : 'Assisté par IA Gemini (repli procédural auto)'}
+                </span>
               </label>
 
               <button

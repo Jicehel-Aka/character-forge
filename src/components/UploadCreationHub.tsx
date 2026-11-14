@@ -5,13 +5,8 @@ import {
   Sword,
   Trees,
   Film,
-  Sparkles,
-  ArrowRight,
   X,
   FileImage,
-  Layers,
-  Cpu,
-  Check,
 } from 'lucide-react';
 import { AssetCreationIntent, SamplePreset } from '../types/assets';
 import { SAMPLE_PRESETS } from '../data/samples';
@@ -31,8 +26,6 @@ export const UploadCreationHub: React.FC<Props> = ({
 }) => {
   const [activeIntent, setActiveIntent] = useState<AssetCreationIntent>('character');
   const [isDragging, setIsDragging] = useState<boolean>(false);
-  const [customLabel, setCustomLabel] = useState<string>('');
-  const [urlInput, setUrlInput] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
@@ -43,7 +36,7 @@ export const UploadCreationHub: React.FC<Props> = ({
     reader.onload = (e) => {
       const result = e.target?.result as string;
       if (result) {
-        onImageLoaded(result, activeIntent, customLabel || file.name.replace(/\.[^/.]+$/, ''));
+        onImageLoaded(result, activeIntent, file.name.replace(/\.[^/.]+$/, ''));
         onClose();
       }
     };
@@ -55,13 +48,6 @@ export const UploadCreationHub: React.FC<Props> = ({
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
     if (file) handleFile(file);
-  };
-
-  const handleUrlSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!urlInput.trim()) return;
-    onImageLoaded(urlInput.trim(), activeIntent, customLabel || 'Import URL');
-    onClose();
   };
 
   const intentSpecs = {
@@ -104,7 +90,6 @@ export const UploadCreationHub: React.FC<Props> = ({
   };
 
   const currentSpec = intentSpecs[activeIntent];
-  const IconComponent = currentSpec.icon;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in overflow-y-auto">

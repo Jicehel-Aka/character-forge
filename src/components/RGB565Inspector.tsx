@@ -12,7 +12,6 @@ export const RGB565Inspector: React.FC<Props> = ({ selectedElement, globalPalett
   const [conversion, setConversion] = useState<RGB565ConversionResult | null>(null);
   const [isLittleEndian, setIsLittleEndian] = useState<boolean>(true);
   const [copiedCode, setCopiedCode] = useState<boolean>(false);
-  const [copiedPalette, setCopiedPalette] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'c_header' | 'arduino_snippet' | 'palette_view'>('c_header');
 
   useEffect(() => {

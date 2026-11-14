@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { CharacterPosePreset, PoseJointMap, ZERO_EULER } from '../types/poses';
-import type { CharacterRigBones } from '../components/ThreeCharacterViewport';
+import type { CharacterRigBones } from '../types/rig';
 
 export const POSE_LIBRARY: CharacterPosePreset[] = [
   {
