@@ -3,7 +3,7 @@ Usage : python3 tests/ui_sprites_xxx.py   (démarre son propre serveur HTTP sur 
 import contextlib, http.server, os, socketserver, threading
 from playwright.sync_api import sync_playwright
 
-DOCS = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'docs')
+DOCS = os.environ.get('DOCS_DIR') or os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'docs')   # DOCS_DIR : comparer avec une autre version
 ROOT = os.path.abspath(os.path.join(DOCS, '..'))
 ARGS = ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--enable-precise-memory-info']
 

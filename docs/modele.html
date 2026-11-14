@@ -110,7 +110,7 @@ code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding
         <option value="full">Pleine couleur (sans palette)</option>
       </select>
     </div>
-    <div class="row" id="dithrow"><label style="margin:0" title="tramage ordonné : simule les teintes intermédiaires avec un motif régulier (utile avec peu de couleurs)">Tramage</label><select id="dither"><option value="none" selected>Aucun</option><option value="bayer4">Bayer 4×4</option><option value="bayer8">Bayer 8×8</option></select><label style="margin:0">force</label><input type="number" id="dstr" value="60" min="0" max="100" step="5" style="width:64px"> %</div>
+    <div class="row" id="dithrow"><label style="margin:0" title="tramage ordonné : simule les teintes intermédiaires avec un motif régulier (utile avec peu de couleurs)">Tramage</label><select id="dither"><option value="none" selected>Aucun</option><option value="bayer4">Bayer 4×4</option><option value="bayer8">Bayer 8×8</option></select><label style="margin:0">force</label><input type="number" id="dstr" value="100" min="0" max="100" step="5" style="width:64px"> %</div>
     <div class="row"><label class="chip" title="le bas du pied le plus bas de chaque direction est amené sur la même ligne de sol (sinon la ligne de sol varie de plusieurs pixels d'une direction à l'autre)"><input type="checkbox" id="feet" checked> pieds sur une ligne de sol commune</label><label class="chip" title="petites tailles : un bras ou une jambe plus fin que ~2 px est élargi avant la réduction (sinon il devient pointillé et le contour le mange)"><input type="checkbox" id="thin" checked> membres fins renforcés (≤ 128 px)</label></div>
     <div class="row"><label style="margin:0" title="épaisseur du contour en % de la case : 1,2 % = 1 px à 64 px, 6 px à 512 px">Contour (% de la case)</label><input type="number" id="olpct" value="1.2" min=".2" max="6" step=".1" style="width:64px"><label class="chip" style="margin:0"><input type="checkbox" id="olblack"> noir pur</label></div>
     <div class="row"><label style="margin:0" title="durée d'une image dans l'animation (aperçu, atlas JSON, .tres Godot) ; réglable ensuite par animation dans « Exporter »">Durée d'une image (ms)</label><input type="number" id="fdur" value="110" min="10" step="10" style="width:72px"></div>
@@ -261,9 +261,11 @@ const BAYER={bayer4:bayer(4),bayer8:bayer(8)};                       // matrices
 const DITHER_SIZE={bayer4:4,bayer8:8};
 /* quantificateur : (r,g,b,x,y) -> indice de palette. Tramage = décalage de luminosité OKLab proportionnel à l'écart typique entre couleurs voisines. */
 function makeQuantizer(pal,opt){
-  const lab=pal.map(p=>toOklab(p[0],p[1],p[2])),n=pal.length;let spread=0;
-  for(let i=0;i<n;i++){let m=1e9;for(let j=0;j<n;j++)if(j!==i)m=Math.min(m,Math.hypot(lab[i][0]-lab[j][0],lab[i][1]-lab[j][1],lab[i][2]-lab[j][2]));spread+=n>1?m:0}spread=n?spread/n:0;
-  const mat=BAYER[opt.dither]||null,sz=DITHER_SIZE[opt.dither]||1,amp=spread*(opt.strength||0)*1.5,cache=new Map();
+  const lab=pal.map(p=>toOklab(p[0],p[1],p[2])),n=pal.length;let near=0,lo=1e9,hi=-1e9;
+  for(let i=0;i<n;i++){let m=1e9;for(let j=0;j<n;j++)if(j!==i)m=Math.min(m,Math.hypot(lab[i][0]-lab[j][0],lab[i][1]-lab[j][1],lab[i][2]-lab[j][2]));near+=n>1?m:0;lo=Math.min(lo,lab[i][0]);hi=Math.max(hi,lab[i][0])}
+  // écart typique entre deux tons voisins : le plus grand de « distance moyenne au plus proche » et « étendue de luminosité / (n-1) » (palette en rampe)
+  const spread=n>1?Math.max(near/n,(hi-lo)/(n-1)):0;
+  const mat=BAYER[opt.dither]||null,sz=DITHER_SIZE[opt.dither]||1,amp=spread*(opt.strength||0),cache=new Map();
   const nearest=(L,a,b)=>{let best=0,bd=1e9;for(let q=0;q<n;q++){const p=lab[q],d=(p[0]-L)**2+(p[1]-a)**2+(p[2]-b)**2;if(d<bd){bd=d;best=q}}return best};
   return(r,g,b,x,y)=>{
     if(!mat||!amp){const k=(c8(r)<<16)|(c8(g)<<8)|c8(b);let v=cache.get(k);if(v===undefined){const o=toOklab(r,g,b);v=nearest(o[0],o[1],o[2]);if(cache.size>3e5)cache.clear();cache.set(k,v)}return v}
@@ -302,12 +304,13 @@ function trimFrames(frames,dirs,T){
 
 /* ---- garde-fous mémoire ---- */
 /* octets conservés par image de case T : petites tailles = C (Float32 ×3) + rgba + masque + classes ; mode PC = C (octets ×3) + rgba + masque + alpha */
+const MEM_SAFETY=1.25;   // marge : la mesure réelle (192 images de 512 px) dépasse de ~15 % l'estimation brute
 const bytesPerImage=T=>T*T*(isPC(T)?3+4+1+1:12+4+1+1);
 const libraryBytes=()=>{let n=0;library.forEach(R=>{n+=R.frames.length*bytesPerImage(R.T)});return n};
 const fmtMo=n=>n>=2**30?(n/2**30).toFixed(1)+' Go':Math.round(n/2**20)+' Mo';
 /* estimation avant de lancer : { bytes, level:'ok'|'warn'|'refuse', msg } ; propose une réduction si c'est trop gros */
 function memoryPlan(T,nDirs,N,withClasses=false){
-  const S=isPC(T)?SPR.SSAA*T:SPR.RENDER_MIN,transient=S*S*4*(withClasses?8:6),own=nDirs*N*bytesPerImage(T),lib=libraryBytes(),bytes=own+lib+transient;
+  const S=isPC(T)?SPR.SSAA*T:SPR.RENDER_MIN,transient=S*S*4*(withClasses?8:6),own=nDirs*N*bytesPerImage(T),lib=libraryBytes(),bytes=Math.round((own+lib+transient)*MEM_SAFETY);
   if(bytes<=SPR.MEM_WARN)return{bytes,level:'ok',msg:''};
   const maxN=Math.max(0,Math.floor((SPR.MEM_MAX-lib-transient)/(nDirs*bytesPerImage(T)))),lessSize=[...document.querySelectorAll('#size option')].map(o=>+o.value).filter(s=>s<T&&nDirs*N*bytesPerImage(s)+lib+transient<=SPR.MEM_MAX).pop();
   const tip=`Réduis : ${maxN>=1&&maxN<N?`images / direction à ${maxN} au plus`:'le nombre de directions (4 ou 1)'}${lessSize?`, ou la taille de case à ${lessSize} px`:''}${lib?', ou vide la bibliothèque (bouton « Vider »)':''}.`;
@@ -414,10 +417,10 @@ async function generate(o={}){
     const pose=(yaw,i)=>{pivot.rotation.y=yaw*Math.PI/180;mx.setTime(times[i]);M.updateMatrixWorld(true);rr.render(scene,cam)};
     let k=0;const tick=async txt=>{$('#prog').textContent=`${txt} ${++k}/${dirs.length*N*(o.fixed?1:2)}`;if(k%4===0)await yieldUI()};
     // passe 1 : emprise de chaque direction (cadrage serré commun) ; rien n'est gardé en mémoire.
-    // Mode PC : mesure à 1/4 de résolution (bornes élargies au pixel entier supérieur) pour ne pas payer deux fois un rendu énorme.
+    // Mesure à 1/2 (1/4 en mode PC) de résolution, bornes élargies au pixel entier supérieur : on ne paie pas deux fois un rendu plein format.
     const bnd=new Map();let x0=S,y0=S,x1=0,y1=0;
     if(!o.fixed){
-      const q=pc?4:1,Sq=S/q,sc=document.createElement('canvas');sc.width=sc.height=Sq;const sx2=sc.getContext('2d',{willReadFrequently:true});
+      const q=pc?4:2,Sq=S/q,sc=document.createElement('canvas');sc.width=sc.height=Sq;const sx2=sc.getContext('2d',{willReadFrequently:true});
       if(q>1)rr.setSize(Sq,Sq,false);
       for(const[dn,yaw]of dirs){const b={x0:S,y0:S,x1:0,y1:0};
         for(let i=0;i<N;i++){pose(yaw,i);sx2.clearRect(0,0,Sq,Sq);sx2.drawImage(rr.domElement,0,0);const d=sx2.getImageData(0,0,Sq,Sq).data;
