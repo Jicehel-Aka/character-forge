@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- CSP : tout est local (three.js, décodeurs, bibliothèques d'animations) sauf l'API GitHub de la banque. 'unsafe-inline' reste nécessaire (script et styles en ligne),
+     donc la vraie protection contre l'injection est esc() ('unsafe-eval' reste admis : les tests Playwright évaluent leurs expressions par eval) ; la CSP borne surtout où un script pourrait envoyer des données (connect-src, img-src, object-src, base-uri). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' blob: data: https://api.github.com; object-src 'none'; base-uri 'self'; form-action 'none'">
 <title>character-forge — modèle 3D vers sprites</title>
 <style>
 :root{--bg:#f6f5f2;--panel:#fff;--ink:#1d1d1b;--mute:#6b6a66;--line:#d9d6cf;--acc:#2f6f4f;--acc-ink:#fff;--bad:#b3261e}
@@ -11,7 +14,7 @@
 header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
 h1{font-size:18px;margin:0}h2{font-size:15px;margin:0 0 8px}
 main{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px;padding:16px;max-width:1400px;margin:auto}
-@media (max-width:980px){main{grid-template-columns:1fr}}
+@media (max-width:980px){main{grid-template-columns:minmax(0,1fr)}}   /* minmax(0,…) : sinon la colonne s'élargit au contenu le plus large (602 px sur un écran de 390) */
 .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
 a{color:var(--acc)}button,select,input{font:inherit;color:var(--ink)}
 button{background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:6px 10px;cursor:pointer}button:hover{border-color:var(--acc)}
@@ -21,6 +24,23 @@ label{display:block;margin:6px 0 2px;color:var(--mute);font-size:13px}.row{displ
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px}.mute{color:var(--mute);font-size:13px}.bad{color:var(--bad)}
 #view{width:100%;aspect-ratio:4/3;border-radius:8px;border:1px solid var(--line);background:#8c8c8c;display:block}
 #sheet,#anim{image-rendering:pixelated;border:1px solid var(--line);border-radius:6px;max-width:100%;background:repeating-conic-gradient(#ccc 0 25%,#eee 0 50%) 0 0/16px 16px}
+/* mobile : rien ne dépasse de l'écran, cibles tactiles >= 40 px, lignes d'actions qui passent à la ligne */
+html,body{max-width:100%;overflow-x:hidden}.card,.row,#zacts{min-width:0}
+@media (max-width:600px){
+  main{padding:10px 8px;gap:10px}
+  button,select,input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):not([type=file]){min-height:40px}
+  input[type=checkbox],input[type=radio]{width:22px;height:22px}input[type=range]{min-height:32px}summary{min-height:40px;display:flex;align-items:center}
+  select,#zchar,#zacts .zsrc,#zacts .zlab{max-width:100%!important;width:100%}
+  .zr{flex-wrap:wrap!important}.zr .zsrc{flex:1 1 100%}.zr .zlab{flex:1 1 120px;width:auto!important}
+  .row>label.chip{min-height:40px;display:inline-flex;align-items:center}
+  .grid2{grid-template-columns:1fr}
+}
+/* confort : cartes repliables (clic sur le titre) et mode simple (masque les cartes avancées) */
+.card>h2[data-fold]{cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;min-height:28px}
+.card>h2[data-fold]::before{content:"▾";color:var(--mute);width:1em}.card.folded>h2[data-fold]::before{content:"▸"}
+.card.folded>:not(h2){display:none!important}.card.folded>h2{margin-bottom:0}
+body.simple #rcard,body.simple #acard,body.simple #wcard,body.simple #ccard{display:none}
+#xwhy{border-left:3px solid var(--acc);padding-left:8px}
 code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:0 4px;font-size:13px}
 </style>
 <script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.js","three/addons/":"./vendor/three/addons/"}}</script>
@@ -76,6 +96,7 @@ code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding
     <p class="mute" style="margin:0 0 6px">Sans ça, la banque reste dans ce navigateur seulement. Avec un dépôt GitHub dédié, tes personnages et vêtements sont conservés, versionnés et disponibles sur tous tes appareils. Lecture sans identifiant si le dépôt est public ; l'écriture demande un jeton limité à ce seul dépôt, gardé dans ce navigateur uniquement.</p>
     <div class="row"><label class="chip" style="margin:0"><input type="checkbox" id="con"> activer</label><input id="cown" size="14" placeholder="compte" title="compte ou organisation GitHub"> / <input id="crepo" size="20" placeholder="dépôt public" title="éléments 🌐 publics"><input id="cprepo" size="20" placeholder="dépôt privé" title="éléments 🔒 privés : doit être un dépôt PRIVÉ (vérifié), même jeton"><input id="cbr" size="8" placeholder="branche"></div>
     <div class="row"><input id="ctok" type="password" size="38" placeholder="jeton GitHub (github_pat_…) pour enregistrer" autocomplete="off"><button id="ctest">Tester</button><button id="csync" class="primary" title="envoie dans le dépôt tout ce qui n'existe qu'en local : personnages, vêtements, animations importées">Tout sauvegarder dans le dépôt</button></div>
+    <p class="mute" id="ctokwarn" style="margin:4px 0 0">⚠ Le jeton est enregistré <b>en clair</b> dans le stockage local de ce navigateur : n'utilise qu'un jeton limité à ce seul dépôt (Contents : lecture/écriture), jamais sur un ordinateur partagé, et révoque-le sur GitHub si tu as un doute.</p>
     <details class="mute"><summary>Comment créer le dépôt et le jeton (2 minutes)</summary><ol style="margin:4px 0 0 18px;padding:0"><li>github.com → New repository → nom <code>character-forge-bank</code>, <b>Public</b>, coche « Add a README ».</li><li>Settings → Developer settings → Personal access tokens → <b>Fine-grained tokens</b> → Generate : « Only select repositories » → ce dépôt ; Permissions → Repository → <b>Contents : Read and write</b>.</li><li>Colle le jeton ci-dessus, coche « activer », clique « Tester ».</li></ol></details>
     <p class="mute" id="cmsg" style="margin:6px 0 0"></p>
   </div>
@@ -136,16 +157,31 @@ import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {FBXLoader} from 'three/addons/loaders/FBXLoader.js';
 import {OBJLoader} from 'three/addons/loaders/OBJLoader.js';
+import {DRACOLoader} from 'three/addons/loaders/DRACOLoader.js';
+import {KTX2Loader} from 'three/addons/loaders/KTX2Loader.js';
+import {MeshoptDecoder} from 'three/addons/libs/meshopt_decoder.module.js';
 import {clone as cloneSk} from 'three/addons/utils/SkeletonUtils.js';
 const $=s=>document.querySelector(s);
+// Échappement HTML : TOUT nom venu d'un fichier importé (os, animations, pièces, banque, catalog.json distant) passe par esc() avant d'entrer dans un innerHTML.
+const esc=s=>String(s??'').replace(/[&<>"'`]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;'}[c]));
 const DIRS=[["s",0],["se",45],["e",90],["ne",135],["n",180],["nw",-135],["w",-90],["sw",-45]];
 let M=null,clips=[],mixer=null,action=null,playing=true,result=null;
+
+
+/* Lecteur GLB avec décodeurs 100 % locaux (docs/vendor/three/addons/libs/) : Draco (géométrie), Meshopt (géométrie et animations), KTX2/Basis (textures).
+   Sans eux, un GLB compressé (Meshy, Sketchfab, gltf-transform…) échouait. Les décodeurs sont partagés et créés à la première utilisation. */
+let _draco=null,_ktx2=null;
+function newGLTF(){const l=new GLTFLoader();
+  if(!_draco)_draco=new DRACOLoader().setDecoderPath('./vendor/three/addons/libs/draco/gltf/');
+  l.setDRACOLoader(_draco);l.setMeshoptDecoder(MeshoptDecoder);
+  try{if(!_ktx2){_ktx2=new KTX2Loader().setTranscoderPath('./vendor/three/addons/libs/basis/');_ktx2.detectSupport(renderer)}l.setKTX2Loader(_ktx2)}catch(e){console.warn('KTX2 indisponible',e)}
+  return l}
 
 /* ---------- chargement ---------- */
 async function loadFile(f){
   const ext=f.name.split('.').pop().toLowerCase(),url=URL.createObjectURL(f);let root,an=[];
   try{
-    if(ext==='glb'||ext==='gltf'){const g=await new GLTFLoader().loadAsync(url);root=g.scene;an=g.animations}
+    if(ext==='glb'||ext==='gltf'){const g=await newGLTF().loadAsync(url);root=g.scene;an=g.animations}
     else if(ext==='fbx'){root=await new FBXLoader().loadAsync(url);
       const ims=[];root.traverse(n=>{if(n.isMesh)[].concat(n.material).forEach(m=>{for(const k of['map','normalMap','emissiveMap'])if(m[k])ims.push(m[k])})});
       for(let t=0;t<300;t++){if(ims.every(tx=>tx.image&&(tx.image.width||tx.image.naturalWidth)>0))break;await new Promise(r=>setTimeout(r,100))}
@@ -183,7 +219,7 @@ function setup(root,an,name){
   if(M)pivot.remove(M);M=root;clips=an.map(c=>{c.tracks=c.tracks.filter(t=>/\.(position|quaternion)$/.test(t.name)&&!Array.from(t.values).some(x=>!isFinite(x)));return c}).filter(c=>c.tracks.length);
   const n=normalise(root);root.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(root,true);root.position.set(-(b.min.x+b.max.x)/2,-b.min.y,-(b.min.z+b.max.z)/2);pivot.add(root);
   root.userData.name=name;root.userData.rig=restState(root);wdReset();
-  mixer=new THREE.AnimationMixer(root);action=null;const sel=$('#clip');sel.innerHTML='<option value="">(pose seule)</option>'+clips.map((c,i)=>`<option value="${i}">${c.name||'clip '+i} (${c.duration.toFixed(2)} s)</option>`).join('');
+  mixer=new THREE.AnimationMixer(root);action=null;const sel=$('#clip');sel.innerHTML='<option value="">(pose seule)</option>'+clips.map((c,i)=>`<option value="${i}">${esc(c.name||'clip '+i)} (${c.duration.toFixed(2)} s)</option>`).join('');
   if(clips.length){sel.value='0';play(0)}
   let tris=0;root.traverse(o=>{if(o.isMesh){const g=o.geometry;tris+=(g.index?g.index.count:g.attributes.position.count)/3}});
   $('#info').textContent=`${name} · ${n.bones} os · ${Math.round(tris).toLocaleString('fr')} triangles · ${clips.length} animation(s)`+(n.bones?'':' · pas de squelette : pose seule (voir « À savoir »)');
@@ -460,9 +496,9 @@ const hipH=(rs,fr)=>{const h=rs.find(r=>r.key==='hips'),f=rs.filter(r=>/foot$/.t
 async function readRig(f){
   const ext=f.name.split('.').pop().toLowerCase(),url=URL.createObjectURL(f);
   try{if(ext==='fbx'){const r=await new FBXLoader().loadAsync(url);return{root:r,anims:r.animations||[]}}
-    if(ext==='glb'||ext==='gltf'){const g=await new GLTFLoader().loadAsync(url);return{root:g.scene,anims:g.animations}}
+    if(ext==='glb'||ext==='gltf'){const g=await newGLTF().loadAsync(url);return{root:g.scene,anims:g.animations}}
     throw new Error('format non géré (FBX, GLB)')}finally{URL.revokeObjectURL(url)}}
-function refreshClips(sel){const s=$('#clip');s.innerHTML='<option value="">(pose seule)</option>'+clips.map((c,i)=>`<option value="${i}">${c.name||'clip '+i} (${c.duration.toFixed(2)} s)</option>`).join('');
+function refreshClips(sel){const s=$('#clip');s.innerHTML='<option value="">(pose seule)</option>'+clips.map((c,i)=>`<option value="${i}">${esc(c.name||'clip '+i)} (${c.duration.toFixed(2)} s)</option>`).join('');
   if(sel!=null){s.value=String(sel);play(sel)}
   $('#info').textContent=$('#info').textContent.replace(/\d+ animation\(s\)/,clips.length+' animation(s)')}
 function convertClip(S,clip,o){
@@ -656,7 +692,7 @@ async function addSkeleton(f){
   meshes.forEach((m,i)=>{const sm=new THREE.SkinnedMesh(done[i],m.material);sm.name=m.name;sm.frustumCulled=false;G.add(sm);sm.updateMatrixWorld(true);sm.bind(skel,new THREE.Matrix4())});
   const prev=M.userData.name||'modèle';setup(G,[],prev+' + squelette');
   rmsg(`Squelette « ${f.name} » posé : ${bs.length} os, ${meshes.length} maillage(s), ${total.toLocaleString('fr')} sommets, échelle ×${s.toPrecision(3)}.\nHypothèse : modèle debout, de face, bras écartés en T ou en A. Vérifie en jouant une animation ; si un bras entraîne le corps, c'est que le modèle est en A et le squelette en T (ou l'inverse) : utilise un squelette de même pose.`);
-  if($('#rchkauto').checked)setTimeout(()=>{try{const r=rigAnalyse(true);rmsg($('#rmsg').textContent+'\n'+rigReport(r,true))}catch(e){console.error(e)}},50)}
+  if($('#rchkauto').checked)setTimeout(()=>{try{const r=rigAnalyse(true);rmsg($('#rmsg').textContent+'\n'+rigReport(r,true))}catch(e){console.error(e);rmsg($('#rmsg').textContent+'\n⚠ Contrôle du squelette ignoré (erreur : '+e.message+')',1)}},50)}
 $('#banim').onclick=()=>$('#fanim').click();$('#bskel').onclick=()=>$('#fskel').click();$('#bskeld').onclick=async()=>{try{if(!M)return rmsg('Ouvre d\'abord un modèle.',1);rmsg('Pose du squelette standard…');const r=await fetch(ADIR+'ual_standard.glb');if(!r.ok)throw new Error('squelette standard introuvable ('+r.status+')');await addSkeleton(new File([await r.blob()],'ual_standard.glb'))}catch(er){rmsg('Échec : '+er.message,1)}};
 $('#fanim').onchange=async e=>{const fl=[...e.target.files];e.target.value='';if(fl.length)await addAnims(fl)};
 $('#bclose').onclick=()=>{if(!M)return rmsg('Ouvre d\'abord un modèle.',1);rmsg(closeReport(closeModel(M)))};
@@ -676,11 +712,11 @@ const wfrac=(id,d)=>/dagger|wand/.test(id)?(/wand/.test(id)?.2:.18):/spear/.test
 fetch(WDIR+'catalog.json').then(r=>r.json()).then(c=>{WD.CAT=c;wdTabs();wdMineLoad()}).catch(()=>{$('#wmsg').textContent='Catalogue de la garde-robe introuvable.'});
 function wdList(tab){if(tab==='mes')return WD.mine;const t=WTABS.find(x=>x[0]===tab),c=WD.CAT;if(!c)return[];return(t[2]!=='part'?c.items.filter(i=>i.cat===tab&&!/arrow/.test(i.id)).map(i=>({...i,kind:'item'})):[]).concat(t[2]!=='item'?c.parts.filter(p=>p.slot===tab).map(p=>({...p,kind:'part',cat:p.slot})):[])}
 function wdTabs(){$('#wtabs').innerHTML=WTABS.map(t=>`<button data-tab="${t[0]}" class="${t[0]===WD.tab?'primary':''}">${t[1]}</button>`).join('');
-  $('#wgrid').innerHTML=wdList(WD.tab).map(e=>`<button class="wdi" data-id="${e.id}" data-kind="${e.kind}" title="${e.name} · ${e.source}" style="padding:2px;display:flex;flex-direction:column;align-items:center;font-size:11px;line-height:1.1">${e.idb?`<span style="width:72px;height:72px;background:#8a8a8a;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:30px">${SLOTI[e.slot]||"👕"}</span><span>${e.name}</span><span class="mute">${SLOTL[e.slot]||e.slot}</span><span data-vis="${e.idb}" title="bascule privé / public" style="cursor:pointer">${visIcon(e.vis)}</span><span data-del="${e.idb}" title="supprimer de la banque" style="cursor:pointer">✕</span>`:`<img src="${WDIR}thumbs/${e.id}.png" width="72" height="72" loading="lazy" alt="" style="background:#8a8a8a;border-radius:4px"><span>${e.name}</span>`}</button>`).join('')}
+  $('#wgrid').innerHTML=wdList(WD.tab).map(e=>`<button class="wdi" data-id="${esc(e.id)}" data-kind="${esc(e.kind)}" title="${esc(e.name)} · ${esc(e.source)}" style="padding:2px;display:flex;flex-direction:column;align-items:center;font-size:11px;line-height:1.1">${e.idb?`<span style="width:72px;height:72px;background:#8a8a8a;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:30px">${SLOTI[e.slot]||"👕"}</span><span>${esc(e.name)}</span><span class="mute">${esc(SLOTL[e.slot]||e.slot)}</span><span data-vis="${esc(e.idb)}" title="bascule privé / public" style="cursor:pointer">${visIcon(e.vis)}</span><span data-del="${esc(e.idb)}" title="supprimer de la banque" style="cursor:pointer">✕</span>`:`<img src="${WDIR}thumbs/${esc(e.id)}.png" width="72" height="72" loading="lazy" alt="" style="background:#8a8a8a;border-radius:4px"><span>${esc(e.name)}</span>`}</button>`).join('')}
 $('#wtabs').onclick=e=>{const b=e.target.closest('[data-tab]');if(b){WD.tab=b.dataset.tab;wdTabs()}};
 $('#wgrid').onclick=e=>{const dv=e.target.dataset&&e.target.dataset.vis;if(dv){STORE.setVis(dv,VIS.of(dv)==='public'?'private':'public').then(wdMineLoad,er=>wmsg('Échec : '+er.message,1));return}const d=e.target.dataset&&e.target.dataset.del;if(d){STORE.del(d).then(wdMineLoad,er=>wmsg('Suppression : '+er.message,1));return}const b=e.target.closest('.wdi');if(!b)return;const en=wdList(WD.tab).find(x=>x.id===b.dataset.id);wdAdd(en).catch(er=>wmsg('Échec : '+er.message,1))};
 function wmsg(t,bad){const e=$('#wmsg');e.textContent=t;e.classList.toggle('bad',!!bad)}
-async function wdLoad(file){let g=WD.cache.get(file);if(!g){g=await new GLTFLoader().loadAsync(WDIR+file);WD.cache.set(file,g)}return g}
+async function wdLoad(file){let g=WD.cache.get(file);if(!g){g=await newGLTF().loadAsync(WDIR+file);WD.cache.set(file,g)}return g}
 const firstSkinned=r=>{let s=null;r.traverse(o=>{if(!s&&o.isSkinnedMesh&&o.visible)s=o});return s};
 function charInfo(){const T=M.userData.rig.filter(r=>!r.dup),fr=frameOf(T),up=fr?fr.up.clone():new THREE.Vector3(0,1,0),hd=T.find(r=>r.key==='head'),ft=T.filter(r=>/foot$/.test(r.key));
   let H=0;if(hd&&ft.length)H=hd.p.clone().sub(ft.reduce((a,r)=>a.add(r.p),new THREE.Vector3()).multiplyScalar(1/ft.length)).dot(up)/.83;
@@ -698,8 +734,8 @@ function wdPlace(it){const T=M.userData.rig,tk=k=>T.find(r=>r.key===k&&!r.dup),b
   const qb=be.q.clone().invert();it.wrapper.scale.setScalar(it.base*it.p.scale/sc);it.wrapper.quaternion.copy(qb).multiply(ci.Q).multiply(it.p.rot);
   const o=it.def.off,v=ci.lat.clone().multiplyScalar(it.p.off[0]+o[0]).addScaledVector(ci.up,it.p.off[1]+o[1]).addScaledVector(ci.front,it.p.off[2]+o[2]).multiplyScalar(ci.H);
   it.wrapper.position.copy(v.applyQuaternion(qb)).divideScalar(sc)}
-function wdRows(){$('#weq').innerHTML=WD.eq.map((it,i)=>it.kind==='part'?`<div class="row" data-i="${i}"><b>${it.slotLabel}</b> ${it.name}<button data-act="del">✕</button></div>`:
-  `<div class="row" data-i="${i}" style="gap:4px"><b>${it.name}</b><select data-act="bone">${WBONES.map(b=>`<option value="${b[0]}" ${b[0]===it.p.bone?'selected':''}>${b[1]}</option>`).join('')}</select>
+function wdRows(){$('#weq').innerHTML=WD.eq.map((it,i)=>it.kind==='part'?`<div class="row" data-i="${i}"><b>${esc(it.slotLabel)}</b> ${esc(it.name)}<button data-act="del">✕</button></div>`:
+  `<div class="row" data-i="${i}" style="gap:4px"><b>${esc(it.name)}</b><select data-act="bone">${WBONES.map(b=>`<option value="${b[0]}" ${b[0]===it.p.bone?'selected':''}>${b[1]}</option>`).join('')}</select>
    <label class="mute" style="margin:0">taille <input type="range" data-act="scale" min="40" max="220" value="${Math.round(it.p.scale*100)}" style="width:80px"></label>
    <label class="mute" style="margin:0">→ <input type="range" data-act="ox" min="-30" max="30" value="${Math.round(it.p.off[0]*100)}" style="width:60px"></label><label class="mute" style="margin:0">↑ <input type="range" data-act="oy" min="-30" max="30" value="${Math.round(it.p.off[1]*100)}" style="width:60px"></label><label class="mute" style="margin:0">⇥ <input type="range" data-act="oz" min="-30" max="30" value="${Math.round(it.p.off[2]*100)}" style="width:60px"></label>
    <button data-act="rx" title="tourner de 90° autour de X">⟲X</button><button data-act="ry" title="tourner de 90° autour de Y">⟲Y</button><button data-act="rz" title="tourner de 90° autour de Z">⟲Z</button><button data-act="del">✕</button></div>`).join('');
@@ -725,10 +761,10 @@ function wdModeOf(mt){return mt.alphaTest>0?'mask':mt.transparent?'blend':'opaqu
 function wdPanel(){const box=$('#wown');if(!box)return;WO.list=[];
   M&&M.traverse(m=>{if(m.isMesh&&m.geometry&&m.geometry.attributes.position&&!m.userData.noedit)WO.list.push(m)});
   if(!WO.list.length){box.innerHTML='';return}
-  const opt=(a,v)=>a.map(x=>`<option value="${x[0]}" ${x[0]===v?'selected':''}>${x[1]}</option>`).join('');
+  const opt=(a,v)=>a.map(x=>`<option value="${esc(x[0])}" ${x[0]===v?'selected':''}>${esc(x[1])}</option>`).join('');
   box.innerHTML=`<div class="mute" style="margin:6px 0 2px"><b>Vêtements et parties du modèle</b> — décoche pour ôter, ou règle la couleur, la texture et la transparence ; « Banque » range la pièce pour la réutiliser.</div>
   <div style="max-height:300px;overflow:auto;border:1px solid #0003;border-radius:6px;padding:4px">`+WO.list.map((m,i)=>{const mt=wmats(m)[0],hex=mt.color?'#'+mt.color.getHexString():'#cccccc',tri=((m.geometry.index?m.geometry.index.count:m.geometry.attributes.position.count)/3)|0;
-    return `<div class="row" data-m="${i}" style="gap:4px;flex-wrap:wrap;border-bottom:1px solid #0002;padding:3px 0"><label style="margin:0;min-width:130px"><input type="checkbox" data-a="vis" ${m.visible?'checked':''}> <b>${m.userData.wd?'👕 ':''}${m.name||('pièce '+(i+1))}</b></label><span class="mute">${tri} tri${m.isSkinnedMesh?'':' · rigide'}</span>
+    return `<div class="row" data-m="${i}" style="gap:4px;flex-wrap:wrap;border-bottom:1px solid #0002;padding:3px 0"><label style="margin:0;min-width:130px"><input type="checkbox" data-a="vis" ${m.visible?'checked':''}> <b>${m.userData.wd?'👕 ':''}${esc(m.name||('pièce '+(i+1)))}</b></label><span class="mute">${tri} tri${m.isSkinnedMesh?'':' · rigide'}</span>
       <input type="color" data-a="col" value="${hex}" title="couleur"><label class="chip" style="margin:0" title="remplace la texture par cette couleur unie"><input type="checkbox" data-a="solid"> unie</label><button data-a="tex" title="applique une image comme texture">Texture…</button><button data-a="rtex" title="rétablit la texture et la couleur d'origine">↺</button>
       <select data-a="mode" title="transparence : opaque, découpé (bords nets, sans tri), fondu (translucide)">${opt([['opaque','opaque'],['mask','découpé'],['blend','fondu']],wdModeOf(mt))}</select><label class="mute" style="margin:0">opacité <input type="range" data-a="op" min="0" max="100" value="${Math.round((mt.opacity??1)*100)}" style="width:70px"></label>
       <label class="chip" style="margin:0"><input type="checkbox" data-a="dbl" ${mt.side===THREE.DoubleSide?'checked':''}> double face</label>
@@ -775,7 +811,7 @@ async function wdSavePiece(m,slot,pvis='private'){
   const buf=await new Promise((ok,ko)=>new GLTFExporter().parse(E,ok,ko,{binary:true,onlyVisible:false,maxTextureSize:1024}));
   await STORE.put('piece:'+slot+':'+nm,buf,pvis);await wdMineLoad();WD.tab='mes';wdTabs();wmsg(`« ${nm} » (${SLOTL[slot]||slot}, ${visIcon(pvis)} ${pvis==='public'?'public':'privé'}) rangé dans Ma banque (${(buf.byteLength/1048576).toFixed(1)} Mo). Pour l'enfiler : choisis un autre personnage, onglet « Ma banque ».${CLOUD.msg?' '+CLOUD.msg:CLOUD.cfg.on?' Copié aussi dans le dépôt GitHub.':''}`)}
 async function wdMineLoad(){try{const ks=await STORE.keys();if(CLOUD.msg)wmsg(CLOUD.msg,1);WD.mine=ks.filter(k=>String(k).startsWith('piece:')).map(k=>{const[,sl,...r]=String(k).split(':');return{id:k,idb:k,name:r.join(':'),slot:sl,cat:sl,kind:'part',source:'ma banque',vis:VIS.of(k)}})}catch(e){WD.mine=[]}wdTabs()}
-async function wdLoadIdb(k){const buf=await STORE.get(k);if(!buf)throw new Error('pièce introuvable');return new Promise((ok,ko)=>new GLTFLoader().parse(buf,'',ok,ko))}
+async function wdLoadIdb(k){const buf=await STORE.get(k);if(!buf)throw new Error('pièce introuvable');return new Promise((ok,ko)=>newGLTF().parse(buf,'',ok,ko))}
 function wdReset(){WD.eq=[];wdRows();wdPanel()}
 $('#wclear').onclick=()=>{for(const it of [...WD.eq])wdRemove(it);wmsg('Garde-robe vidée.')};
 const SLOTL={cheveux:'Cheveux',haut:'Haut',bas:'Bas',chaussures:'Chaussures',tete:'Tête / casque',gants:'Gants',armure:'Armure',arme:'Arme',bouclier:'Bouclier',sac:'Sac',accessoire:'Accessoire'},SLOTI={cheveux:'💇',haut:'👕',bas:'👖',chaussures:'👟',tete:'🎩',gants:'🧤',armure:'🛡️',arme:'⚔️',bouclier:'🛡️',sac:'🎒',accessoire:'🧣'};
@@ -809,13 +845,14 @@ wdRows();
 const ADIR='anims/',AN={cat:null,pack:null,sel:new Set(),files:new Map(),q:'',c:''};
 const amsg=(t,bad)=>{const e=$('#amsg');e.textContent=t;e.classList.toggle('bad',!!bad)};
 async function anInit(){try{AN.cat=await (await fetch(ADIR+'catalog.json')).json()}catch(e){return amsg('Catalogue indisponible : '+e.message,1)}
-  await mineLoad();anPackSelect(AN.cat.packs[0].id)}
+  await mineLoad();anPackSelect(AN.cat.packs[0].id);
+  try{drawActs()}catch(e){}}   // les listes d'animations de l'assistant ont été dessinées avant l'arrivée du catalogue : sans ce redessin, readActs() relisait « proc:ladder » pour toutes les actions
 const anPacks=()=>AN.cat.packs.concat(MYA.clips.length?[{id:'mine',label:'Mes animations (importées)',clips:MYA.clips,user:1}]:[]);
-function anPackSelect(id){const ps=anPacks();$('#apack').innerHTML=ps.map(p=>`<option value="${p.id}">${p.label} · ${p.clips.length}</option>`).join('');AN.pack=ps.find(p=>p.id===id)||ps[0];$('#apack').value=AN.pack.id;AN.c='';anDraw()}
+function anPackSelect(id){const ps=anPacks();$('#apack').innerHTML=ps.map(p=>`<option value="${esc(p.id)}">${esc(p.label)} · ${p.clips.length}</option>`).join('');AN.pack=ps.find(p=>p.id===id)||ps[0];$('#apack').value=AN.pack.id;AN.c='';anDraw()}
 function anShown(){const q=AN.q.toLowerCase();return AN.pack.clips.filter(c=>(!AN.c||c.cat===AN.c)&&(!q||c.name.toLowerCase().includes(q)))}
 function anDraw(){const P=AN.pack,cats=[...new Set(P.clips.map(c=>c.cat))];
-  $('#acats').innerHTML=['',...cats].map(c=>`<button data-c="${c}" class="${AN.c===c?'primary':''}" style="padding:2px 8px">${c||'Tout'}</button>`).join('');
-  $('#alist').innerHTML=anShown().map(c=>`<button class="aci ${AN.sel.has(P.id+'|'+c.name)?'primary':''}" data-n="${c.name}" title="${c.cat} · ${c.dur} s" style="padding:2px 8px;font-size:12px">${P.id==='mine'?visIcon(c.vis)+' ':''}${c.name.replace(/_/g,' ')} <span class="mute">${c.dur}s</span></button>`).join('')||'<span class="mute">Aucune animation.</span>';
+  $('#acats').innerHTML=['',...cats].map(c=>`<button data-c="${esc(c)}" class="${AN.c===c?'primary':''}" style="padding:2px 8px">${esc(c||'Tout')}</button>`).join('');
+  $('#alist').innerHTML=anShown().map(c=>`<button class="aci ${AN.sel.has(P.id+'|'+c.name)?'primary':''}" data-n="${esc(c.name)}" title="${esc(c.cat)} · ${esc(c.dur)} s" style="padding:2px 8px;font-size:12px">${P.id==='mine'?visIcon(c.vis)+' ':''}${esc(c.name.replace(/_/g,' '))} <span class="mute">${c.dur}s</span></button>`).join('')||'<span class="mute">Aucune animation.</span>';
   $('#aadd').textContent=`Ajouter la sélection (${AN.sel.size})`;$('#adel').hidden=P.id!=='mine';$('#avisb').hidden=P.id!=='mine'}
 async function anAdd(pack,names){
   if(!M||!M.userData.rig||!M.userData.rig.length)return amsg('Ce modèle n\'a pas de squelette : ajoute d\'abord un squelette (carte du dessus), ou ouvre un modèle animé.',1);
@@ -901,6 +938,12 @@ anInit();
 // ---- export du modèle (squelette ajouté, vêtements, animations) en GLB ----
 // La scène de travail a des échelles étranges (squelette Mixamo en cm réduit par un parent, normalisation de la vue) : on reconstruit
 // un squelette « propre » (positions et rotations monde, échelle 1) et des maillages liés à ce squelette, sinon le GLB s'ouvre vide.
+// Copie de géométrie dont tous les attributs (hors index et peau) sont des Float32 simples : un GLB quantifié (Meshopt, KHR_mesh_quantization) ou
+// entrelacé donne sinon des bufferViews dont le byteStride n'est pas multiple de 4 (invalide) à l'écriture par GLTFExporter.
+function plainGeom(src){const g=src.clone(),get=['getX','getY','getZ','getW'];
+  for(const k of Object.keys(g.attributes)){if(k==='skinIndex'||k==='skinWeight')continue;const a=g.attributes[k];
+    if(a.isInterleavedBufferAttribute||a.normalized||a.array.constructor!==Float32Array){const n=a.itemSize,arr=new Float32Array(a.count*n);for(let i=0;i<a.count;i++)for(let c=0;c<n;c++)arr[i*n+c]=a[get[c]](i);g.setAttribute(k,new THREE.BufferAttribute(arr,n))}}
+  return g}
 function bakeForExport(root,clipsIn){
   root.updateMatrixWorld(true);const sms=[],rigid=[],allB=new Set();
   root.traverse(o=>{if(o.isBone)allB.add(o);if(!o.visible&&o!==root)return;if(o.isSkinnedMesh){let v=true,a=o;while(a){if(!a.visible)v=false;a=a.parent}if(v)sms.push(o)}else if(o.isMesh){let v=true,a=o;while(a){if(!a.visible)v=false;a=a.parent}if(v)rigid.push(o)}});
@@ -914,7 +957,7 @@ function bakeForExport(root,clipsIn){
   const worldOf=n=>new THREE.Matrix4().compose(wt.get(n).p,wt.get(n).q,new THREE.Vector3(1,1,1));
   for(const m of sms){const bones=m.skeleton.bones.map(b=>mk(b));
     // sommets cuits en pose de repos, dans le repère monde : indépendant des conventions de liaison (bindMatrix, échelles) du fichier d'origine
-    m.skeleton.update();const g=m.geometry.clone(),P=m.geometry.attributes.position,N=m.geometry.attributes.normal,n=P.count,pa=new Float32Array(n*3),na=N?new Float32Array(n*3):null;
+    m.skeleton.update();const g=plainGeom(m.geometry),P=m.geometry.attributes.position,N=m.geometry.attributes.normal,n=P.count,pa=new Float32Array(n*3),na=N?new Float32Array(n*3):null;
     const v=new THREE.Vector3(),w=new THREE.Vector3(),nm3=new THREE.Matrix3().getNormalMatrix(m.matrixWorld);g.computeBoundingSphere();const eps=(g.boundingSphere?g.boundingSphere.radius:1)*1e-3;
     for(let i=0;i<n;i++){v.fromBufferAttribute(P,i);const p0=v.clone();m.applyBoneTransform(i,v);v.applyMatrix4(m.matrixWorld);pa[3*i]=v.x;pa[3*i+1]=v.y;pa[3*i+2]=v.z;
       if(na){w.fromBufferAttribute(N,i).multiplyScalar(eps).add(p0);m.applyBoneTransform(i,w);w.applyMatrix4(m.matrixWorld).sub(v).normalize();na[3*i]=w.x;na[3*i+1]=w.y;na[3*i+2]=w.z}}
@@ -922,7 +965,7 @@ function bakeForExport(root,clipsIn){
     const inv=bones.map(nb_=>new THREE.Matrix4().copy(worldOf(nb_)).invert());
     const ns=new THREE.SkinnedMesh(g,m.material);ns.name=m.name;ns.frustumCulled=false;E.add(ns);ns.bind(new THREE.Skeleton(bones,inv),new THREE.Matrix4())}
   for(const m of rigid){let a=m.parent,bone=null;while(a){if(a.isBone){bone=a;break}a=a.parent}
-    const nm=new THREE.Mesh(m.geometry,m.material);nm.name=m.name;const L=new THREE.Matrix4();
+    const nm=new THREE.Mesh(plainGeom(m.geometry),m.material);nm.name=m.name;const L=new THREE.Matrix4();
     if(bone&&nb.has(bone)){L.copy(worldOf(nb.get(bone))).invert().multiply(m.matrixWorld);nb.get(bone).add(nm)}else{L.copy(m.matrixWorld);E.add(nm)}
     L.decompose(nm.position,nm.quaternion,nm.scale)}
   const byName=new Map();allB.forEach(b=>{if(!byName.has(b.name))byName.set(b.name,b)});
@@ -930,16 +973,33 @@ function bakeForExport(root,clipsIn){
       if(!t.name.endsWith('.position'))return t;const b=byName.get(t.name.slice(0,t.name.lastIndexOf('.')));if(!b||!b.parent)return t;
       const sc=new THREE.Vector3();b.parent.matrixWorld.decompose(new THREE.Vector3(),new THREE.Quaternion(),sc);const f=sc.x||1,v=Float32Array.from(t.values,x=>x*f);
       return new THREE.VectorKeyframeTrack(t.name,Array.from(t.times),Array.from(v))});return k});
-  return{E,anims}}
+  exportClean(E,anims);return{E,anims}}
+// Nettoie ce qu'on envoie à GLTFExporter pour que le validateur glTF officiel ne trouve plus d'erreur :
+//  - poids de peau : 4 influences maximum, triées, somme exactement 1 une fois écrites en Float32 (sinon ACCESSOR_WEIGHTS_NON_NORMALIZED) ;
+//  - quaternions des os et des animations : unitaires, composantes dans [-1, 1] (sinon VALUE_NOT_IN_RANGE à 1e-7 près) ;
+//  - pistes d'animation : on retire les images clés consécutives identiques (canaux constants, ~47 % du poids d'un export animé).
+function exportClean(E,anims){
+  const fr=Math.fround,nq=(a,o)=>{let x=a[o],y=a[o+1],z=a[o+2],w=a[o+3];const l=Math.hypot(x,y,z,w);if(!(l>0)){a[o]=a[o+1]=a[o+2]=0;a[o+3]=1;return}
+    const v=[x/l,y/l,z/l,w/l].map(c=>{c=fr(c);return Math.abs(c)>1?Math.sign(c):c});a[o]=v[0];a[o+1]=v[1];a[o+2]=v[2];a[o+3]=v[3]};
+  E.traverse(o=>{
+    if(o.isBone){const q=o.quaternion,a=[q.x,q.y,q.z,q.w];nq(a,0);q.set(a[0],a[1],a[2],a[3])}
+    if(!o.isSkinnedMesh)return;const g=o.geometry;plainSkin(g);const si=g.attributes.skinIndex,sw=g.attributes.skinWeight;if(!si||!sw)return;
+    for(let i=0;i<sw.count;i++){const e=[];for(let c=0;c<4;c++){const w=sw.array[i*4+c];if(w>0)e.push([si.array[i*4+c],w])}
+      e.sort((p,q)=>q[1]-p[1]);let t=0;for(const[,w]of e)t+=w;
+      if(!(t>0)){e.length=0;e.push([0,1]);t=1}
+      const out=e.map(([j,w])=>[j,fr(w/t)]);let rest=0;for(let c=1;c<out.length;c++)rest+=out[c][1];out[0][1]=fr(1-rest);   // le plus gros poids absorbe l'arrondi
+      for(let c=0;c<4;c++){si.array[i*4+c]=out[c]?out[c][0]:0;sw.array[i*4+c]=out[c]?out[c][1]:0}}
+    si.needsUpdate=sw.needsUpdate=true});
+  for(const k of anims)for(const t of k.tracks){if(t.name.endsWith('.quaternion'))for(let i=0;i+3<t.values.length;i+=4)nq(t.values,i);t.optimize()}}
 $('#bglb').onclick=async()=>{
   if(!M)return rmsg('Ouvre d\'abord un modèle.',1);if(!(M.userData.rig&&M.userData.rig.length))return rmsg('Ce modèle n\'a pas de squelette : rien à exporter de plus que le fichier d\'origine. Ajoute un squelette d\'abord.',1);
   try{rmsg('Écriture du GLB…');const{GLTFExporter}=await import('three/addons/exporters/GLTFExporter.js');
     const t0=clips.length?+$('#clip').value:null;if(mixer)mixer.stopAllAction();M.traverse(o=>{if(o.isBone&&o.userData.rq){o.position.copy(o.userData.rp);o.quaternion.copy(o.userData.rq)}});M.updateMatrixWorld(true);
-    try{if($('#rchkauto').checked)rigAnalyse(true)}catch(e){console.error(e)}
+    let rigNote='';try{if($('#rchkauto').checked)rigAnalyse(true)}catch(e){console.error(e);rigNote='\n⚠ Contrôle du squelette ignoré (erreur : '+e.message+')'}
     const{E,anims}=bakeForExport(M,$('#bglba').checked?clips:[]);
     const buf=await new Promise((ok,ko)=>new GLTFExporter().parse(E,ok,ko,{binary:true,animations:anims,onlyVisible:false,maxTextureSize:2048}));
     const name=(M.userData.name||'modele').replace(/\.[^.]+$/,'').replace(/[^\w.-]+/g,'_')+'_squelette.glb';dl(name,buf,'model/gltf-binary');
-    rmsg(`${name} : ${(buf.byteLength/1048576).toFixed(1)} Mo, ${anims.length} animation(s). Rouvre-le dans « Ouvrir le modèle » : les animations apparaissent dans la liste.`);
+    rmsg(`${name} : ${(buf.byteLength/1048576).toFixed(1)} Mo, ${anims.length} animation(s). Rouvre-le dans « Ouvrir le modèle » : les animations apparaissent dans la liste.`+rigNote,!!rigNote);
     const i=$('#clip').value;if(i!=='')play(+i)}
   catch(e){rmsg('Échec de l\'export : '+e.message,1);console.error(e)}};
 // Bouton « Modèle animé (GLB) » de la carte Exporter : même export que #bglb
@@ -1000,11 +1060,11 @@ const WZ={type:'plat',acts:JSON.parse(JSON.stringify(PRESETS.plat.acts))};
 const zsay=(t,bad)=>{const e=$('#zmsg');e.textContent=t;e.classList.toggle('bad',!!bad)};
 function srcOptions(sel){const g=[];
   g.push('<optgroup label="Calculées (échelle, corde)"><option value="proc:ladder">Monter à l\'échelle</option><option value="proc:rope">Monter à la corde</option></optgroup>');
-  if(AN.cat)for(const p of AN.cat.packs)g.push(`<optgroup label="${p.label}">${p.clips.map(c=>`<option value="${p.id}:${c.name}">${c.name.replace(/_/g,' ')} (${c.dur}s)</option>`).join('')}</optgroup>`);
-  const mine=clips.filter(c=>!/^(UAL|KayKit|Calculé) · /.test(c.name));if(mine.length)g.push(`<optgroup label="Chargées dans cette page">${mine.map(c=>`<option value="clip:${c.name}">${c.name}</option>`).join('')}</optgroup>`);
-  return g.join('').replace(`value="${sel}"`,`value="${sel}" selected`)}
+  if(AN.cat)for(const p of AN.cat.packs)g.push(`<optgroup label="${esc(p.label)}">${p.clips.map(c=>`<option value="${esc(p.id)}:${esc(c.name)}">${esc(c.name.replace(/_/g,' '))} (${esc(c.dur)}s)</option>`).join('')}</optgroup>`);
+  const mine=clips.filter(c=>!/^(UAL|KayKit|Calculé) · /.test(c.name));if(mine.length)g.push(`<optgroup label="Chargées dans cette page">${mine.map(c=>`<option value="clip:${esc(c.name)}">${esc(c.name)}</option>`).join('')}</optgroup>`);
+  return g.join('').replace(`value="${esc(sel)}"`,()=>`value="${esc(sel)}" selected`)}
 function drawActs(){
-  $('#zacts').innerHTML=WZ.acts.map((a,i)=>`<div class="row zr" data-i="${i}" style="flex-wrap:nowrap;gap:4px"><input type="checkbox" class="zon" ${a.on?'checked':''}><input class="zlab" value="${a.label}" style="width:120px" title="nom de l'action (nom de la ligne dans la planche)"><select class="zsrc" style="max-width:190px">${srcOptions(a.src)}</select><select class="zdir">${Object.entries(DIRLAB).map(([k,v])=>`<option value="${k}" ${a.dir===k?'selected':''}>${v}</option>`).join('')}</select><input type="number" class="zn" value="${a.N}" min="1" max="24" style="width:54px" title="images"><button class="zdel" title="retirer" style="padding:2px 7px">✕</button></div>`).join('')}
+  $('#zacts').innerHTML=WZ.acts.map((a,i)=>`<div class="row zr" data-i="${i}" style="flex-wrap:nowrap;gap:4px"><input type="checkbox" class="zon" ${a.on?'checked':''}><input class="zlab" value="${esc(a.label)}" style="width:120px" title="nom de l'action (nom de la ligne dans la planche)"><select class="zsrc" style="max-width:190px">${srcOptions(a.src)}</select><select class="zdir">${Object.entries(DIRLAB).map(([k,v])=>`<option value="${k}" ${a.dir===k?'selected':''}>${v}</option>`).join('')}</select><input type="number" class="zn" value="${a.N}" min="1" max="24" style="width:54px" title="images"><button class="zdel" title="retirer" style="padding:2px 7px">✕</button></div>`).join('')}
 function readActs(){document.querySelectorAll('#zacts .zr').forEach(r=>{const a=WZ.acts[+r.dataset.i];a.on=r.querySelector('.zon').checked?1:0;a.label=r.querySelector('.zlab').value||a.id;a.src=r.querySelector('.zsrc').value;a.dir=r.querySelector('.zdir').value;a.N=+r.querySelector('.zn').value||1})}
 function setType(t){WZ.type=t;WZ.acts=JSON.parse(JSON.stringify(PRESETS[t].acts));$('#zpitch').value=PRESETS[t].pitch;drawActs()}
 $('#ztype').onchange=e=>setType(e.target.value);
@@ -1062,7 +1122,7 @@ const STORE={
 async function bankInit(){
   try{BANK.chars=(await (await fetch('bank/catalog.json')).json()).characters}catch(e){BANK.chars=[]}
   try{BANK.mine=(await STORE.keys()).filter(k=>!/^(piece:|anim:|animidx$)/.test(k))}catch(e){BANK.mine=[]}
-  $('#zchar').innerHTML=`<optgroup label="Banque (libre de droits)">${BANK.chars.map(c=>`<option value="b:${c.id}">${c.name} · ${c.source}</option>`).join('')}</optgroup>`+(BANK.mine.length?`<optgroup label="Mes personnages (🔒 privé · 🌐 public)">${BANK.mine.map(k=>`<option value="m:${k}">${visIcon(VIS.of(k))} ${k}</option>`).join('')}</optgroup>`:'')}
+  $('#zchar').innerHTML=`<optgroup label="Banque (libre de droits)">${BANK.chars.map(c=>`<option value="b:${esc(c.id)}">${esc(c.name)} · ${esc(c.source)}</option>`).join('')}</optgroup>`+(BANK.mine.length?`<optgroup label="Mes personnages (🔒 privé · 🌐 public)">${BANK.mine.map(k=>`<option value="m:${esc(k)}">${visIcon(VIS.of(k))} ${esc(k)}</option>`).join('')}</optgroup>`:'')}
 $('#zload').onclick=async()=>{const v=$('#zchar').value;if(!v)return;zsay('Chargement…');
   try{let f;if(v[0]==='b'){const c=BANK.chars.find(x=>x.id===v.slice(2)),r=await fetch('bank/'+c.file);if(!r.ok)throw new Error('HTTP '+r.status);f=new File([await r.blob()],c.file)}
     else{const buf=await STORE.get(v.slice(2));if(!buf)throw new Error('introuvable');f=new File([buf],v.slice(2)+'.glb')}
@@ -1088,7 +1148,7 @@ $('#zgo').onclick=async()=>{if(wizBusy)return;if(!M)return zsay('Charge d\'abord
   wizBusy=true;$('#zgo').disabled=true;const errs=[];GENWARN.length=0;
   try{
     if(!(M.userData.rig&&M.userData.rig.length)){zsay('Pose automatique du squelette…');const r=await fetch(ADIR+'ual_standard.glb');await addSkeleton(new File([await r.blob()],'ual_standard.glb'));if(!(M.userData.rig&&M.userData.rig.length))throw new Error($('#rmsg').textContent)}
-    let rr=null;try{rr=rigAnalyse(true)}catch(e){console.error(e)}
+    let rr=null;try{rr=rigAnalyse(true)}catch(e){console.error(e);errs.push('Contrôle du squelette ignoré : '+e.message)}
     if($('#zclear').checked)library.clear();$('#ainpl').checked=true;$('#rinplace').checked=true;
     const pitch=+$('#zpitch').value,ref=restBox();let k=0;
     for(const a of todo){k++;zsay(`(${k}/${todo.length}) ${a.label}…`);
@@ -1490,6 +1550,11 @@ function softBake(root,clip,fps=30){
   mx.stopAllAction();mx.uncacheRoot(root);return ch.length}
 function softBakeAll(root,list){let n=0;for(const c of list)n+=softBake(root,c);return n}
 function physRun(list){if(!M||!list||!list.length)return 0;const n=softBakeAll(M,list);try{mixer.stopAllAction();mixer.uncacheRoot(M)}catch(e){}const v=$('#clip').value;if(v!==''&&clips[+v])play(+v);return n}
+// Rend skinIndex/skinWeight « simples » (BufferAttribute non entrelacé, non normalisé) : Float32 pour les poids, Uint16 pour les index.
+// Les GLB entrelacés (KayKit : InterleavedBufferAttribute) n'ont pas getComponent/setComponent en r160, d'où le TypeError d'origine dans rigAnalyse.
+function plainSkin(g){const get=['getX','getY','getZ','getW'];
+  for(const[k,T]of[['skinIndex',Uint16Array],['skinWeight',Float32Array]]){const a=g.attributes[k];if(!a)continue;
+    if(a.isInterleavedBufferAttribute||a.normalized||a.array.constructor!==T){const n=a.count,arr=new T(n*4);for(let i=0;i<n;i++)for(let c=0;c<4;c++)arr[i*4+c]=a[get[c]](i);g.setAttribute(k,new THREE.BufferAttribute(arr,4))}}}
 function rigAnalyse(fix){
   const T=M&&M.userData.rig;if(!T||!T.length)return null;const fr=frameOf(T);if(!fr)return null;
   const up=fr.up.clone(),Rt=new THREE.Vector3(1,0,0).applyQuaternion(fr.q).normalize(),F=new THREE.Vector3(0,0,-1).applyQuaternion(fr.q).normalize();
@@ -1529,7 +1594,7 @@ function rigAnalyse(fix){
   if(hipsT){const l=find('Lthigh'),r=find('Rthigh');if(l&&r){const mid=l.p.clone().add(r.p).multiplyScalar(.5);if(Math.abs(mid.clone().sub(hp).dot(Rt))>.03*Hm)rep.warn.push('bassin décalé par rapport aux hanches')}}
   // ---- 2 à 4, maillage par maillage
   const Minv=new THREE.Matrix4().copy(M.matrixWorld).invert(),sideOf=new Map();for(const t of T)if(/^[LR]/.test(t.key)&&/(thigh|calf|foot|toe|arm|forearm|hand|shoulder|thumb|index|middle|ring|pinky)/.test(t.key))sideOf.set(t.b,t.key[0]==='R'?1:-1);
-  const store=sms.map(m=>{const g=m.geometry;for(const k of['skinWeight']){const a=g.attributes[k];if(a.isInterleavedBufferAttribute||a.normalized||!(a.array instanceof Float32Array)){const arr=new Float32Array(a.count*4);for(let i=0;i<a.count;i++)for(let c=0;c<4;c++)arr[i*4+c]=a.normalized&&a.array instanceof Uint16Array?a.array[i*4+c]/65535:a.normalized&&a.array instanceof Uint8Array?a.array[i*4+c]/255:a.getComponent(i,c);g.setAttribute(k,new THREE.BufferAttribute(arr,4))}}return m});
+  const store=sms.map(m=>{plainSkin(m.geometry);return m});   // attributs de peau entrelacés/quantifiés → tableaux simples (sinon « a.getComponent is not a function »)
   for(const m of store){
     toRest();const g=m.geometry,pos=g.attributes.position,n=pos.count,si=g.attributes.skinIndex,sw=g.attributes.skinWeight,bones=m.skeleton.bones,tmp=new THREE.Vector3(),rest=new Float32Array(n*3),restM=new Float32Array(n*3),mm=new THREE.Matrix4().multiplyMatrices(Minv,m.matrixWorld);
     for(let i=0;i<n;i++){tmp.fromBufferAttribute(pos,i);m.applyBoneTransform(i,tmp);rest[3*i]=tmp.x;rest[3*i+1]=tmp.y;rest[3*i+2]=tmp.z;tmp.applyMatrix4(mm);restM.set([tmp.x,tmp.y,tmp.z],3*i)}
@@ -1617,7 +1682,33 @@ $('#ctest').onclick=async()=>{cloudRead();CLOUD.cfg.on=true;$('#con').checked=tr
     if(!CLOUD.cfg.prepo)out.push('Aucun dépôt privé configuré : les éléments 🔒 restent dans ce navigateur.');
     cmsg(out.join(' | '),bad);await wdMineLoad();await bankInit()}catch(e){cmsg('Échec : '+e.message,1)}};
 $('#csync').onclick=async()=>{cloudRead();try{await cloudBackup();await wdMineLoad();await bankInit()}catch(e){cmsg('Échec : '+e.message,1)}};
+
+/* ---------- confort : cartes repliables, mode simple, pourquoi un bouton d'export est grisé ---------- */
+(()=>{
+  const ls={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+  // 1. cartes repliables (clic ou Entrée/Espace sur le titre) ; l'état est mémorisé par navigateur
+  document.querySelectorAll('.card').forEach(c=>{const h=c.querySelector(':scope>h2');if(!h)return;const key='cf-fold:'+(c.id||h.textContent.trim().slice(0,24));
+    h.dataset.fold='1';h.tabIndex=0;h.setAttribute('role','button');h.title='clique pour replier / déplier';
+    const set=f=>{c.classList.toggle('folded',f);h.setAttribute('aria-expanded',String(!f));ls.set(key,f?'1':'0')};
+    h.setAttribute('aria-expanded','true');if(ls.get(key)==='1')set(true);
+    h.onclick=()=>set(!c.classList.contains('folded'));h.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();h.onclick()}}});
+  // 2. mode simple : l'assistant, le résultat et l'export suffisent pour un premier sprite ; les cartes avancées (autres fichiers, bibliothèque, garde-robe, GitHub) se masquent
+  const hr=document.querySelector('header .row'),lab=document.createElement('label'),cb=document.createElement('input');
+  lab.className='chip';lab.style.margin='0';lab.title='masque les cartes avancées (squelette d\'autres fichiers, bibliothèque, garde-robe, stockage GitHub) : il reste l\'assistant, le rendu et l\'export';
+  cb.type='checkbox';cb.id='simple';lab.append(cb,' Mode simple');if(hr)hr.append(lab);
+  const apply=()=>{document.body.classList.toggle('simple',cb.checked);ls.set('cf-simple',cb.checked?'1':'0')};
+  cb.checked=ls.get('cf-simple')==='1';cb.onchange=apply;apply();
+  // 3. boutons d'export grisés : explication visible sous le panneau + infobulle sur chaque bouton, tenues à jour par un observateur (indépendant de refreshExport)
+  const xc=document.querySelector('#xcard'),why=document.createElement('p');why.id='xwhy';why.className='mute';why.style.margin='6px 0 0';why.hidden=true;
+  why.textContent='Boutons grisés : il n\'y a encore rien à exporter. 1) ouvre un modèle (ou « Essayer avec un exemple »), 2) clique « Générer toutes les animations » (ou « Générer les actions cochées » dans l\'assistant). Les boutons se dégrisent dès qu\'une animation est prête.';
+  if(xc){xc.insertBefore(why,xc.querySelector('#xmsg')||null);
+    const sync=()=>{let any=false;xc.querySelectorAll('button').forEach(b=>{if(b.id==='xall')return;if(b.disabled){any=true;if(b.dataset.t0===undefined)b.dataset.t0=b.title||'';b.title='Grisé : bibliothèque vide. Génère d\'abord une animation (bouton « Générer toutes les animations »).'}
+        else if(b.dataset.t0!==undefined){b.title=b.dataset.t0;delete b.dataset.t0}});why.hidden=!any};
+    new MutationObserver(sync).observe(xc,{attributes:true,attributeFilter:['disabled'],subtree:true});sync()}
+  const wc=document.querySelector('#wclear');if(wc)new MutationObserver(()=>{wc.title=wc.disabled?'Rien à retirer : aucune pièce de la garde-robe n\'est équipée.':''}).observe(wc,{attributes:true,attributeFilter:['disabled']});
+})();
 window._test={softCands,softComps,softBuild,softUndo,softBake,softBakeAll,softColliders,softScan,physRun,SOFT_PRE,wdSaveAttach,wdEquipAttach,armSoon,armFix,armFixSetup,armFixClip,THREE,skinSparse,skinPosed,torsoModel,torsoRho,skinFix,skinMeshes,skinData,skinRules,skinStretch,skinPoses,cloudBackup,mineLoad,sheetCanvasAll,atlasJSON,zipImport,zipReport,MYA,anPackSelect,STORE,CLOUD,wdPanel,wdSavePiece,get WO(){return WO},wdMineLoad,closeGeometry,closeModel,closeReport,rigAnalyse,rigReport,setClipTime:(i,t)=>{$("#clip").value=String(i);play(i);playing=false;mixer.setTime(t)},exportGLB:()=>$('#bglb').onclick(),anAdd,AN,wdAdd,get WD(){return WD},generate,get result(){return result},setup,loadFile,addAnims,addSkeleton,get clips(){return clips},get M(){return M},get library(){return library}};
+Object.defineProperties(window._test,{wdRows:{value:wdRows},wdTabs:{value:wdTabs},anDraw:{value:anDraw},drawActs:{value:drawActs},esc:{value:esc},bankInit:{value:bankInit},WZ:{get:()=>WZ},MYA:{get:()=>MYA}});   // accès paresseux (WZ, MYA sont déclarés plus bas)
 </script>
 </body>
 </html>

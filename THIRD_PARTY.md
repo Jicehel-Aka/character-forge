@@ -42,6 +42,7 @@ Animations **CC0 1.0** (aucune attribution requise ; crédit volontaire). Les GL
 |---|---|---|---|---|
 | Universal Animation Library (version gratuite « Standard ») | Quaternius | CC0 1.0 | 45 animations (déplacements, combat, magie, assis, nage…) | https://quaternius.com/packs/universalanimationlibrary.html (copie : github.com/j-ponzo/gltf-universal-animation-library) |
 | KayKit Character Pack : Adventurers 1.0 | Kay Lousberg | CC0 1.0 | 69 animations (mêlée 1/2 mains, tir, esquives, sauts, sorts…) du squelette `Knight.glb` | https://kaylousberg.itch.io/kaykit-character-pack-adventures |
+| KayKit Character Pack : Adventurers 1.0 (personnages) | Kay Lousberg | CC0 1.0 | banque de personnages `docs/bank/` (Knight, Barbarian, Mage, Rogue, Rogue Hooded, animations retirées) | github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0 |
 
 ## three.js GLTFExporter / TextureUtils (docs/vendor/three/addons/)
 Copiés de three.js r160 (MIT), même version que le reste de `docs/vendor/three`, pour le bouton « Télécharger le modèle avec squelette (GLB) ».
@@ -70,3 +71,14 @@ Ajoutées par le propriétaire (commit 7546d6b / 20d2499, « Add files via uploa
 
 ## Mannequin d'exemple (docs/exemple/mannequin.glb)
 Mannequin procédural nommé `Mannequin_CC0`, exporté par three.js (GLTFExporter r187), avec squelette et clips Idle / Walk. Indiqué comme **modèle original CC0** par le propriétaire dans le README ; aucune source tierce n'a été trouvée dans le dépôt.
+
+## Décodeurs GLB locaux de `modele.html` (docs/vendor/three/addons/, novembre 2026)
+Lecture des GLB compressés (Draco, Meshopt, KTX2/Basis), 100 % hors ligne : fichiers copiés tels quels du paquet npm `three@0.160.0` (`examples/jsm/`), la même version que le reste de `docs/vendor/three`.
+| Fichiers | Origine | Licence |
+|---|---|---|
+| `loaders/DRACOLoader.js`, `loaders/KTX2Loader.js`, `utils/WorkerPool.js` | three.js r160 | MIT |
+| `libs/draco/gltf/draco_decoder.js`, `draco_decoder.wasm`, `draco_wasm_wrapper.js` | Google Draco (build « glTF ») | Apache 2.0 |
+| `libs/meshopt_decoder.module.js` | meshoptimizer (Arseny Kapoulkine) 0.18 | MIT |
+| `libs/basis/basis_transcoder.js`, `basis_transcoder.wasm` | Binomial Basis Universal | Apache 2.0 |
+| `libs/ktx-parse.module.js` | donmccurdy/KTX-Parse | MIT |
+| `libs/zstddec.module.js` | donmccurdy/zstddec (décodeur Zstandard, Facebook) | MIT / BSD |

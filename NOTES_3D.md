@@ -382,3 +382,22 @@ Chaque personnage, pièce et animation est 🔒 privé (défaut) ou 🌐 public.
 - Correction des bras (`armFix`) : prend en compte les objets tenus (échantillons des maillages rigides sous la main/avant-bras) ; `clip.__orig` garde les pistes d'origine ; `armSoon()` relance après chaque changement de visibilité/équipement.
 - Limites : collision tête/objet tenu non gérée, pas de physique des cheveux/capes, torse = chaîne d'ellipses approximative.
 - Test : `tests/ui_modele_props.py`.
+
+## Export GLB de `modele.html` : validité, allègement, décodeurs (2026-11-14)
+
+**Validité.** L'export animé (`#bglb` / `#xglb`) passe par `bakeForExport()` puis `exportClean()` : poids de peau (4 influences max, somme exacte en Float32), quaternions unitaires (composantes dans [-1, 1]) et images clés constantes retirées. Mesuré avec `gltf-validator` 2.0.0-dev.3.10 : 0 erreur sur le mannequin, sur l'auto-rig + 45 animations (avant : 126 `ACCESSOR_WEIGHTS_NON_NORMALIZED`) et sur le Knight + 69 animations (avant : 4 `VALUE_NOT_IN_RANGE`). Test : `tests/ui_io_glb.py`.
+
+**Allègement (hors page, recommandé avant de livrer un jeu).** L'export de la page reste volontairement non compressé (compatible partout : Godot, Unity, Blender, three.js sans décodeur). Un GLB animé fait vite plusieurs Mo, surtout à cause des animations (un tableau de temps par canal). Avec [glTF-Transform](https://gltf-transform.dev) (MIT), mesuré sur les exports de la page :
+
+| Fichier | Export de la page | `gltf-transform optimize --compress meshopt --texture-compress false` | `--compress draco` | `resample` seul |
+|---|---|---|---|---|
+| auto-rig + 45 animations | 3,29 Mo | 0,85 Mo (-74 %) | 1,29 Mo | 1,65 Mo |
+| Knight + 69 animations | 3,61 Mo | 1,08 Mo (-70 %) | — | — |
+
+```
+npm i -g @gltf-transform/cli
+gltf-transform optimize modele_squelette.glb modele_leger.glb --compress meshopt --texture-compress false
+```
+Attention : Meshopt (`EXT_meshopt_compression`) et Draco ne sont pas lus par tous les moteurs (Godot 4.5 : Meshopt seulement à l'import, Unity : paquets tiers) ; pour une compatibilité maximale, utiliser `gltf-transform resample` + `dedup` + `prune`, sans compression. Une option « Meshopt » dans la page demanderait d'embarquer l'encodeur WASM de meshoptimizer ou glTF-Transform (≈ 1,8 Mo, ESM) : non faite, la page n'a pas d'étape de build.
+
+**Lecture des GLB compressés.** `newGLTF()` branche `DRACOLoader`, `MeshoptDecoder` et `KTX2Loader` (fichiers locaux de three r160 dans `docs/vendor/three/addons/`, licences dans `THIRD_PARTY.md`). Testé avec des GLB produits par `gltf-transform optimize --compress draco` et `meshopt` (`tests/ui_io_decoders.py`). KTX2 : branché mais non éprouvé sur un vrai fichier (pas d'encodeur `toktx` ici) ; une texture KTX2 est une texture GPU compressée que GLTFExporter ne peut pas réécrire (l'export du modèle échouerait sur ses textures).
